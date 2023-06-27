@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.remirror-editor {
+  overflow: auto !important;
+}
+
+.remirror-floating-popover {
+  z-index: 1;
+}

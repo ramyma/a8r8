@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="csrf-token" content={get_csrf_token()} />
+    <.live_title suffix=" | A8R8 | Alternate Reality">
+      <%= assigns[:page_title] || "" %>
+    </.live_title>
+    <!--<link phx-track-static rel="stylesheet" href={~p"/assets/app.css"} />-->
+    <link phx-track-static rel="icon" type="image/png" sizes="32x32" href={~p"/favicon.png"} />
+    <!-- <script defer phx-track-static type="text/javascript" src={~p"/assets/app.js"}>
+    </script>-->
+    <%= if dev_env?() do %>
+      <script type="module">
+        import RefreshRuntime from "http://localhost:5173/@react-refresh";
+        RefreshRuntime.injectIntoGlobalHook(window);
+        window.$RefreshReg$ = () => {};
+        window.$RefreshSig$ = () => (type) => type;
+        window.__vite_plugin_react_preamble_installed__ = true;
+      </script>
+      <script type="module" src="http://localhost:5173/@vite/client">
+      </script>
+
+      <script type="module" src="http://localhost:5173/js/src/main.tsx">
+      </script>
+    <% else %>
+      <link phx-track-static rel="stylesheet" href={~p"/assets/main.css"} />
+      <script defer phx-track-static type="text/javascript" src={~p"/assets/main.js"}>
+      </script>
+    <% end %>
+  </head>
+  <body class="bg-gray-900 antialiased text-white">
+    <%= @inner_content %>
+  </body>
+</html>
