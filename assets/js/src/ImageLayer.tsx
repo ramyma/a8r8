@@ -72,18 +72,13 @@ const ImageLayer = () => {
           img,
           x: position?.x ?? 0,
           y: position?.y ?? 0,
-          // scale: scale,
           ...(useScaledDimensions &&
             dimensions && {
-              width: dimensions.width, //roundToClosestMultipleOf8Down(dimensions.width * scale), //selectionBoxRef.current.width(),
-              height: dimensions.height, //roundToClosestMultipleOf8Down(dimensions.height * scale), //selectionBoxRef.current.height(),
+              width: dimensions.width,
+              height: dimensions.height,
             }),
         };
-        // console.log({
-        //   width: roundToClosestMultipleOf8Down(dimensions.width * scale),
-        //   height: roundToClosestMultipleOf8Down(dimensions.height * scale),
-        //   scale,
-        // });
+
         const date = new Date();
         console.log("ADDDD", date, date.getMilliseconds());
         setHistoryStateItem(newImage, "Add Image");
@@ -121,8 +116,6 @@ const ImageLayer = () => {
       };
     }
   }, [channel, handleAddImage, dispatch]);
-
-  // window.imageLayer = imageLayerRef?.current;
 
   return (
     <Layer imageSmoothingEnabled={false} ref={imageLayerRef} id="imageLayer">
