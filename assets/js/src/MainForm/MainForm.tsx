@@ -371,16 +371,10 @@ const MainForm = () => {
       )}
       <div className="flex flex-col gap-2">
         <Label htmlFor="prompt">Prompt</Label>
-        {/* <textarea
-            id="prompt"
-            className="rounded min-h-[200px] p-1"
-            placeholder="Prompt"
-            {...register("prompt")}
-          /> */}
+
         <Controller
           name="prompt"
           control={control}
-          // rules={{ required: true }}
           render={({ field }) => (
             <Editor autofocus placeholder="Prompt" {...field} />
           )}
@@ -389,33 +383,20 @@ const MainForm = () => {
       </div>
       <div className="flex flex-col gap-2">
         <Label htmlFor="negativePrompt">Negative Prompt</Label>
-        {/* <textarea
-            id="negativePrompt"
-            className="rounded min-h-[200px] p-1"
-            placeholder="Negative Prompt"
-            {...register("negative_prompt")}
-          /> */}
+
         <Controller
           name="negative_prompt"
           control={control}
-          // rules={{ required: true }}
           render={({ field }) => (
             <Editor placeholder="Negative Prompt" {...field} />
           )}
           defaultValue=""
         />
       </div>
-      {/* <select className="rounded p-2" {...register("sampler_name")}>
-          {samplers?.map((sampler) => (
-            <option key={sampler} value={sampler}>
-              {sampler}
-            </option>
-          ))}
-        </select> */}
+
       <Controller
         name="txt2img"
         control={control}
-        // rules={{ required: true }}
         defaultValue={false}
         render={({ field }) => <Txt2ImageButtonGroup {...field} />}
       />
@@ -424,30 +405,9 @@ const MainForm = () => {
         <Controller
           name="sampler"
           control={control}
-          // rules={{ required: true }}
           render={({ field }) => <Select items={samplers} {...field} />}
         />
       </div>
-
-      {/* <div className="flex flex-col">
-        <Controller
-          name="txt2img"
-          control={control}
-          // rules={{ required: true }}
-          render={({ field }) => <Checkbox {...field}>Txt2Img</Checkbox>}
-        />
-      </div> */}
-      {/* {!txt2img && (
-          <select
-            className="rounded p-2"
-            {...register("inpainting_fill", { value: 3 })}
-          >
-            <option value="0">Fill</option>
-            <option value="1">Original</option>
-            <option value="2">Latent Noise</option>
-            <option value="3">Latent Nothing</option>
-          </select>
-        )} */}
 
       {!txt2img && (
         <div className="flex flex-col gap-2">
@@ -543,13 +503,12 @@ const MainForm = () => {
           <Slider step={0.1} min={1} max={30} label="CFG Scale" {...field} />
         )}
       />
-      {/* TODO: Show only with ip2p */}
+      {/* TODO: Show image_cfg_scale only with ip2p */}
       {/* {true && (
         <Controller
           name="image_cfg_scale"
           control={control}
           defaultValue={1.5}
-          // rules={{ required: true }}
           render={({ field }) => (
             <Slider
               step={0.01}
@@ -561,23 +520,7 @@ const MainForm = () => {
           )}
         />
       )} */}
-      {/* <div className="flex flex-col gap-2">
-          <Label htmlFor="cfgScale">CFG scale</Label>
 
-          <input
-            id="cfgScale"
-            className="rounded flex-1 p-2 w-fit"
-            type="number"
-            step={0.1}
-            min={1}
-            max={30}
-            defaultValue={7}
-            {...register("cfg_scale", {
-              required: true,
-              setValueAs: (value) => +value,
-            })} 
-          />
-        </div> */}
       <Controller
         name="width"
         control={control}
@@ -594,40 +537,10 @@ const MainForm = () => {
           },
         }}
       />
-      {/* <div className="flex flex-col gap-2">
-          <Label className="rounded" htmlFor="width">
-            Width
-          </Label>
 
-          <input
-            id="width"
-            type="number"
-            className="rounded flex-1 p-2 w-fit"
-            defaultValue={DEFAULT_WIDTH_VALUE}
-            {...register("width", {
-              required: true,
-              setValueAs: (value) => +value,
-              onChange(event) {
-                const value = +event.target.value;
-                let newValue = value;
-                console.log(value, widthRef.current);
-                if (value > widthRef.current)
-                  newValue = roundToClosestMultipleOf8Up(value);
-                else newValue = roundToClosestMultipleOf8Down(value);
-                widthRef.current = newValue;
-                console.log(newValue);
-                // setValue("width", newValue);
-                setValue("width", newValue);
-                dispatch(updateSelectionBox({ width: newValue }));
-                // selectionBoxRef?.current.width(newValue);
-              },
-            })}
-          />
-        </div> */}
       <Controller
         name="height"
         control={control}
-        // rules={{ required: true }}
         render={({ field }) => (
           <Slider min={0} max={3072} step={8} label="Height" {...field} />
         )}
@@ -759,7 +672,7 @@ const MainForm = () => {
         <Controller
           name="isTiledDiffusionEnabled"
           control={control}
-          // rules={{ required: true }}
+          defaultValue={false}
           render={({ field }) => (
             <Checkbox id="isTiledDiffusionEnabled" {...field}>
               Tiled Diffusion
@@ -771,7 +684,7 @@ const MainForm = () => {
         <Controller
           name="isSelfAttentionGuidanceEnabled"
           control={control}
-          // rules={{ required: true }}
+          defaultValue={false}
           render={({ field }) => (
             <Checkbox id="isSelfAttentionGuidanceEnabled" {...field}>
               Self Attention Guidance
@@ -779,39 +692,7 @@ const MainForm = () => {
           )}
         />
       )}
-      {/* <div className="flex flex-col gap-2">
-          <Label htmlFor="scale">Scale</Label>
-          <input
-            id="scale"
-            className="rounded flex-1 p-2 w-full"
-            type="number"
-            defaultValue={1}
-            step={0.1}
-            {...register("scale", {
-              required: true,
-              setValueAs: (value) => +value,
-            })}
-          />
-          {scale !== 1 && (
-            <span>
-              {roundToClosestMultipleOf8Down(+width * scale)}x
-              {roundToClosestMultipleOf8Down(+height * scale)}
-            </span>
-          )}
-        </div> */}
-      {/* <div className="flex flex-col gap-2">
-          <Label htmlFor="steps">Steps</Label>
-          <input
-            id="steps"
-            className="rounded flex-1 p-2 w-full"
-            type="number"
-            defaultValue={20}
-            {...register("steps", {
-              required: true,
-              setValueAs: (value) => +value,
-            })}
-          />
-        </div> */}
+
       <div className="flex flex-col gap-2">
         <Label htmlFor="Seed">Seed</Label>
         <div className="flex">
@@ -831,7 +712,6 @@ const MainForm = () => {
             )}
           />
 
-          {/* <input type="checkbox" {...register("isSeedPinned")} /> */}
           <Controller
             name="isSeedPinned"
             control={control}
