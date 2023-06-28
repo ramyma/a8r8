@@ -1,4 +1,3 @@
-import { Embeddings } from "../App.d";
 import useData, { FetchPolicy } from "./useData";
 
 type Props = {
@@ -6,7 +5,7 @@ type Props = {
 };
 
 const useEmbeddings = ({ fetchPolicy }: Props = {}) => {
-  const { fetchData, data: embeddings } = useData<Embeddings>({
+  const { fetchData, data: embeddings } = useData<string[]>({
     name: "embeddings",
     fetchPolicy,
   });

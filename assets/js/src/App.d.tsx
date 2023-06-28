@@ -16,15 +16,6 @@ export type Lora = {
   };
 };
 
-export type Embeddings = {
-  loaded: [
-    {
-      sd_checkpoint: any;
-      sd_checkpoint_name: any;
-    }
-  ];
-};
-
 export type Sampler = string;
 
 export type Options = {

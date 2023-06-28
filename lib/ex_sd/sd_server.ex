@@ -305,7 +305,7 @@ defmodule ExSd.SdSever do
 
   defp initialize_state(state) do
     state
-    |> Map.merge(%{task: nil, progress: 0, eta_relative: 0, generating_session_name: nil})
+    |> put_progress()
     |> put_samplers()
     |> put_models()
     |> put_upscalers()
@@ -417,7 +417,8 @@ defmodule ExSd.SdSever do
   defp put_embeddings(%{client: client} = state) do
     case SdService.get_embeddings(client) do
       {:ok, embeddings} ->
-        state |> Map.put(:embeddings, embeddings)
+        state
+        |> Map.put(:embeddings, embeddings)
 
       {:error, _} ->
         state
@@ -539,7 +540,7 @@ defmodule ExSd.SdSever do
   end
 
   def put_progress(state) do
-    state
+    state |> Map.merge(%{task: nil, progress: 0, eta_relative: 0, generating_session_name: nil})
   end
 
   def generate(%GenerationParams{} = generation_params, attrs, session_name) do

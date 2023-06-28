@@ -106,11 +106,6 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
 
   const { embeddings } = useEmbeddings();
 
-  const embeddingsByName = useCallback(
-    () => Object.keys(embeddings?.loaded) ?? [],
-    [embeddings]
-  );
-
   const menu = useMenuNavigation<string>({
     items,
     isOpen,
@@ -194,7 +189,7 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
   const onEmbeddingChange = useCallback(
     (props) => {
       const { change, exit, query, apply, range } = props;
-      const embeddings = embeddingsByName();
+
       if (change) {
         const idxs = uf.filter(embeddings, query);
         // const info = uf.info(idxs, loras, query);
@@ -222,7 +217,7 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
         setState(null);
       }
     },
-    [embeddingsByName, setIndex]
+    [embeddings, setIndex]
   );
 
   useExtensionEvent(CustomExtension, "suggestCommand", onChange);

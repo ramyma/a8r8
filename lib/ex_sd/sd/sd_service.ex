@@ -324,7 +324,18 @@ defmodule ExSd.Sd.SdService do
   defdelegate get_loras(client), to: AutoClient
 
   @spec get_embeddings(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  defdelegate get_embeddings(client), to: AutoClient
+  def get_embeddings(client) do
+    case AutoClient.get_embeddings(client) do
+      {:ok, embeddings} ->
+        {:ok,
+         embeddings["loaded"]
+         |> Enum.map(fn {k, _v} -> k end)
+         |> Enum.sort_by(&String.downcase/1, &<=/2)}
+
+      result ->
+        result
+    end
+  end
 
   @spec get_options(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
   defdelegate get_options(client), to: AutoClient
