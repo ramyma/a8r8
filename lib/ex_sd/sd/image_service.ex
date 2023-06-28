@@ -29,8 +29,6 @@ defmodule ExSd.Sd.ImageService do
          %URL.Data{data: data} <- URL.Data.parse(uri),
          {:ok, image} <- Image.from_binary(data),
          average <- Image.average(image) do
-      # IO.inspect(Image.type(image), label: "input")
-      # IO.inspect(Image.bands(image), label: "input")
       image =
         if(invert_mask,
           do:

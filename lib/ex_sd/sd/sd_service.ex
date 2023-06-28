@@ -126,14 +126,6 @@ defmodule ExSd.Sd.SdService do
                 height: height
               )
 
-            # |> tap(&IO.inspect(Image.type(&1)))
-            # |> tap(&IO.inspect(Image.bands(&1)))
-            # |> tap(&IO.inspect(Image.get_pixel(&1, 100, 100)))
-
-            # |> Image.Math.divide(mask_conv)
-
-            # {:ok, change} = Image.if_then_else(mask_conv, change, mask_conv)
-
             {:ok, change} =
               change
               |> Image.compose(mask_image, blend_mode: :dest_in)

@@ -12,90 +12,6 @@ defmodule ExSd.AutoClient do
     Logger.info("BASEURL:  " <> @base_url)
     Logger.info("Generating txt2img")
 
-    generation_params = generation_params
-    # |> Map.merge(%{
-    #   alwayson_scripts: %ExSd.Sd.AlwaysOnScript{
-    #     generation_params.alwayson_scripts
-    #     | # "Tiled Diffusion": %{
-    #   args: [
-    #     #  enabled: bool,
-    #     true,
-    #     #  method: str,
-    #     'MultiDiffusion',
-    #     # noise_inverse: bool,
-    #     false,
-    #     # noise_inverse_steps: int,
-    #     10,
-    #     #  noise_inverse_retouch: float,
-    #     1,
-    #     # noise_inverse_renoise_strength: float,
-    #     0.4,
-    #     # noise_inverse_renoise_kernel: int,
-    #     64,
-    #     # overwrite_image_size: bool,
-    #     false,
-    #     #  keep_input_size: bool,
-    #     true,
-    #     # image_width: int,
-    #     512,
-    #     #  image_height: int,
-    #     512,
-    #     # tile_width: int,
-    #     96,
-    #     #  tile_height: int,
-    #     96,
-    #     #  overlap: int,
-    #     48,
-    #     #  tile_batch_size: int,
-    #     8,
-    #     # upscaler_index: str,
-    #     'R-ESRGAN 4x+',
-    #     # scale_factor: float,
-    #     3,
-    #     # control_tensor_cpu: bool,
-    #     false,
-    #     # enable_bbox_control: bool,
-    #     false,
-    #     # draw_background: bool,
-    #     false,
-    #     #  causal_layers: bool,
-    #     false,
-    #     # *bbox_control_states: List[Any]
-    #     nil
-    #   ]
-    # },
-    # "Tiled VAE": %{
-    #   args: [
-    #     # enabled,
-    #     true,
-    #     # vae_to_gpu,
-    #     true,
-    #     # fast_decoder,
-    #     true,
-    #     # fast_encoder,
-    #     true,
-    #     # color_fix,
-    #     false,
-    #     # encoder_tile_size,
-    #     1024,
-    #     # decoder_tile_size
-    #     128
-    #   ]
-    # }
-    # controlnet: generation_params.alwayson_scripts.controlnet
-    #   }
-    # })
-    # |> Map.replace(
-    #   :alwayson_scripts,
-    #   if(generation_params.alwayson_scripts != %{},
-    #     do: generation_params.alwayson_scripts,
-    #     else: %ExSd.Sd.AlwaysOnScript{}
-    #   )
-    #   |> Map.from_struct()
-    #   |> Enum.filter(fn {_k, v} -> !is_nil(v) end)
-    #   |> Enum.into(%{})
-    # )
-
     generation_params
     |> Map.delete(:mask)
     |> Map.delete(:init_images)
@@ -126,94 +42,11 @@ defmodule ExSd.AutoClient do
       ) do
     Logger.info("Generating img2img")
 
-    generation_params = generation_params
-    # |> Map.merge(%{
-    #   alwayson_scripts: %ExSd.Sd.AlwaysOnScript{
-    #     generation_params.alwayson_scripts
-    #     | # "Tiled Diffusion": %{
-    #   args: [
-    #     #  enabled: bool,
-    #     true,
-    #     #  method: str,
-    #     'MultiDiffusion',
-    #     # noise_inverse: bool,
-    #     false,
-    #     # noise_inverse_steps: int,
-    #     10,
-    #     #  noise_inverse_retouch: float,
-    #     1,
-    #     # noise_inverse_renoise_strength: float,
-    #     0.4,
-    #     # noise_inverse_renoise_kernel: int,
-    #     64,
-    #     # overwrite_image_size: bool,
-    #     false,
-    #     #  keep_input_size: bool,
-    #     true,
-    #     # image_width: int,
-    #     512,
-    #     #  image_height: int,
-    #     512,
-    #     # tile_width: int,
-    #     96,
-    #     #  tile_height: int,
-    #     96,
-    #     #  overlap: int,
-    #     48,
-    #     #  tile_batch_size: int,
-    #     8,
-    #     # upscaler_index: str,
-    #     'R-ESRGAN 4x+',
-    #     # scale_factor: float,
-    #     3,
-    #     # control_tensor_cpu: bool,
-    #     false,
-    #     # enable_bbox_control: bool,
-    #     false,
-    #     # draw_background: bool,
-    #     false,
-    #     #  causal_layers: bool,
-    #     false,
-    #     # *bbox_control_states: List[Any]
-    #     nil
-    #   ]
-    # },
-    # "Tiled VAE": %{
-    #   args: [
-    #     # enabled,
-    #     true,
-    #     # vae_to_gpu,
-    #     true,
-    #     # fast_decoder,
-    #     true,
-    #     # fast_encoder,
-    #     true,
-    #     # color_fix,
-    #     false,
-    #     # encoder_tile_size,
-    #     1024,
-    #     # decoder_tile_size
-    #     128
-    #   ]
-    # }
-    # controlnet: generation_params.alwayson_scripts.controlnet
-    #   }
-    # })
-    # |> Map.replace(
-    #   :alwayson_scripts,
-    #   if(generation_params.alwayson_scripts != %{},
-    #     do: generation_params.alwayson_scripts,
-    #     else: %ExSd.Sd.AlwaysOnScript{}
-    #   )
-    #   |> Map.from_struct()
-    #   |> Enum.filter(fn {_k, v} -> !is_nil(v) end)
-    #   |> Enum.into(%{})
-    # )
-
-    generation_params
-    |> Map.delete(:mask)
-    |> Map.delete(:init_images)
-    |> IO.inspect()
+    Logger.info(
+      generation_params
+      |> Map.delete(:mask)
+      |> Map.delete(:init_images)
+    )
 
     with {:ok, response} <-
            Tesla.post(
@@ -404,7 +237,6 @@ defmodule ExSd.AutoClient do
       {Tesla.Middleware.BaseUrl, "#{@base_url}/sdapi/v1"},
       Tesla.Middleware.JSON,
       {Tesla.Middleware.Timeout, timeout: 10_000_000}
-      # {Tesla.Middleware.Timeout, timeout: 10_000_000}
       # {Tesla.Middleware.Headers, [{"authorization", "token: " <> token }]}
     ]
 
