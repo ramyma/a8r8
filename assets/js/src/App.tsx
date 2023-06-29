@@ -130,16 +130,6 @@ function App() {
             </div>
             <MainForm />
           </ScrollArea>
-          {/* <div>
-            <button
-            onClick={(e) => {
-              console.log(e);
-              // imageLayerRef?.current.cache();
-            }}
-            >
-              Save
-            </button>
-          </div> */}
         </div>
         <div className="flex-[9] relative w-full">
           <Stats />

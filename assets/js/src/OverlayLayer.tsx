@@ -63,7 +63,7 @@ const BrushPreview = forwardRef((_props, ref: LegacyRef<BrushPreviewNode>) => {
     };
     image.src = pattern(hexToRgb(maskColor));
   }, [maskColor, svgImage]);
-  // console.log(brushPreviewPosistion);
+
   const isVisible =
     isBrushPreviewVisible && mode !== "selection" && activeLayer !== "base";
   return (

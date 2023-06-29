@@ -80,7 +80,7 @@ const ImageLayer = () => {
         };
 
         const date = new Date();
-        console.log("ADDDD", date, date.getMilliseconds());
+
         setHistoryStateItem(newImage, "Add Image");
         setImages((images) => [...images, newImage]);
       }
@@ -96,7 +96,6 @@ const ImageLayer = () => {
   useEffect(() => {
     if (channel) {
       const ref = channel.on("image", async (data) => {
-        console.log(data);
         const { image, position, dimensions, useScaledDimensions, seed } = data;
         const generationParams = await getPngInfo(image);
         dispatch(setGenerationParams(generationParams));
