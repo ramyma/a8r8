@@ -38,6 +38,7 @@ export default defineConfig(({ command }: any) => {
       emptyOutDir: true,
       manifest: false,
       minify: true,
+      chunkSizeWarningLimit: 4048,
       // rollupOptions: {
       //   input: "../js/app.js",
       // },

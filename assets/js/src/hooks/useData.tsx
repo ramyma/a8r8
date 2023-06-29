@@ -12,7 +12,7 @@ type Props = {
 };
 
 const useData = <T,>({ name, callback, fetchPolicy = "lazy" }: Props) => {
-  const { getData } = useSocket();
+  const { channel, getData } = useSocket();
   const ref = useRef(false);
   const dataState = useAppSelector(selectData);
   const isConnected = useAppSelector(selectIsConnected);
@@ -51,6 +51,20 @@ const useData = <T,>({ name, callback, fetchPolicy = "lazy" }: Props) => {
       if (!isConnected) ref.current = false;
     };
   }, [isConnected]);
+
+  useEffect(() => {
+    if (fetchPolicy === "eager" && channel) {
+      const ref = channel.on(
+        `update_${name}`,
+        async ({ data }: { data: T }) => {
+          dispatch(updateData({ [name]: data }));
+        }
+      );
+      return () => {
+        channel.off(`update_${name}`, ref);
+      };
+    }
+  }, [channel, dispatch, fetchPolicy, name]);
 
   return { fetchData, data };
 };

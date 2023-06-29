@@ -104,7 +104,7 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
     [loras]
   );
 
-  const { embeddings } = useEmbeddings();
+  const { embeddings = [] } = useEmbeddings();
 
   const menu = useMenuNavigation<string>({
     items,

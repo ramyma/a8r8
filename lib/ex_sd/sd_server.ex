@@ -79,6 +79,17 @@ defmodule ExSd.SdSever do
   end
 
   @impl true
+  def handle_info(:refetch_embeddings, %{embeddings: embeddings} = state) do
+    if Enum.empty?(embeddings) do
+      new_state = state |> put_embeddings()
+      Sd.broadcast_data("embeddings", new_state.embeddings)
+      {:noreply, new_state}
+    else
+      {:noreply, state}
+    end
+  end
+
+  @impl true
   def handle_info({ref, {:error, error}}, state) when state.task.ref == ref do
     Logger.error("Generation: Server error!")
     handle_generation_error(error)
@@ -304,6 +315,11 @@ defmodule ExSd.SdSever do
   end
 
   defp initialize_state(state) do
+    # there's a delay between a1111 server starting and embeddings
+    # getting loaded. This to refetch embeddings with a small delay
+    # to make sure they were loaded
+    Process.send_after(self(), :refetch_embeddings, 1000)
+
     state
     |> put_progress()
     |> put_samplers()
