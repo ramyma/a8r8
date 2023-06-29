@@ -186,6 +186,7 @@ const LayersControl = () => {
               updateControlnetLayer({
                 layerId: id,
                 image: undefined,
+                detectionImage: undefined,
               })
             );
           }}
