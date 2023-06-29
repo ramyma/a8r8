@@ -318,7 +318,7 @@ defmodule ExSd.SdSever do
     # there's a delay between a1111 server starting and embeddings
     # getting loaded. This to refetch embeddings with a small delay
     # to make sure they were loaded
-    Process.send_after(self(), :refetch_embeddings, 1000)
+    Process.send_after(self(), :refetch_embeddings, 2500)
 
     state
     |> put_progress()

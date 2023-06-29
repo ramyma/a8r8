@@ -177,7 +177,6 @@ export default function Canvas() {
         clearSketchLines("Clear sketch");
       }
       if (layer.startsWith("controlnet")) {
-        console.log(layer);
         const layerId = layer.replace("controlnet", "");
         setControlnetLayerLines([], layerId);
       }
