@@ -98,6 +98,7 @@ A lot more to come, this is just starting!
 ### Running
 
 1. Run `docker compose up`
+2. Point your browser to [http://localhost:4000](http://loclahost:4000), it's preferred to use a chromium based browser (Brave, Chromium, Chrome)
 
 ### Updating
 
