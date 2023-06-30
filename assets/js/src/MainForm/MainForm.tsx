@@ -314,7 +314,6 @@ const MainForm = () => {
   const handleKeydown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Enter" && e.ctrlKey && !isGenerating) {
-        console.log(e, isGenerating);
         formRef.current?.requestSubmit();
       }
     },
@@ -468,32 +467,6 @@ const MainForm = () => {
           defaultValue={1}
         />
       )}
-      {/* <div className="flex flex-col gap-2">
-          <Label htmlFor="denoisingStrength">Denoising Strength</Label>
-          <input
-          id="denoisingStrength"
-          className="rounded"
-          type="range"
-          step={0.1}
-          min={0}
-          max={1}
-          defaultValue={0.75}
-          {...register("denoising_strength", { required: true })}
-        />
-
-          <input
-            className="rounded flex-1 p-2 w-fit"
-            type="number"
-            step={0.01}
-            min={0}
-            max={1}
-            defaultValue={0.75}
-            {...register("denoising_strength", {
-              required: true,
-              setValueAs: (value) => +value,
-            })}
-          />
-        </div> */}
       <Controller
         name="cfg_scale"
         control={control}
@@ -553,34 +526,6 @@ const MainForm = () => {
           },
         }}
       />
-      {/* <div className="flex flex-col gap-2">
-          <Label htmlFor="height">Height</Label>
-          <input
-            id="height"
-            className="rounded flex-1 p-2 w-full"
-            type="number"
-            defaultValue={DEFAULT_HEIGHT_VALUE}
-            {...register("height", {
-              required: true,
-              setValueAs: (value) => +value,
-              onChange(event) {
-                const value = +event.target.value;
-                let newValue = value;
-                console.log(value, heightRef.current);
-                if (value > heightRef.current)
-                  newValue = roundToClosestMultipleOf8Up(value);
-                else newValue = roundToClosestMultipleOf8Down(value);
-                heightRef.current = newValue;
-                console.log(newValue);
-                // setValue("height", newValue);
-                setValue("height", newValue);
-                dispatch(updateSelectionBox({ height: newValue }));
-                // selectionBoxRef?.current.height(newValue);
-              },
-            })}
-          />
-        </div> */}
-
       <div className="flex flex-col">
         {/* TODO: Add a button to reset scale to 1 */}
         <Controller
@@ -600,14 +545,6 @@ const MainForm = () => {
           </span>
         )}
       </div>
-      {/* <select className="rounded p-2" {...register("upscaler")}>
-          <option value="None">None</option>
-          {upscalers?.map((upscaler) => (
-            <option key={upscaler} value={upscaler}>
-              {upscaler}
-            </option>
-          ))}
-        </select> */}
       {showUpscaler && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="upscaler">Upscaler</Label>

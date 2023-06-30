@@ -12,7 +12,7 @@
 #   - Ex: hexpm/elixir:1.14.4-erlang-25.0.4-debian-bullseye-20220801-slim
 #
 ARG ELIXIR_VERSION=1.15.0
-ARG OTP_VERSION=25.0.4
+ARG OTP_VERSION=26.0.2
 ARG DEBIAN_VERSION=buster-20230612-slim
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
@@ -82,7 +82,7 @@ COPY lib lib
 
 COPY priv priv
 
-COPY --from=nodeBuilder  /app/priv/static/assets priv/static/assets
+COPY --from=nodeBuilder /app/priv/static/assets priv/static/assets
 
 # compile assets
 # RUN mix assets.deploy
