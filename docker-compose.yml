@@ -1,0 +1,21 @@
+name: a8r8
+services:
+  web:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - SECRET_KEY_BASE=J7sEixkroFJ5Ut5VZJDcymko9KFsTgfAaN2iibZuNa14hteIItcNpU7J4ULi5pzH
+      - AUTO_URL=http://host.docker.internal:7860
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+      
+    user: "root"
+    deploy:
+          resources:
+            reservations:
+              devices:
+                - driver: nvidia
+                  count: 1
+                  capabilities: [gpu]

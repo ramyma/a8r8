@@ -34,7 +34,6 @@ const ColorPicker = () => {
   };
   const handleKeydown = useCallback(
     (e: KeyboardEvent) => {
-      console.log(e);
       if (e.key === "Escape") {
         dispatch(toggleColorPickerVisibility());
       }

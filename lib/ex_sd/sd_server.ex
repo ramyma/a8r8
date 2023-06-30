@@ -18,7 +18,7 @@ defmodule ExSd.SdSever do
   @impl true
   def init(_args) do
     client = AutoClient.client()
-    Logger.info("INIT")
+    Logger.info("Initializing data")
 
     {:ok,
      %{

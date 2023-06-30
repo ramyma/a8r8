@@ -50,7 +50,8 @@ defmodule ExSd.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 0.20"},
       {:jason, "~> 1.2"},
-      {:plug_cowboy, "~> 2.5"},
+      # {:plug_cowboy, "~> 2.5"},
+      {:bandit, "~> 1.0-pre"},
       {:tesla, "~> 1.6"},
       {:hackney, "~> 1.17"},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
@@ -60,10 +61,6 @@ defmodule ExSd.MixProject do
       # {:bumblebee, "~> 0.2"},
       # {:exla, "~> 0.5"},
       # {:evision, "~> 0.1.29"},
-      # {:protobuf, "~> 0.11"},
-      # {:grpc, "~> 0.5.0"},
-      # {:gun, "~> 2.0.1",
-      #  [env: :prod, hex: "grpc_gun", repo: "hexpm", optional: false, override: true]}
     ]
   end
 

@@ -3,13 +3,10 @@ defmodule ExSd.AutoClient do
 
   alias ExSd.Sd.GenerationParams
 
-  @base_url Application.compile_env!(:ex_sd, :auto_client_base_url)
-
   def generate_image(
         client,
         %GenerationParams{txt2img: true} = generation_params
       ) do
-    Logger.info("BASEURL:  " <> @base_url)
     Logger.info("Generating txt2img")
 
     generation_params
@@ -42,7 +39,7 @@ defmodule ExSd.AutoClient do
       ) do
     Logger.info("Generating img2img")
 
-    Logger.info(
+    Logger.debug(
       generation_params
       |> Map.delete(:mask)
       |> Map.delete(:init_images)
@@ -115,7 +112,7 @@ defmodule ExSd.AutoClient do
   end
 
   def get_controlnet_models(client) do
-    with response <- Tesla.get(client, "#{@base_url}/controlnet/model_list"),
+    with response <- Tesla.get(client, "#{base_url()}/controlnet/model_list"),
          {:ok, body} <- handle_response(response) do
       {:ok, body["model_list"]}
     else
@@ -125,7 +122,7 @@ defmodule ExSd.AutoClient do
   end
 
   def get_controlnet_modules(client) do
-    with response <- Tesla.get(client, "#{@base_url}/controlnet/module_list"),
+    with response <- Tesla.get(client, "#{base_url()}/controlnet/module_list"),
          {:ok, body} <- handle_response(response) do
       # TODO: fail gracefully if attribute is not present in body
       modules =
@@ -143,7 +140,7 @@ defmodule ExSd.AutoClient do
 
   @spec controlnet_detect(binary | Tesla.Client.t(), any) :: {:error, any} | {:ok, list}
   def controlnet_detect(client, params) do
-    with response <- Tesla.post(client, "#{@base_url}/controlnet/detect", params),
+    with response <- Tesla.post(client, "#{base_url()}/controlnet/detect", params),
          {:ok, body} <- handle_response(response) do
       {:ok, body["images"] |> Enum.map(&"data:image/png;base64,#{&1}")}
     else
@@ -235,7 +232,7 @@ defmodule ExSd.AutoClient do
   # build dynamic client based on runtime arguments
   def client() do
     middleware = [
-      {Tesla.Middleware.BaseUrl, "#{@base_url}/sdapi/v1"},
+      {Tesla.Middleware.BaseUrl, "#{base_url()}/sdapi/v1"},
       Tesla.Middleware.JSON,
       {Tesla.Middleware.Timeout, timeout: 10_000_000}
       # {Tesla.Middleware.Headers, [{"authorization", "token: " <> token }]}
@@ -273,5 +270,9 @@ defmodule ExSd.AutoClient do
         Logger.error(res)
         {:error, res.body}
     end
+  end
+
+  defp base_url() do
+    Application.fetch_env!(:ex_sd, :auto_client_base_url)
   end
 end

@@ -18,7 +18,8 @@ config :ex_sd, ExSdWeb.Endpoint,
     layout: false
   ],
   pubsub_server: ExSd.PubSub,
-  live_view: [signing_salt: "BioKtkGT"]
+  live_view: [signing_salt: "BioKtkGT"],
+  adapter: Bandit.PhoenixAdapter
 
 # Configures the mailer
 #

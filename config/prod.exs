@@ -17,7 +17,5 @@ config :swoosh, :api_client, ExSd.Finch
 # Do not print debug messages in production
 config :logger, level: :info
 
-config :ex_sd, :auto_client_base_url, "http://localhost:7860"#"http://host.docker.internal:7860"
-
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
