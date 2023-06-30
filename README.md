@@ -84,14 +84,13 @@ A lot more to come, this is just starting!
 
 &nbsp;
 
-&nbsp;
 
 ## Getting started
 
 ### Installation
 
 1. Install [Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) if you haven't yet
-2. [Install Docker Compose](https://docs.docker.com/compose/gettingstarted/)
+2. Install [Docker Compose](https://docs.docker.com/compose/gettingstarted/)
 3. Clone this repo and open a terminal at the root directory
 4. Run `docker compose build`
 5. Start Automatic1111 webui and make sure to add `--listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` depending on the operating system
