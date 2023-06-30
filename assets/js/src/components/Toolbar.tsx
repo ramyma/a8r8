@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import * as RadixToolbar from "@radix-ui/react-toolbar";
 import {
   GroupIcon,
@@ -7,6 +7,7 @@ import {
   Pencil1Icon,
   CopyIcon,
   ClipboardIcon,
+  DownloadIcon,
 } from "@radix-ui/react-icons";
 import { useAppDispatch, useAppSelector } from "../hooks";
 import {
@@ -19,12 +20,16 @@ import {
 
 import useClipboard from "../hooks/useClipboard";
 import useHistoryManager from "../hooks/useHistoryManager";
+import { saveImage } from "../Canvas/Canvas";
+import RefsContext from "../context/RefsContext";
 
 const Toolbar = () => {
   const mode = useAppSelector(selectMode);
   const tool = useAppSelector(selectTool);
 
   const stageScale = useAppSelector(selectStageScale);
+
+  const { stageRef, imageLayerRef, selectionBoxRef } = useContext(RefsContext);
 
   const dispatch = useAppDispatch();
   const { undoHistory, redoHistory, hasAvailableUndo, hasAvailableRedo } =
@@ -47,6 +52,11 @@ const Toolbar = () => {
   const handlePaste = (e) => {
     e.preventDefault();
     handlePasteEvent(e, true);
+  };
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    saveImage(stageRef, imageLayerRef, selectionBoxRef);
   };
 
   const handleUndo = (e) => {
@@ -156,6 +166,15 @@ const Toolbar = () => {
           <ClipboardIcon />
         </RadixToolbar.Button>
 
+        <RadixToolbar.Button
+          className="px-[10px] text-white flex-shrink-0 flex-grow-0 basis-auto h-[35px] rounded inline-flex text-[13px] leading-none items-center justify-center outline-none hover:bg-violet10 focus:relative focus:shadow-[0_0_0_2px] focus:shadow-violet7"
+          style={{ marginLeft: "auto" }}
+          onClick={handleSave}
+          aria-label="Save"
+          title="Save (ctrl+s)"
+        >
+          <DownloadIcon />
+        </RadixToolbar.Button>
         <RadixToolbar.Separator className="w-[1px] bg-neutral-700 mx-[10px]" />
 
         <div className="flex">

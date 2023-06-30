@@ -60,15 +60,11 @@ import useHistoryState from "../hooks/useHistoryState";
 import useSocket from "../hooks/useSocket";
 import useCustomEventsListener from "./hooks/useCustomEventsListener";
 import { CanvasDimensions } from "./Canvas.d";
+import { Rect } from "konva/lib/shapes/Rect";
 
 const SCALE_BY = 1.1;
 // const BRUSH_SIZE = 40;
 const MIN_SCALE = 0.11;
-
-// interface CanvasProps {
-//   // stageRef: RefObject<StageType> | null;
-//   // selectionBoxRef: KonvaNodeComponent<Shape>;
-// }
 
 const controlnetLinesReducer = (
   state: { [key: string]: BrushStroke[] },
@@ -212,15 +208,6 @@ export default function Canvas() {
     }
   }, [dispatch, broadcastSelectionBoxUpdate]);
 
-  // useEffect(() => {
-  //   document.addEventListener("drop", handleDrop);
-  //   document.addEventListener("dragover", handleDragOver);
-  //   return () => {
-  //     document.removeEventListener("drop", handleDrop);
-  //     document.removeEventListener("dragover", handleDragOver);
-  //   };
-  // }, []);
-
   const zoomCanvas = useCallback(
     (stage: StageType, direction: number) => {
       if ((stage?.scaleX() ?? 1) > MIN_SCALE || direction > 0) {
@@ -347,27 +334,8 @@ export default function Canvas() {
         dispatch(toggleMaskLayerVisibility());
       }
       if (e.key.toLocaleLowerCase() === "s" && e.ctrlKey) {
-        const selectionBox = selectionBoxRef?.current;
         e.preventDefault();
-        const stage = stageRef?.current;
-        const stageOriginalScale = stage?.scale();
-        stage?.scale({ x: 1, y: 1 });
-        const dataUrl = await imageLayerRef?.current?.toDataURL({
-          x: selectionBox?.getAbsolutePosition().x, //stage?.getAbsolutePosition().x + stage?.width(), //stagContainer.clientWidth / 2 - 512 / 2,
-          y: selectionBox?.getAbsolutePosition().y, //stage?.getAbsolutePosition().y,
-          width: selectionBox?.width(), //768 * 2, //stage?.width() * 2,
-          height: selectionBox?.height(), //768 * 2.5, //stage?.height() * 2,
-          // imageSmoothingEnabled: false,
-          pixelRatio: 1,
-        });
-        stage?.scale(stageOriginalScale);
-        const link = document.createElement("a");
-        link.href = dataUrl ?? "";
-        console.log(generationParams);
-        link.download = `image.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        await saveImage(stageRef, imageLayerRef, selectionBoxRef);
       } else if (e.key.toLocaleLowerCase() === "s") {
         if (mode === "selection") dispatch(setMode("paint"));
         else dispatch(setMode("selection"));
@@ -615,11 +583,9 @@ export default function Canvas() {
       activeLayer,
       setMaskState,
       setSketchState,
-      dispatchSketchHistoryEvent,
       getControlnetLayerLines,
       maskLines,
       setControlnetLayerLines,
-      setSketchLines,
       sketchLines,
     ]
   );
@@ -669,4 +635,31 @@ export default function Canvas() {
       )}
     </div>
   );
+}
+export async function saveImage(
+  stageRef: React.RefObject<StageType> | null,
+  imageLayerRef,
+  selectionBoxRef: React.RefObject<Rect> | null
+) {
+  const stage = stageRef?.current;
+  const selectionBox = selectionBoxRef?.current;
+
+  const stageOriginalScale = stage?.scale();
+  stage?.scale({ x: 1, y: 1 });
+
+  const dataUrl = await imageLayerRef?.current?.toDataURL({
+    x: selectionBox?.getAbsolutePosition().x,
+    y: selectionBox?.getAbsolutePosition().y,
+    width: selectionBox?.width(),
+    height: selectionBox?.height(),
+    // imageSmoothingEnabled: false,
+    pixelRatio: 1,
+  });
+  stage?.scale(stageOriginalScale);
+  const link = document.createElement("a");
+  link.href = dataUrl ?? "";
+  link.download = `image.png`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
