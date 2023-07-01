@@ -121,5 +121,5 @@ ENV PHX_HOST=localhost
 COPY --from=builder --chown=nobody:root /app/_build/${MIX_ENV}/rel/ex_sd ./
 
 USER nobody
-
-CMD ["/app/bin/server"]
+ENV PHX_SERVER=true 
+CMD ["bin/ex_sd","start"]
