@@ -53,6 +53,11 @@ A lot more to come, this is just starting!
 
 &nbsp;
 
+![Scaling](readme/screenshots/editor_commands_autocomplete.png)\
+*Editor autocomplete for LORAs and embeddings*
+
+&nbsp;
+
 ![Scaling](readme/screenshots/scaling.png)\
 *Scaling controls*
 
