@@ -34,7 +34,7 @@ export default defineConfig(({ command }: any) => {
       host: "0.0.0.0",
     },
     build: {
-      outDir: "../priv/static",
+      outDir: "../priv/static/assets",
       emptyOutDir: true,
       manifest: false,
       minify: true,
@@ -47,9 +47,9 @@ export default defineConfig(({ command }: any) => {
           main: "./js/src/main.tsx",
         },
         output: {
-          entryFileNames: "assets/[name].js", // remove hash
-          chunkFileNames: "assets/[name].js",
-          assetFileNames: "assets/[name][extname]",
+          entryFileNames: "[name].js", // remove hash
+          chunkFileNames: "[name].js",
+          assetFileNames: "[name][extname]",
         },
       },
     },
