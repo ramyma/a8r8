@@ -309,7 +309,7 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
       if (!this.options.plainText) {
         return this.store.commands.replaceText.original({
           type: this.type,
-          appendText: " ",
+          appendText: "",
           attrs: { code: extra, value: 1, from: tr.selection.from },
           selection: options.selection,
         })(props);
@@ -364,7 +364,7 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
         tr.doc
       );
 
-      dispatch?.(tr.insertText(extra + " ", from, to));
+      dispatch?.(tr.insertText(extra, from, to));
 
       return true;
     };
