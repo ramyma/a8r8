@@ -98,7 +98,7 @@
     "react-custom-events": "^1.1.1",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.44.3",
-    "react-icons": "^4.9.0",
+    "react-icons": "^4.10.1",
     "react-konva": "^18.2.9",
     "react-redux": "^8.0.7",
     "redux-undo": "^1.0.1",

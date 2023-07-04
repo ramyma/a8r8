@@ -1,6 +1,7 @@
-import React, { useCallback } from "react";
+import React, { KeyboardEvent, useCallback } from "react";
 import { HexAlphaColorPicker } from "react-colorful";
 import useEyeDropper from "use-eye-dropper";
+import { BiSolidEyedropper } from "react-icons/bi";
 import { useAppDispatch, useAppSelector } from "./hooks";
 import {
   selectBrushColor,
@@ -33,7 +34,7 @@ const ColorPicker = () => {
       dispatch(setBrushColor(color));
   };
   const handleKeydown = useCallback(
-    (e: KeyboardEvent) => {
+    (e) => {
       if (e.key === "Escape") {
         dispatch(toggleColorPickerVisibility());
       }
@@ -44,16 +45,28 @@ const ColorPicker = () => {
   useGlobalKeydown({ handleKeydown });
 
   const pickColor = async () => {
-    const color = await open();
-    console.log(color);
-    handleColorChange(rgbaToHex(color.sRGBHex));
+    try {
+      const color = await open();
+
+      handleColorChange(rgbaToHex(color.sRGBHex));
+    } catch (e) {
+      close();
+    }
   };
   return (
-    <div className="flex flex-col">
-      <HexAlphaColorPicker color={color} onChange={handleColorChange} />
+    <div className="flex flex-col rounded p-4 bg-black/50 backdrop-blur-md border-neutral-900 border">
+      <HexAlphaColorPicker
+        color={color}
+        onChange={handleColorChange}
+        onKeyDown={handleKeydown}
+      />
       {isSupported() && (
-        <button className="bg-black" onClick={pickColor}>
-          pick
+        <button
+          className="border-neutral-700 bg-neutral-900 flex justify-center rounded rounded-t-none"
+          onClick={pickColor}
+          onKeyDown={handleKeydown}
+        >
+          <BiSolidEyedropper />
         </button>
       )}
     </div>

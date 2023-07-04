@@ -274,6 +274,7 @@ export default function Canvas() {
     // when we zoom on trackpad, e.evt.ctrlKey is true
     // in that case lets revert direction
     if (e.evt.ctrlKey) {
+      // TODO: controle brush size instead
       direction = -direction;
     }
     stage && zoomCanvas(stage, direction);
@@ -358,7 +359,6 @@ export default function Canvas() {
       tool,
       selectionBoxRef,
       imageLayerRef,
-      generationParams,
       mode,
       activeLayer,
     ]
