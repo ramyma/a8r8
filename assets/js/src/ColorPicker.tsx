@@ -54,7 +54,7 @@ const ColorPicker = () => {
     }
   };
   return (
-    <div className="flex flex-col rounded p-4 bg-black/50 backdrop-blur-md border-neutral-900 border">
+    <div className="flex flex-col rounded p-4 bg-black/90 backdrop-blur-md border-neutral-900/60 border">
       <HexAlphaColorPicker
         color={color}
         onChange={handleColorChange}

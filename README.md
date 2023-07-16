@@ -148,6 +148,10 @@ To be added...
 
 &nbsp;
 
+![lion head](readme/examples/lion-head.jpg)
+
+&nbsp;
+
 ![ex2](readme/examples/ex2.png)
 
 &nbsp;
