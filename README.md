@@ -2,6 +2,8 @@
 
 An opinionated interface for SD (Stable Diffusion) image generation, and more.
 
+<sub>Links: [[Discord](https://discord.gg/RzdGa839MK)]</sub>
+
 &nbsp;
 ![Interface](readme/screenshots/interface.png)
 *Unified interface*
