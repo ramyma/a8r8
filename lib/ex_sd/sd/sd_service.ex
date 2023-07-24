@@ -7,11 +7,10 @@ defmodule ExSd.Sd.SdService do
   alias ExSd.Sd.ImageService
 
   def generate_image(
-        client,
         %GenerationParams{
           width: width,
           height: height,
-          txt2img: txt2img
+          txt2img: _txt2img
         } = generation_params,
         %{"scale" => scale, "invert_mask" => invert_mask} = attrs
       ) do
@@ -29,6 +28,8 @@ defmodule ExSd.Sd.SdService do
 
     Logger.info("Start generation")
 
+    has_second_pass = full_scale_pass and scale < 1
+
     generation_params =
       generation_params
       # FIXME: images not saved (try to save in a task?)
@@ -39,11 +40,11 @@ defmodule ExSd.Sd.SdService do
       |> maybe_set_controlnet_images()
       |> maybe_save_controlnet_images()
 
+
     mask_image_average = Image.average!(mask_image) |> Enum.sum() |> div(3)
 
     result =
       generate_and_receive(
-        client,
         generation_params,
         attrs,
         original_dimensions,
@@ -52,9 +53,7 @@ defmodule ExSd.Sd.SdService do
       )
 
     # TODO: handle tiled diffusion on second pass only if active
-    if (txt2img and scale >= 1) or !full_scale_pass or scale >= 1 do
-      result
-    else
+    if has_second_pass do
       case result do
         {:error, _} ->
           result
@@ -63,7 +62,6 @@ defmodule ExSd.Sd.SdService do
           init_image = get_second_pass_init_image(generation_params, result_images_base64)
 
           generate_and_receive(
-            client,
             generation_params
             |> Map.merge(%{
               init_images: [init_image],
@@ -80,11 +78,12 @@ defmodule ExSd.Sd.SdService do
             true
           )
       end
+    else
+      result
     end
   end
 
   def generate_and_receive(
-        client,
         %GenerationParams{} = generation_params,
         attrs,
         %{width: width, height: height},
@@ -97,10 +96,7 @@ defmodule ExSd.Sd.SdService do
     Logger.info("Second Pass: #{inspect(second_pass)}")
     generation_params = put_denoising_strength(generation_params, attrs, second_pass)
 
-    case AutoClient.generate_image(
-           client,
-           generation_params
-         ) do
+    case AutoClient.generate_image(generation_params) do
       %{images: images, seed: seed} ->
         images_base64 = images
 
@@ -139,7 +135,7 @@ defmodule ExSd.Sd.SdService do
          %{width: width, height: height}}
 
       {:error, err} = error ->
-        Logger.error("Tesla task error! Second Pass:#{inspect(second_pass)}")
+        Logger.error("Client task error! Second Pass:#{inspect(second_pass)}")
         Logger.error(err)
         error
     end
@@ -272,7 +268,7 @@ defmodule ExSd.Sd.SdService do
       :alwayson_scripts,
       if(generation_params.alwayson_scripts != %{},
         do: generation_params.alwayson_scripts,
-        else: %ExSd.Sd.AlwaysOnScript{}
+        else: %ExSd.Sd.AlwaysOnScripts{}
       )
       |> Map.from_struct()
       |> Enum.filter(fn {_k, v} -> !is_nil(v) end)
@@ -296,36 +292,36 @@ defmodule ExSd.Sd.SdService do
     )
   end
 
-  @spec interrupt(binary | Tesla.Client.t()) :: {:ok, Tesla.Env.t()}
-  defdelegate interrupt(client), to: AutoClient
+  @spec interrupt() :: {:ok, any}
+  defdelegate interrupt(), to: AutoClient
 
-  defdelegate controlnet_detect(client, params), to: AutoClient
+  defdelegate controlnet_detect(params), to: AutoClient
 
-  @spec get_samplers(binary | Tesla.Client.t()) :: {:error, any} | {:ok, list}
-  defdelegate get_samplers(client), to: AutoClient
+  @spec get_samplers() :: {:error, any} | {:ok, list}
+  defdelegate get_samplers(), to: AutoClient
 
-  @spec get_controlnet_models(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  defdelegate get_controlnet_models(client), to: AutoClient
+  @spec get_controlnet_models() :: {:error, any} | {:ok, any}
+  defdelegate get_controlnet_models(), to: AutoClient
 
-  @spec get_controlnet_modules(binary | Tesla.Client.t()) ::
+  @spec get_controlnet_modules() ::
           {:error, any} | {:ok, list(binary), map}
-  defdelegate get_controlnet_modules(client), to: AutoClient
+  defdelegate get_controlnet_modules(), to: AutoClient
 
-  @spec get_models(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  defdelegate get_models(client), to: AutoClient
+  @spec get_models() :: {:error, any} | {:ok, any}
+  defdelegate get_models(), to: AutoClient
 
-  @spec refresh_models(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  defdelegate refresh_models(client), to: AutoClient
+  @spec refresh_models() :: {:error, any} | {:ok, any}
+  defdelegate refresh_models(), to: AutoClient
 
-  @spec get_upscalers(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  defdelegate get_upscalers(client), to: AutoClient
+  @spec get_upscalers() :: {:error, any} | {:ok, any}
+  defdelegate get_upscalers(), to: AutoClient
 
-  @spec get_loras(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  defdelegate get_loras(client), to: AutoClient
+  @spec get_loras() :: {:error, any} | {:ok, any}
+  defdelegate get_loras(), to: AutoClient
 
-  @spec get_embeddings(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  def get_embeddings(client) do
-    case AutoClient.get_embeddings(client) do
+  @spec get_embeddings() :: {:error, any} | {:ok, any}
+  def get_embeddings() do
+    case AutoClient.get_embeddings() do
       {:ok, embeddings} ->
         {:ok,
          embeddings["loaded"]
@@ -337,23 +333,23 @@ defmodule ExSd.Sd.SdService do
     end
   end
 
-  @spec get_options(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  defdelegate get_options(client), to: AutoClient
+  @spec get_options() :: {:error, any} | {:ok, any}
+  defdelegate get_options(), to: AutoClient
 
-  @spec get_png_info(binary | Tesla.Client.t(), any) :: {:error, any} | {:ok, any}
-  defdelegate get_png_info(client, png_data_url), to: AutoClient
+  @spec get_png_info(any) :: {:error, any} | {:ok, any}
+  defdelegate get_png_info(png_data_url), to: AutoClient
 
-  @spec get_scripts(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  defdelegate get_scripts(client), to: AutoClient
+  @spec get_scripts() :: {:error, any} | {:ok, any}
+  defdelegate get_scripts(), to: AutoClient
 
-  @spec get_progress(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  defdelegate get_progress(client), to: AutoClient
+  @spec get_progress() :: {:error, any} | {:ok, any}
+  defdelegate get_progress(), to: AutoClient
 
-  @spec get_memory_usage(binary | Tesla.Client.t()) :: {:error, any} | {:ok, any}
-  defdelegate get_memory_usage(client), to: AutoClient
+  @spec get_memory_usage() :: {:error, any} | {:ok, any}
+  defdelegate get_memory_usage(), to: AutoClient
 
-  @spec post_active_model(binary | Tesla.Client.t(), any) :: {:error, any} | {:ok, any}
-  defdelegate post_active_model(client, model_title), to: AutoClient
+  @spec post_active_model(any) :: {:error, any} | {:ok, any}
+  defdelegate post_active_model(model_title), to: AutoClient
 
   def round_to_closest_multiple_of_8_down(number) do
     round((number - 4) / 8) * 8

@@ -17,12 +17,10 @@ defmodule ExSd.SdSever do
 
   @impl true
   def init(_args) do
-    client = AutoClient.client()
     Logger.info("Initializing data")
 
     {:ok,
      %{
-       client: client,
        memory_stats: %MemoryStats{},
        options: nil,
        samplers: [],
@@ -42,10 +40,6 @@ defmodule ExSd.SdSever do
   end
 
   @impl true
-  @spec handle_continue(:init_status_loop, %{
-          :client => binary | Tesla.Client.t(),
-          optional(any) => any
-        }) :: {:noreply, %{:client => binary | Tesla.Client.t(), optional(any) => any}}
   def handle_continue(:init_status_loop, state) do
     Process.send(self(), :status, [])
 
@@ -190,16 +184,16 @@ defmodule ExSd.SdSever do
   @impl true
   def handle_cast(
         {:generate, generation_params, attrs, session_name},
-        %{client: client} = state
+        state
       ) do
-    task = Task.async(fn -> SdService.generate_image(client, generation_params, attrs) end)
+    task = Task.async(fn -> SdService.generate_image(generation_params, attrs) end)
 
     {:noreply, %{state | task: task, generating_session_name: session_name}}
   end
 
   @impl true
-  def handle_cast(:interrupt, %{client: client} = state) when not is_nil(state.task) do
-    SdService.interrupt(client)
+  def handle_cast(:interrupt, state) when not is_nil(state.task) do
+    SdService.interrupt()
     Task.shutdown(state.task, :brutal_kill)
 
     Sd.broadcast_progress(%{
@@ -212,8 +206,8 @@ defmodule ExSd.SdSever do
   end
 
   @impl true
-  def handle_cast(:interrupt, %{client: client} = state) when is_nil(state.task) do
-    SdService.interrupt(client)
+  def handle_cast(:interrupt, state) when is_nil(state.task) do
+    SdService.interrupt()
 
     Sd.broadcast_progress(%{
       progress: 0,
@@ -239,9 +233,9 @@ defmodule ExSd.SdSever do
   end
 
   @impl true
-  def handle_cast({:controlnet_detect, params}, %{client: client} = state) do
+  def handle_cast({:controlnet_detect, params}, state) do
     Task.start(fn ->
-      case SdService.controlnet_detect(client, params) do
+      case SdService.controlnet_detect(params) do
         {:ok, result} ->
           Sd.broadcast_controlenet_detection(result, params["layer_id"])
 
@@ -250,7 +244,7 @@ defmodule ExSd.SdSever do
       end
     end)
 
-    {:ok, state}
+    {:noreply, state}
   end
 
   @impl true
@@ -305,7 +299,7 @@ defmodule ExSd.SdSever do
 
   @impl true
   def handle_call({:get_png_info, png_data_url}, _, state) do
-    png_info = fetch_png_info(state, png_data_url)
+    png_info = fetch_png_info(png_data_url)
     {:reply, {:ok, png_info}, state}
   end
 
@@ -332,8 +326,8 @@ defmodule ExSd.SdSever do
     |> put_controlnet_modules()
   end
 
-  defp put_samplers(%{client: client} = state) do
-    case SdService.get_samplers(client) do
+  defp put_samplers(state) do
+    case SdService.get_samplers() do
       {:ok, samplers} ->
         state |> Map.put(:samplers, samplers)
 
@@ -342,8 +336,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_controlnet_models(%{client: client} = state) do
-    case SdService.get_controlnet_models(client) do
+  defp put_controlnet_models(state) do
+    case SdService.get_controlnet_models() do
       {:ok, controlnet_models} ->
         state |> Map.put(:controlnet_models, controlnet_models)
 
@@ -352,8 +346,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_controlnet_modules(%{client: client} = state) do
-    case SdService.get_controlnet_modules(client) do
+  defp put_controlnet_modules(state) do
+    case SdService.get_controlnet_modules() do
       {:ok, controlnet_modules, controlnet_module_detail} ->
         mapped_modules =
           controlnet_modules
@@ -369,8 +363,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_models(%{client: client} = state) do
-    case SdService.get_models(client) do
+  defp put_models(state) do
+    case SdService.get_models() do
       {:ok, models} ->
         state |> Map.put(:models, models |> Enum.sort_by(& &1["model_name"]))
 
@@ -379,8 +373,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_scripts(%{client: client} = state) do
-    case SdService.get_scripts(client) do
+  defp put_scripts(state) do
+    case SdService.get_scripts() do
       {:ok, scripts} ->
         state |> Map.put(:scripts, scripts)
 
@@ -389,8 +383,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp refresh_and_put_models(%{client: client} = state) do
-    case SdService.refresh_models(client) do
+  defp refresh_and_put_models(state) do
+    case SdService.refresh_models() do
       {:ok, _} ->
         state |> put_models()
 
@@ -399,10 +393,10 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_upscalers(%{client: client} = state) do
+  defp put_upscalers(state) do
     # upscalers = Sd.load_upscalers()
     # state |> Map.put(:upscalers, upscalers)
-    case SdService.get_upscalers(client) do
+    case SdService.get_upscalers() do
       {:ok, upscalers} ->
         state
         |> Map.put(
@@ -418,10 +412,10 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_loras(%{client: client} = state) do
+  defp put_loras(state) do
     # loras = Sd.load_loras()
     # state |> Map.put(:loras, loras)
-    case SdService.get_loras(client) do
+    case SdService.get_loras() do
       {:ok, loras} ->
         state |> Map.put(:loras, loras)
 
@@ -430,8 +424,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_embeddings(%{client: client} = state) do
-    case SdService.get_embeddings(client) do
+  defp put_embeddings(state) do
+    case SdService.get_embeddings() do
       {:ok, embeddings} ->
         state
         |> Map.put(:embeddings, embeddings)
@@ -441,8 +435,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_memory_usage(%{client: client} = state) do
-    case SdService.get_memory_usage(client) do
+  defp put_memory_usage(state) do
+    case SdService.get_memory_usage() do
       {:ok,
        %{
          "ram" => %{
@@ -471,8 +465,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_options(%{client: client} = state) do
-    case SdService.get_options(client) do
+  defp put_options(state) do
+    case SdService.get_options() do
       {:ok, options} ->
         state |> Map.put(:options, options)
 
@@ -481,8 +475,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp fetch_png_info(%{client: client}, png_data_url) do
-    case SdService.get_png_info(client, png_data_url) do
+  defp fetch_png_info(png_data_url) do
+    case SdService.get_png_info(png_data_url) do
       {:ok, _png_info} = resp ->
         resp
 
@@ -492,8 +486,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_active_model(%{client: client} = state, model_title) do
-    case SdService.post_active_model(client, model_title) do
+  defp put_active_model(state, model_title) do
+    case SdService.post_active_model(model_title) do
       {:ok, options} ->
         state |> Map.put(:options, options)
 
@@ -514,11 +508,9 @@ defmodule ExSd.SdSever do
     Sd.broadcast_error(%{error: "Connection timeout"})
   end
 
-  def put_progress(
-        %{client: client, task: task, generating_session_name: generating_session_name} = state
-      )
+  def put_progress(%{task: task, generating_session_name: generating_session_name} = state)
       when not is_nil(task) do
-    case SdService.get_progress(client) do
+    case SdService.get_progress() do
       {:ok,
        %{
          "progress" => progress,

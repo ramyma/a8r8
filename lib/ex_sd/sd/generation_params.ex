@@ -1,8 +1,11 @@
 defmodule ExSd.Sd.GenerationParams do
   use Ecto.Schema
   import Ecto.Changeset
-  alias ExSd.Sd.AlwaysOnScript
+  alias ExSd.Sd.AlwaysOnScripts
 
+  @type t :: %__MODULE__{
+          alwayson_scripts: AlwaysonScripts.t()
+        }
   @derive {Jason.Encoder, except: []}
   @primary_key false
   embedded_schema do
@@ -49,7 +52,7 @@ defmodule ExSd.Sd.GenerationParams do
     field(:inpaint_full_res, :boolean, default: false)
     field(:inpainting_fill, :integer, default: 1)
     field(:inpaint_full_res_padding, :integer, default: 0)
-    embeds_one(:alwayson_scripts, AlwaysOnScript)
+    embeds_one(:alwayson_scripts, AlwaysOnScripts)
   end
 
   def changeset(%__MODULE__{} = generation_params, attrs) do

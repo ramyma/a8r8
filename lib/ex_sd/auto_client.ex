@@ -3,10 +3,7 @@ defmodule ExSd.AutoClient do
 
   alias ExSd.Sd.GenerationParams
 
-  def generate_image(
-        client,
-        %GenerationParams{txt2img: true} = generation_params
-      ) do
+  def generate_image(%GenerationParams{txt2img: true} = generation_params) do
     Logger.info("Generating txt2img")
 
     generation_params
@@ -15,8 +12,7 @@ defmodule ExSd.AutoClient do
     |> Logger.info()
 
     with {:ok, response} <-
-           Tesla.post(
-             client,
+           post(
              "/txt2img",
              generation_params
            ),
@@ -32,11 +28,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  @spec generate_image(binary | Tesla.Client.t(), GenerationParams.t()) :: any
-  def generate_image(
-        client,
-        generation_params
-      ) do
+  @spec generate_image(GenerationParams.t()) :: any
+  def generate_image(generation_params) do
     Logger.info("Generating img2img")
 
     Logger.debug(
@@ -46,8 +39,7 @@ defmodule ExSd.AutoClient do
     )
 
     with {:ok, response} <-
-           Tesla.post(
-             client,
+           post(
              "/img2img",
              generation_params
            ),
@@ -63,12 +55,12 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def interrupt(client) do
-    {:ok, _response} = Tesla.post(client, "/interrupt", %{})
+  def interrupt() do
+    {:ok, _response} = post("/interrupt", %{})
   end
 
-  def get_progress(client) do
-    with response <- Tesla.get(client, "/progress"),
+  def get_progress() do
+    with response <- get("/progress"),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -77,8 +69,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def post_active_model(client, model_title) do
-    with response <- Tesla.post(client, "/options", %{sd_model_checkpoint: model_title}),
+  def post_active_model(model_title) do
+    with response <- post("/options", %{sd_model_checkpoint: model_title}),
          {:ok, body} <- handle_response(response) do
       Logger.info(body)
       {:ok, body}
@@ -88,8 +80,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_memory_usage(client) do
-    with response <- Tesla.get(client, "/memory"),
+  def get_memory_usage() do
+    with response <- get("/memory"),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -98,8 +90,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_samplers(client) do
-    with response <- Tesla.get(client, "/samplers"),
+  def get_samplers() do
+    with response <- get("/samplers"),
          {:ok, body} <- handle_response(response) do
       # TODO: if for some reason body doesn't have "name", it will raise an error
       samplers_names = body |> Enum.map(& &1["name"])
@@ -111,8 +103,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_controlnet_models(client) do
-    with response <- Tesla.get(client, "#{base_url()}/controlnet/model_list"),
+  def get_controlnet_models() do
+    with response <- get("/model_list", "#{get_base_url()}/controlnet"),
          {:ok, body} <- handle_response(response) do
       {:ok, body["model_list"]}
     else
@@ -121,8 +113,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_controlnet_modules(client) do
-    with response <- Tesla.get(client, "#{base_url()}/controlnet/module_list"),
+  def get_controlnet_modules() do
+    with response <- get("/module_list", "#{get_base_url()}/controlnet"),
          {:ok, body} <- handle_response(response) do
       # TODO: fail gracefully if attribute is not present in body
       modules =
@@ -138,9 +130,9 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  @spec controlnet_detect(binary | Tesla.Client.t(), any) :: {:error, any} | {:ok, list}
-  def controlnet_detect(client, params) do
-    with response <- Tesla.post(client, "#{base_url()}/controlnet/detect", params),
+  @spec controlnet_detect(any) :: {:error, any} | {:ok, list}
+  def controlnet_detect(params) do
+    with response <- post("/detect", params, "#{get_base_url()}/controlnet"),
          {:ok, body} <- handle_response(response) do
       {:ok, body["images"] |> Enum.map(&"data:image/png;base64,#{&1}")}
     else
@@ -149,8 +141,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_models(client) do
-    with response <- Tesla.get(client, "/sd-models"),
+  def get_models() do
+    with response <- get("/sd-models"),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -159,8 +151,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def refresh_models(client) do
-    with response <- Tesla.post(client, "/refresh-checkpoints", %{}),
+  def refresh_models() do
+    with response <- post("/refresh-checkpoints", %{}),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -169,8 +161,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_upscalers(client) do
-    with response <- Tesla.get(client, "/upscalers"),
+  def get_upscalers() do
+    with response <- get("/upscalers"),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -179,8 +171,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_loras(client) do
-    with response <- Tesla.get(client, "/loras"),
+  def get_loras() do
+    with response <- get("/loras"),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -189,8 +181,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_embeddings(client) do
-    with response <- Tesla.get(client, "/embeddings"),
+  def get_embeddings() do
+    with response <- get("/embeddings"),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -199,8 +191,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_options(client) do
-    with response <- Tesla.get(client, "/options"),
+  def get_options() do
+    with response <- get("/options"),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -209,8 +201,8 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_png_info(client, png_data_url) do
-    with response <- Tesla.post(client, "/png-info", %{image: png_data_url}),
+  def get_png_info(png_data_url) do
+    with response <- post("/png-info", %{image: png_data_url}),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -219,31 +211,19 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_scripts(client) do
-    with response <- Tesla.get(client, "/scripts"),
+  def get_scripts() do
+    with response <- get("/scripts"),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
       {:error, _error} = res ->
         res
     end
-  end
-
-  # build dynamic client based on runtime arguments
-  def client() do
-    middleware = [
-      {Tesla.Middleware.BaseUrl, "#{base_url()}/sdapi/v1"},
-      Tesla.Middleware.JSON,
-      {Tesla.Middleware.Timeout, timeout: 10_000_000}
-      # {Tesla.Middleware.Headers, [{"authorization", "token: " <> token }]}
-    ]
-
-    Tesla.client(middleware)
   end
 
   defp handle_response(resp) do
     case resp do
-      {:ok, %Tesla.Env{body: body, status: status}} when status >= 200 and status < 400 ->
+      {:ok, %{body: body, status: status}} when status >= 200 and status < 400 ->
         {:ok, body}
 
       _ ->
@@ -253,14 +233,16 @@ defmodule ExSd.AutoClient do
 
   defp handle_error(resp) do
     case resp do
-      {:error, error} ->
-        # Logger.error(%{network_error: error})
+      {:error, error} when is_struct(error) ->
+        {:error, Map.from_struct(error)}
+
+      {:error, error} when is_struct(error) ->
         {:error, error}
 
-      {:ok, %Tesla.Env{body: %{"detail" => "Not Found"}, status: 404}} ->
+      {:ok, %{body: %{"detail" => "Not Found"}, status: 404}} ->
         {:error, "Not Found"}
 
-      {:ok, %Tesla.Env{status: status} = res} when status >= 400 ->
+      {:ok, %{status: status} = res} when status >= 400 ->
         {:error, res.body}
 
       {:ok, res} ->
@@ -272,7 +254,24 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  defp base_url() do
+  @spec get(binary(), binary() | nil) :: {:ok, Finch.Response.t()}
+  def get(url, base_url \\ "#{get_base_url()}/sdapi/v1") do
+    case Finch.build(:get, "#{base_url}#{url}")
+         |> Finch.request(ExSd.Finch, receive_timeout: 1_000_000) do
+      {:ok, response} -> {:ok, %{response | body: Jason.decode!(response.body)}}
+      response -> response
+    end
+  end
+
+  def post(url, body, base_url \\ "#{get_base_url()}/sdapi/v1") do
+    case Finch.build(:post, "#{base_url}#{url}", [], Jason.encode!(body))
+         |> Finch.request(ExSd.Finch, receive_timeout: 1_000_000) do
+      {:ok, response} -> {:ok, %{response | body: Jason.decode!(response.body)}}
+      response -> response
+    end
+  end
+
+  defp get_base_url() do
     Application.fetch_env!(:ex_sd, :auto_client_base_url)
   end
 end

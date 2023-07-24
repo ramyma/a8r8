@@ -4,7 +4,9 @@ defmodule ExSd.Sd.ControlNet do
   alias ExSd.Sd.ControlNetArgs
 
   @derive {Jason.Encoder, except: []}
-
+  @type t :: %__MODULE__{
+          args: list()
+        }
   # @type t :: %__MODULE__{
   #         mask: String.t(),
   #         comments: [MyApp.Comment.t()]

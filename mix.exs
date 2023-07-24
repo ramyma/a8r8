@@ -45,21 +45,24 @@ defmodule ExSd.MixProject do
       # {:esbuild, "~> 0.5", runtime: Mix.env() == :dev},
       # {:tailwind, "~> 0.1.8", runtime: Mix.env() == :dev},
       {:swoosh, "~> 1.3"},
-      {:finch, "~> 0.13"},
+      {:finch, "~> 0.16"},
       {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 1.0"},
       {:gettext, "~> 0.20"},
       {:jason, "~> 1.2"},
       # {:plug_cowboy, "~> 2.5"},
       {:bandit, "~> 1.0-pre"},
-      {:tesla, "~> 1.6"},
-      {:hackney, "~> 1.17"},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:ex_url, "~> 1.4"},
-      {:image, "~> 0.27"},
-      {:nx, "~> 0.5"}
+      {:image, "~> 0.35"},
+      {:nx, "~> 0.5"},
+      {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
+      {:grpc, "~> 0.6"},
+      {:protobuf, "~> 0.11"},
+      # {:mint, "~> 1.4.2"}
       # {:bumblebee, "~> 0.2"},
-      # {:exla, "~> 0.5"},
+      {:exla, "~> 0.5"},
+      {:ortex, "~> 0.1.6"}
       # {:evision, "~> 0.1.29"},
     ]
   end

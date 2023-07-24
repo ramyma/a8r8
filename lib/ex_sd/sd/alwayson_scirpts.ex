@@ -1,10 +1,12 @@
-defmodule ExSd.Sd.AlwaysOnScript do
+defmodule ExSd.Sd.AlwaysOnScripts do
   import Ecto.Changeset
   use Ecto.Schema
   alias ExSd.Sd.{AlwaysonScriptArgs, ControlNet}
 
   @derive {Jason.Encoder, except: []}
-
+  @type t :: %__MODULE__{
+          controlnet: ControlNet.t()
+        }
   @primary_key false
   embedded_schema do
     embeds_one :controlnet, ControlNet

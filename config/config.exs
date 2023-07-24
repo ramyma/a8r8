@@ -60,11 +60,8 @@ config :logger, :console,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-# 360_000
-config :tesla, adapter: {Tesla.Adapter.Hackney, [recv_timeout: :infinity]}
-
-config :nx,
-  default_backend: EXLA.Backend
+config :nx, default_backend: EXLA.Backend
+config :exla, :clients, cuda: [platform: :cuda, :host]
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

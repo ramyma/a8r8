@@ -318,7 +318,7 @@ export const getLayers = async ({
 }: {
   refs: any;
   isMaskLayerVisible: boolean;
-  controlnetLayersArgs: ControlnetLayer[];
+  controlnetLayersArgs?: ControlnetLayer[];
 }): Promise<{
   maskDataUrl: string;
   initImageDataUrl: string | undefined;
@@ -436,22 +436,24 @@ export const getLayers = async ({
     }
   );
 
-  const controlnetDataUrls = controlnetLayersArgs.map((layer, index) => {
-    if (!layer.isEnabled) return "";
-    const layerGroup: Group = controlnetLayerGroups[index];
-    layerGroup.visible(true);
-    const controlnetDataUrl = layer.overrideBaseLayer
-      ? controlnetLayer.toDataURL({
-          x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
-          y: selectionBox?.getAbsolutePosition().y,
-          width: selectionBox?.width(),
-          height: selectionBox?.height(),
-          // imageSmoothingEnabled: false,
-        })
-      : "";
-    layerGroup.visible(false);
-    return controlnetDataUrl;
-  });
+  const controlnetDataUrls =
+    controlnetLayersArgs &&
+    controlnetLayersArgs.map((layer, index) => {
+      if (!layer.isEnabled) return "";
+      const layerGroup: Group = controlnetLayerGroups[index];
+      layerGroup.visible(true);
+      const controlnetDataUrl = layer.overrideBaseLayer
+        ? controlnetLayer.toDataURL({
+            x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
+            y: selectionBox?.getAbsolutePosition().y,
+            width: selectionBox?.width(),
+            height: selectionBox?.height(),
+            // imageSmoothingEnabled: false,
+          })
+        : "";
+      layerGroup.visible(false);
+      return controlnetDataUrl;
+    });
 
   controlnetLayerGroups?.forEach((group, index) =>
     group.visible(initialGroupsVisibility[index])

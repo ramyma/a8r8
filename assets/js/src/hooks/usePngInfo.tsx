@@ -13,7 +13,11 @@ function getBinaryData(dataUrl) {
 }
 
 export const getPngInfo = async (dataUrl) => {
-  return await ExifReader.load(getBinaryData(dataUrl))?.parameters?.value;
+  try {
+    return await ExifReader.load(getBinaryData(dataUrl))?.parameters?.value;
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 const usePngInfo = () => {

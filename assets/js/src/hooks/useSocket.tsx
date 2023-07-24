@@ -25,7 +25,6 @@ const useSocket = () => {
     (message, ...args) => {
       return new Promise((resolve, _) =>
         sendMessage(message, ...args)?.receive("ok", (params) => {
-          // console.log(params);
           resolve(params);
         })
       );
