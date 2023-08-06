@@ -86,7 +86,7 @@ const MainForm = () => {
       } = pngInfo;
       setValue("prompt", prompt);
       setValue("negative_prompt", negativePrompt);
-      setValue("sampler", sampler);
+      setValue("sampler_name", sampler);
       setValue("seed", seed);
       setValue("denoising_strength", denoising_strength);
 
@@ -400,9 +400,9 @@ const MainForm = () => {
         render={({ field }) => <Txt2ImageButtonGroup {...field} />}
       />
       <div className="flex flex-col gap-2">
-        <Label htmlFor="sampler">Sampler</Label>
+        <Label htmlFor="sampler_name">Sampler</Label>
         <Controller
-          name="sampler"
+          name="sampler_name"
           control={control}
           render={({ field }) => <Select items={samplers} {...field} />}
         />
@@ -410,7 +410,7 @@ const MainForm = () => {
 
       {!txt2img && (
         <div className="flex flex-col gap-2">
-          <Label htmlFor="sampler">Fill Method</Label>
+          <Label htmlFor="inpainting_fill">Fill Method</Label>
           <Controller
             name="inpainting_fill"
             control={control}

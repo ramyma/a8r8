@@ -18,7 +18,7 @@ const Stats = () => {
     <div className="text-sm absolute bottom-2 right-2 z-10 flex flex-col gap-1 bg-black/90 backdrop-blur-sm rounded p-4 shadow-md shadow-black/20">
       {stats.isConnected && stats.progress !== 0 && (
         <>
-          {stats?.progress > 1 && stats?.etaRelative && (
+          {stats?.progress > 1 && !!stats?.etaRelative && (
             <span className="text-orange-400">
               ETA: {etaMins ? `${etaMins}m` : ""}
               {etaSecs}s
