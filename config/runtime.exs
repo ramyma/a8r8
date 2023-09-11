@@ -64,7 +64,7 @@ if config_env() == :prod do
     secret_key_base: secret_key_base
 
   config :ex_sd, :auto_client_base_url, System.get_env("AUTO_URL") || "http://localhost:7860"
-
+  config :ex_sd, :comfy_client_base_url, System.get_env("COMFY_URL") || "http://localhost:8188"
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key

@@ -124,7 +124,7 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
           const transaction = tr.replaceSelectionWith(
             Node.fromJSON(state.schema, {
               type: "attention",
-              attrs: { value: 1, code: text },
+              attrs: { value: 1.1, code: text },
             })
           );
           // dispatch(transaction);
@@ -225,7 +225,7 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
   ): NodeExtensionSpec {
     return {
       selectable: true,
-      draggable: false,
+      draggable: true,
       ...override,
       inline: true,
       // content: "(text+)*",
@@ -320,22 +320,12 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
         tr.doc
       );
 
-      dispatch?.(tr.insertText(extra, from, to));
+      dispatch?.(tr.insertText(extra + " ", from, to));
 
       return true;
     };
   }
-  toJSON() {
-    return {
-      type: this.type,
-      content: "vbnvbnv",
-      // Custom properties ...
-    };
-  }
 
-  get text() {
-    return "dsfsdfsdfsdfsdf"; //this.editor.view.state.doc.textContent;
-  }
   @command()
   addEmbedding(
     identifier: string,

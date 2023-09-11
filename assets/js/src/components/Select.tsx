@@ -4,7 +4,7 @@ import { ChevronDownIcon, ChevronUpIcon } from "@radix-ui/react-icons";
 
 interface SelectProps
   extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChange"> {
-  items: string[] | any[];
+  items: (string | { value: any; label: string })[];
   /**
    * @defaultValue 'value'
    */
@@ -18,7 +18,7 @@ interface SelectProps
    */
   textAttr?: string;
   placeholder?: string;
-  value: string | number;
+  value?: string | number;
   onChange: (value: string) => void;
 }
 
@@ -61,7 +61,10 @@ const Select = forwardRef(
         disabled={disabled}
       >
         <RadixSelect.Trigger
-          className="inline-flex items-center justify-between rounded px-2 text-sm leading-none h-[35px] gap-[5px]  text-violet11 shadow-[0_2px_10px] shadow-black/10 focus:shadow-[0_0_0_2px] focus:shadow-black data-[placeholder]:text-violet9 outline-none w-full text-neutral-200 bg-neutral-800/80 hover:bg-neutral-800 border-neutral-700 disabled:text-neutral-700 overflow-hidden"
+          className={
+            "inline-flex items-center justify-between rounded px-2 text-sm leading-none h-[35px] gap-[5px]  text-violet11 shadow-[0_2px_10px] shadow-black/10 focus:shadow-[0_0_0_2px] focus:shadow-black data-[placeholder]:text-violet9 outline-none w-full text-neutral-200 bg-neutral-800/80 hover:bg-neutral-800 border-neutral-700 disabled:text-neutral-700 overflow-hidden " +
+              rest.className ?? ""
+          }
           title={title}
         >
           <RadixSelect.Value placeholder={placeholder} asChild>
@@ -96,11 +99,12 @@ const Select = forwardRef(
               <ChevronUpIcon />
             </RadixSelect.ScrollUpButton>
             <RadixSelect.Viewport>
-              {items?.map((item) => (
+              {items?.map((item, index) => (
                 <RadixSelect.Item
                   key={
                     (rest?.name ?? "") +
-                    (typeof item === "object" ? item[idAttr] : item)
+                    (typeof item === "object" ? item[idAttr] : item) +
+                    index
                   }
                   value={typeof item === "object" ? item[valueAttr] : item}
                   className="p-1 px-2 data-[highlighted]:bg-neutral-200 data-[highlighted]:text-neutral-900 data-[state=checked]:text-primary select-none"

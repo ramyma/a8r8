@@ -11,8 +11,8 @@
 #   - https://pkgs.org/ - resource for finding needed packages
 #   - Ex: hexpm/elixir:1.14.4-erlang-25.0.4-debian-bullseye-20220801-slim
 #
-ARG ELIXIR_VERSION=1.15.0
-ARG OTP_VERSION=26.0.2
+ARG ELIXIR_VERSION=1.15.5
+ARG OTP_VERSION=25.3.2.5
 ARG DEBIAN_VERSION=buster-20230612-slim
 
 ARG BUILDER_IMAGE="hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
@@ -76,6 +76,9 @@ RUN mkdir config
 # to ensure any relevant config change will trigger the dependencies
 # to be re-compiled.
 COPY config/config.exs config/${MIX_ENV}.exs config/
+
+# ENV XLA_TARGET="cuda118"
+
 RUN mix deps.compile
 
 COPY lib lib

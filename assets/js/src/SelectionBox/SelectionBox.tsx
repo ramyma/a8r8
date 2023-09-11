@@ -67,11 +67,12 @@ const SelectionBox = ({
     y: y + 24,
   };
 
-  // TODO: use colors from theme
-  const progressStrokeColor = theme.colors.success; //"#15803d";
-  const strokeColor = remoteSession
-    ? theme.colors.neutral["700"]
-    : theme.colors.yellow["800"]; //: "#8787877d";
+  const progressStrokeColor = theme?.colors?.success ?? "#15803d";
+  const strokeColor = theme
+    ? remoteSession
+      ? theme?.colors?.neutral["700"]
+      : theme?.colors?.yellow["800"]
+    : "#8787877d";
   const stop = Math.min(1, progress / 100);
 
   const strokeGradient = [
@@ -192,8 +193,7 @@ const ProgressRect = ({
       height={16}
       x={x}
       y={y}
-      // TODO: use colors from theme
-      fill={theme.colors.success} //{"#15803d"}
+      fill={(theme?.colors?.success as string) ?? "#15803d"}
       strokeEnabled={false}
       listening={false}
     />

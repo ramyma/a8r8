@@ -1,4 +1,5 @@
 defmodule ExSd.Sd do
+  require Logger
   alias ExSd.Sd.MemoryStats
   alias ExSd.Sd.GenerationParams
   alias ExSd.SdSever
@@ -35,6 +36,9 @@ defmodule ExSd.Sd do
   @spec get_models :: {:ok, list()}
   defdelegate get_models(), to: SdSever
 
+  @spec get_vaes :: {:ok, list()}
+  defdelegate get_vaes(), to: SdSever
+
   @spec get_scripts :: {:ok, map()}
   defdelegate get_scripts(), to: SdSever
 
@@ -47,16 +51,22 @@ defmodule ExSd.Sd do
   @spec get_embeddings :: {:ok, map()}
   defdelegate get_embeddings, to: SdSever
 
+  @spec get_backend :: {:ok, binary()}
+  defdelegate get_backend, to: SdSever
+
   @spec get_controlnet_models :: {:ok, list(binary)}
   defdelegate get_controlnet_models(), to: SdSever
 
-  @spec get_controlnet_modules :: {:ok, list}
-  defdelegate get_controlnet_modules(), to: SdSever
+  @spec get_controlnet_preprocessors :: {:ok, list}
+  defdelegate get_controlnet_preprocessors(), to: SdSever
 
   @spec get_options :: {:ok, map()}
   defdelegate get_options(), to: SdSever
 
   defdelegate set_model(model_title), to: SdSever
+
+  @spec set_backend(binary()) :: any
+  defdelegate set_backend(backend), to: SdSever
 
   defdelegate get_png_info(png_data_url), to: SdSever
 
@@ -101,6 +111,10 @@ defmodule ExSd.Sd do
 
   def broadcast_data(name, data) do
     ExSdWeb.Endpoint.broadcast!("sd", "update_#{name}", %{data: data})
+  end
+
+  def broadcast_backend(backend) do
+    ExSdWeb.Endpoint.broadcast!("sd", "backend", %{backend: backend})
   end
 
   def load_loras(lora_dir_path) do

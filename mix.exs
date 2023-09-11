@@ -4,8 +4,8 @@ defmodule ExSd.MixProject do
   def project do
     [
       app: :ex_sd,
-      version: "0.1.0",
-      elixir: "~> 1.14",
+      version: "0.2.0",
+      elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
@@ -54,15 +54,16 @@ defmodule ExSd.MixProject do
       {:bandit, "~> 1.0-pre"},
       {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:ex_url, "~> 1.4"},
-      {:image, "~> 0.35"},
+      {:image, "~> 0.36"},
       {:nx, "~> 0.5"},
       {:dialyxir, "~> 1.3", only: [:dev], runtime: false},
       {:grpc, "~> 0.6"},
       {:protobuf, "~> 0.11"},
       # {:mint, "~> 1.4.2"}
       # {:bumblebee, "~> 0.2"},
-      {:exla, "~> 0.5"},
-      {:ortex, "~> 0.1.6"}
+      # {:exla, "~> 0.5"},
+      # {:ortex, "~> 0.1.7"},
+      {:mint_web_socket, "~> 1.0"}
       # {:evision, "~> 0.1.29"},
     ]
   end

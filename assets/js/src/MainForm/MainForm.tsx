@@ -4,6 +4,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
 } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
@@ -31,6 +32,7 @@ import useDragAndDrop from "../hooks/useDragAndDrop";
 import {
   editorJsonToText,
   getLayers,
+  isSdXlModel,
   roundToClosestMultipleOf8Down,
 } from "../utils";
 import Editor from "../components/Editor";
@@ -46,29 +48,72 @@ import Toggle from "../components/Toggle";
 import { LockClosedIcon, LockOpen2Icon } from "@radix-ui/react-icons";
 import { selectInvertMask } from "../state/canvasSlice";
 import useScripts from "../hooks/useScripts";
+import { selectBackend, selectSelectedModel } from "../state/optionsSlice";
 
 const MainForm = () => {
   const { channel, sendMessage } = useSocket();
+  const backend = useAppSelector(selectBackend);
   const { control, handleSubmit, setValue } = useForm();
   const formRef = useRef<HTMLFormElement>(null);
   const scale = useWatch({ name: "scale", control, defaultValue: 1 });
   const width = useWatch({ name: "width", control });
   const height = useWatch({ name: "height", control });
-  const txt2img = useWatch({ name: "txt2img", control });
+  const txt2img = useWatch({ name: "txt2img", control, defaultValue: true });
+  const isSeedPinned = useWatch({ name: "isSeedPinned", control });
+
   const fullScalePass = useWatch({
     name: "full_scale_pass",
     control,
     defaultValue: true,
   });
+  const isUltimateUpscaleEnabled = useWatch({
+    name: "isUltimateUpscaleEnabled",
+    control,
+    defaultValue: false,
+  });
 
-  const { upscalers } = useUpscalers();
+  const isTiledDiffusionEnabled = useWatch({
+    name: "isTiledDiffusionEnabled",
+    control,
+    defaultValue: false,
+  });
+
+  const upscaler = useWatch({
+    name: "upscaler",
+    control,
+    defaultValue: "None",
+  });
 
   const {
     hasSelfAttentionGuidance,
     hasTiledDiffusion,
+    hasUltimateUpscale,
     hasTiledVae,
     hasControlnet,
   } = useScripts();
+
+  const { upscalers } = useUpscalers();
+
+  const sortedUpscalers = useMemo(
+    () => [
+      "None",
+      ...((!hasTiledDiffusion || !isTiledDiffusionEnabled) &&
+      (txt2img || (backend == "comfy" && !isUltimateUpscaleEnabled))
+        ? ["Latent"]
+        : []),
+      ...[...(upscalers ?? [])].sort(),
+    ],
+    [
+      hasTiledDiffusion,
+      isTiledDiffusionEnabled,
+      txt2img,
+      backend,
+      isUltimateUpscaleEnabled,
+      upscalers,
+    ]
+  );
+
+  const model = useAppSelector(selectSelectedModel);
 
   const isConnected = useAppSelector(selectIsConnected);
 
@@ -116,18 +161,29 @@ const MainForm = () => {
     setValue("height", height);
   }, [selectionBox, setValue]);
 
+  const prevMinDimension = useRef<number>();
   useEffect(() => {
     // Update scale if either width of height go below 512
     if (width && height) {
+      const referenceDim = model.isSdXl ? 1024 : 512;
+
       const minDimension = Math.min(+width, +height);
-      // TODO: use a dynamic value for minimum res; 512
-      if (minDimension < 512) {
-        const newScale = Math.min(10, 516.5 / minDimension).toFixed(2);
-        // FIXME: set new scale to 1 if marginally greater than 1
+
+      if (minDimension < referenceDim) {
+        const newScale = Math.min(
+          10,
+          (model.isSdXl ? 1024 : 516.5) / minDimension
+        ).toFixed(2);
         setValue("scale", +newScale);
+      } else if (
+        prevMinDimension.current &&
+        prevMinDimension.current < referenceDim
+      ) {
+        setValue("scale", 1);
       }
+      prevMinDimension.current = minDimension;
     }
-  }, [width, height, setValue]);
+  }, [width, height, setValue, model]);
 
   const invertMask = useAppSelector(selectInvertMask);
 
@@ -145,6 +201,7 @@ const MainForm = () => {
       use_scaled_dimensions,
       full_scale_pass,
       isTiledDiffusionEnabled,
+      isUltimateUpscaleEnabled,
       isSelfAttentionGuidanceEnabled,
       upscaler,
       prompt,
@@ -166,15 +223,67 @@ const MainForm = () => {
       mask: maskDataUrl,
       init_images: [initImageDataUrl],
       enable_hr: scale > 1,
-      hr_upscaler: upscaler,
+      hr_upscaler:
+        backend == "auto" && upscaler === "Latent"
+          ? "Latent (nearest-exact)"
+          : upscaler,
       hr_scale: scale,
       // seed_resize_from_w: rest.width,
       // seed_resize_from_h: rest.height,
-      override_settings: {
-        ...(!isTiledDiffusionEnabled && {
-          upscaler_for_img2img: upscaler,
+      ...(backend === "auto" && {
+        override_settings: {
+          ...(!isTiledDiffusionEnabled &&
+            !isUltimateUpscaleEnabled && {
+              upscaler_for_img2img: upscaler,
+            }),
+          sd_vae: model?.isSdXl
+            ? "sdxl_vae.safetensors"
+            : "vae-ft-mse-840000-ema-pruned.ckpt",
+        },
+      }),
+      ...(hasUltimateUpscale &&
+        !txt2img &&
+        isUltimateUpscaleEnabled && {
+          script_name: "ultimate sd upscale",
+          script_args: [
+            //_
+            null,
+            //tile_width,
+            512,
+            //tile_height
+            512,
+            //mask_blur
+            8,
+            // padding,
+            32,
+            //seams_fix_width,
+            0,
+            // seams_fix_denoise
+            false,
+            // seams_fix_padding
+            32,
+            //upscaler_index
+            (upscalers ?? []).findIndex((u) => u === upscaler) + 1,
+            // save_upscaled_image
+            false,
+            // redraw_mode,
+            0,
+            // save_seams_fix_image
+            false,
+            // seams_fix_mask_blur,
+            0,
+            //seams_fix_type
+            0,
+            // target_size_type,
+            0,
+            // custom_width
+            Math.ceil((width * scale) / 8) * 8,
+            // custom_height
+            Math.ceil((height * scale) / 8) * 8,
+            // custom_scale
+            scale,
+          ],
         }),
-      },
       // TODO: consider moving this logic to BE and send raw params
       alwayson_scripts: {
         ...(hasControlnet && getControlnetArgs()),
@@ -194,7 +303,7 @@ const MainForm = () => {
           "Tiled VAE": {
             args: [
               // # enabled,
-              true,
+              !model?.isSdXl,
               // # encoder_tile_size,
               960,
               // # decoder_tile_size
@@ -231,13 +340,13 @@ const MainForm = () => {
                 //  tile_height: int,
                 128, //96,
                 //  overlap: int,
-                8, //48,
+                16, //48,
                 //  tile_batch_size: int,
-                1, //1
+                3, //1
                 // upscaler_index: str,
                 upscaler, //"4x-UltraSharp",
                 // scale_factor: float,
-                scale, //TODO: override width and height instead to ensure we dims divisible by 8
+                scale, //TODO: override width and height instead to ensure dims divisible by 8
                 // noise_inverse: bool,
                 false,
                 // noise_inverse_steps: int,
@@ -271,6 +380,8 @@ const MainForm = () => {
         use_scaled_dimensions: showUseScaledDimensions && use_scaled_dimensions,
         full_scale_pass,
         invertMask,
+        model: model?.name,
+        ultimate_upscale: true,
       },
     });
     sendMessage("generate", {
@@ -281,6 +392,8 @@ const MainForm = () => {
         use_scaled_dimensions: showUseScaledDimensions && use_scaled_dimensions,
         full_scale_pass: showFullScalePass && fullScalePass,
         invert_mask: invertMask,
+        model: model?.name,
+        ultimate_upscale: isUltimateUpscaleEnabled,
       },
       session_name: sessionName,
     });
@@ -327,12 +440,12 @@ const MainForm = () => {
   useEffect(() => {
     const ref = channel?.on("image", (data) => {
       const { seed } = data;
-      setValue("seed", seed);
+      !isSeedPinned && setValue("seed", seed);
     });
     return () => {
       ref && channel?.off("image", ref);
     };
-  }, [channel, dispatch, setValue]);
+  }, [channel, dispatch, isSeedPinned, setValue]);
 
   const handleInterrupt = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -396,7 +509,7 @@ const MainForm = () => {
       <Controller
         name="txt2img"
         control={control}
-        defaultValue={false}
+        defaultValue={true}
         render={({ field }) => <Txt2ImageButtonGroup {...field} />}
       />
       <div className="flex flex-col gap-2">
@@ -408,7 +521,7 @@ const MainForm = () => {
         />
       </div>
 
-      {!txt2img && (
+      {!txt2img && backend === "auto" && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="inpainting_fill">Fill Method</Label>
           <Controller
@@ -552,9 +665,10 @@ const MainForm = () => {
             name="upscaler"
             control={control}
             // rules={{ required: true }}
+            defaultValue="None"
             render={({ field }) => (
               <Select
-                items={upscalers && ["None", ...upscalers]}
+                items={sortedUpscalers && sortedUpscalers}
                 placeholder="Upscaler"
                 {...field}
               />
@@ -610,9 +724,35 @@ const MainForm = () => {
           name="isTiledDiffusionEnabled"
           control={control}
           defaultValue={false}
+          rules={{
+            onChange: (e: ChangeEvent<HTMLInputElement>) => {
+              const value = e.target.value;
+              value && setValue("isUltimateUpscaleEnabled", false);
+              value && upscaler === "Latent" && setValue("upscaler", "None");
+            },
+          }}
           render={({ field }) => (
             <Checkbox id="isTiledDiffusionEnabled" {...field}>
               Tiled Diffusion
+            </Checkbox>
+          )}
+        />
+      )}
+      {!txt2img && hasUltimateUpscale && (
+        <Controller
+          name="isUltimateUpscaleEnabled"
+          control={control}
+          defaultValue={false}
+          rules={{
+            onChange: (e: ChangeEvent<HTMLInputElement>) => {
+              const value = e.target.value;
+              value && setValue("isTiledDiffusionEnabled", false);
+              value && upscaler === "Latent" && setValue("upscaler", "None");
+            },
+          }}
+          render={({ field }) => (
+            <Checkbox id="isUltimateUpscaleEnabled" {...field}>
+              Ultimate Upscale
             </Checkbox>
           )}
         />

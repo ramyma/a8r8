@@ -46,7 +46,12 @@ const Notifications = () => {
       let timeout: ReturnType<typeof setTimeout> | undefined;
       const ref = channel?.on(
         "error",
-        (error: { error: string; errors: string; detail: string }) => {
+        (error: {
+          error: string;
+          errors: string;
+          detail: string;
+          message?: string;
+        }) => {
           if (error.error === "OutOfMemoryError") {
             timeout = addNotification({
               id: uuidv4(),
@@ -54,11 +59,13 @@ const Notifications = () => {
               title: "Out of memory",
             });
           } else {
+            console.log({ error });
             timeout = addNotification({
               id: uuidv4(),
               type: "error",
               title: "Server error",
-              body: error.detail || error.errors || error.error,
+              body:
+                error.detail || error.errors || error?.message || error.error,
             });
           }
         }
@@ -97,7 +104,7 @@ const NotificationItem = ({
 }: NotificationItemProps) => {
   return (
     // TODO: change bg color according to notification type
-    <li className="flex relative bg-danger/70 backdrop-blur-sm p-4 z-10 w-60 rounded flex-col gap-3 shadow-md shadow-black/30">
+    <li className="flex relative bg-danger/70 backdrop-blur-sm p-4 z-10 w-60 rounded flex-col gap-3 shadow-md shadow-black/30 break-words">
       <span
         className="bg-transparent absolute top-3 right-3 cursor-pointer"
         onClick={() => onClose(id)}

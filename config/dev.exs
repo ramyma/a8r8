@@ -36,7 +36,7 @@ config :ex_sd, ExSdWeb.Endpoint,
   ]
 
 config :ex_sd, :auto_client_base_url, "http://localhost:7860"
-
+config :ex_sd, :comfy_client_base_url, "http://localhost:8188"
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed

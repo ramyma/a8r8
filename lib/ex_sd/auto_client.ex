@@ -72,7 +72,6 @@ defmodule ExSd.AutoClient do
   def post_active_model(model_title) do
     with response <- post("/options", %{sd_model_checkpoint: model_title}),
          {:ok, body} <- handle_response(response) do
-      Logger.info(body)
       {:ok, body}
     else
       {:error, _error} = res ->
@@ -113,7 +112,7 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  def get_controlnet_modules() do
+  def get_controlnet_preprocessors() do
     with response <- get("/module_list", "#{get_base_url()}/controlnet"),
          {:ok, body} <- handle_response(response) do
       # TODO: fail gracefully if attribute is not present in body
@@ -143,6 +142,16 @@ defmodule ExSd.AutoClient do
 
   def get_models() do
     with response <- get("/sd-models"),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  def get_vaes() do
+    with response <- get("/sd-vae"),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
