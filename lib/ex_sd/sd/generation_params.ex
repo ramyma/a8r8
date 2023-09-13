@@ -52,6 +52,8 @@ defmodule ExSd.Sd.GenerationParams do
     field(:inpaint_full_res, :boolean, default: false)
     field(:inpainting_fill, :integer, default: 1)
     field(:inpaint_full_res_padding, :integer, default: 0)
+    field(:script_name, :string, default: "")
+    field(:script_args, {:array, :any}, default: [])
     embeds_one(:alwayson_scripts, AlwaysOnScripts)
   end
 
@@ -99,7 +101,9 @@ defmodule ExSd.Sd.GenerationParams do
       :inpainting_fill,
       :inpaint_full_res_padding,
       :init_images,
-      :inpaint_full_res
+      :inpaint_full_res,
+      :script_name,
+      :script_args
     ])
     |> cast_embed(:alwayson_scripts, required: false)
   end

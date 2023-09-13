@@ -100,7 +100,7 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
 
   const { loras } = useLoras();
   const lorasByName = useCallback(
-    () => loras?.map(({ name }) => name) ?? [],
+    () => loras?.map(({ name }) => name.replace(".safetensors", "")) ?? [],
     [loras]
   );
 

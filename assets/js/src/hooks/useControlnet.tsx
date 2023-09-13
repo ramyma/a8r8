@@ -10,9 +10,9 @@ import {
   selectActiveLayer,
   selectIsMaskLayerVisible,
 } from "../state/layersSlice";
-import { selectSelectedModel } from "../state/optionsSlice";
 import useData, { FetchPolicy } from "./useData";
 import useSocket from "./useSocket";
+import { selectSelectionBox } from "../state/selectionBoxSlice";
 
 type Props = {
   // selectedModel: Model["sha256"];
@@ -33,9 +33,9 @@ type ControlnetModule = {
 
 const useControlnet = ({ fetchPolicy }: Props = {}) => {
   const { channel, sendMessage } = useSocket();
-  const selectedModel = useAppSelector(selectSelectedModel);
   const activeLayerName = useAppSelector(selectActiveLayer);
   const isMaskLayerVisible = useAppSelector(selectIsMaskLayerVisible);
+  const selectionBox = useAppSelector(selectSelectionBox);
 
   const dispatch = useAppDispatch();
   const {
@@ -54,9 +54,9 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
     fetchPolicy,
   });
 
-  const { fetchData: fetchControlnetModules, data: controlnet_modules } =
+  const { fetchData: fetchControlnetModules, data: controlnet_preprocessors } =
     useData<ControlnetModule[]>({
-      name: "controlnet_modules",
+      name: "controlnet_preprocessors",
       fetchPolicy,
     });
 
@@ -75,7 +75,9 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
       layer_id: layerId,
       controlnet_module: module,
       controlnet_input_images: [imageDataUrl],
-      controlnet_processor_res: processor_res,
+      controlnet_processor_res: pixel_perfect
+        ? Math.min(selectionBox.width, selectionBox.height)
+        : processor_res,
       controlnet_threshold_a: threshold_a,
       controlnet_threshold_b: threshold_b,
       controlnet_pixel_perfect: pixel_perfect,
@@ -166,10 +168,9 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
 
   return {
     controlnet_models,
-    controlnet_modules,
+    controlnet_preprocessors,
     fetchControlnetModels,
     fetchControlnetModules,
-    selectedModel,
     controlnetDetect,
   };
 };

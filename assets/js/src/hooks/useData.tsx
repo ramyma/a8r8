@@ -9,9 +9,15 @@ type Props = {
   name: string;
   callback?: (data) => void;
   fetchPolicy?: FetchPolicy;
+  forceRequest?: boolean;
 };
 
-const useData = <T,>({ name, callback, fetchPolicy = "lazy" }: Props) => {
+const useData = <T,>({
+  name,
+  callback,
+  fetchPolicy = "lazy",
+  forceRequest = false,
+}: Props) => {
   const { channel, getData } = useSocket();
   const ref = useRef(false);
   const dataState = useAppSelector(selectData);
@@ -31,7 +37,11 @@ const useData = <T,>({ name, callback, fetchPolicy = "lazy" }: Props) => {
       callback && callback(data);
     }
 
-    if (!ref.current && fetchPolicy === "eager" && isConnected) {
+    if (
+      !ref.current &&
+      fetchPolicy === "eager" &&
+      (isConnected || forceRequest)
+    ) {
       get();
       ref.current = true;
     }
@@ -44,6 +54,7 @@ const useData = <T,>({ name, callback, fetchPolicy = "lazy" }: Props) => {
     name,
     fetchData,
     isConnected,
+    forceRequest,
   ]);
 
   useEffect(() => {

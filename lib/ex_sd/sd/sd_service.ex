@@ -1,10 +1,14 @@
 defmodule ExSd.Sd.SdService do
   require Logger
 
+  alias ExSd.ComfyGenerationServer
+  alias ExSd.ComfyClient
   alias ExSd.Sd.ControlNetArgs
   alias ExSd.Sd.GenerationParams
   alias ExSd.AutoClient
   alias ExSd.Sd.ImageService
+
+  @type backend :: :auto | :comfy
 
   def generate_image(
         %GenerationParams{
@@ -12,7 +16,65 @@ defmodule ExSd.Sd.SdService do
           height: height,
           txt2img: _txt2img
         } = generation_params,
-        %{"scale" => scale, "invert_mask" => invert_mask} = attrs
+        %{"invert_mask" => invert_mask} = attrs,
+        backend: :comfy
+      ) do
+    original_dimensions = %{width: width, height: height}
+    # mask = fill_mask(generation_params.mask)
+
+    # create mask
+    {mask_binary, mask_image} =
+      ImageService.mask_from_alpha(
+        List.first(generation_params.init_images),
+        generation_params.mask,
+        invert_mask
+      )
+
+    Logger.info("Start generation")
+
+    generation_params =
+      generation_params
+      # FIXME: images not saved (try to save in a task?)
+      |> save_init_mask_and_init_image()
+      |> Map.put(:mask, mask_binary)
+      |> scale_generation_dimensions(attrs)
+      |> remove_invalid_alwayson_scripts()
+      |> maybe_set_controlnet_images()
+      |> maybe_save_controlnet_images()
+      |> generate_seed()
+
+    {generation_params, positive_loras, negative_loras} = generation_params |> extract_loras()
+
+    mask_image_average = Image.average!(mask_image) |> Enum.sum() |> div(3)
+
+    attrs =
+      Map.merge(attrs, %{
+        "positive_loras" => positive_loras,
+        "negative_loras" => negative_loras
+      })
+
+    flow = [
+      %{
+        generation_params: generation_params,
+        attrs: attrs,
+        original_dimensions: original_dimensions,
+        mask_image: mask_image,
+        mask_image_average: mask_image_average,
+        client: ComfyClient
+      }
+    ]
+
+    ComfyGenerationServer.start_flow(flow, attrs, original_dimensions)
+  end
+
+  def generate_image(
+        %GenerationParams{
+          width: width,
+          height: height,
+          txt2img: _txt2img
+        } = generation_params,
+        %{"scale" => scale, "invert_mask" => invert_mask} = attrs,
+        backend: :auto
       ) do
     full_scale_pass = Map.get(attrs, "full_scale_pass", false)
     original_dimensions = %{width: width, height: height}
@@ -39,7 +101,7 @@ defmodule ExSd.Sd.SdService do
       |> remove_invalid_alwayson_scripts()
       |> maybe_set_controlnet_images()
       |> maybe_save_controlnet_images()
-
+      |> tap(&Logger.debug(&1))
 
     mask_image_average = Image.average!(mask_image) |> Enum.sum() |> div(3)
 
@@ -139,6 +201,48 @@ defmodule ExSd.Sd.SdService do
         Logger.error(err)
         error
     end
+  end
+
+  def handle_generation_completion(result, :comfy = _backend) do
+    %{image: images_base64, attrs: attrs, dimensions: dimensions, flow: flow} = result
+
+    mask_image = ImageService.image_from_dataurl(flow.generation_params.mask)
+
+    mask_image_average =
+      mask_image
+      |> Image.average!()
+      |> Enum.sum()
+      |> div(3)
+
+    result_image =
+      if mask_image_average === 255 and
+           attrs["use_scaled_dimensions"] == true do
+        Logger.info("Returning raw image for overriding scale")
+
+        images_base64
+        |> ImageService.image_from_dataurl()
+        |> Image.write!(:memory, suffix: ".png")
+        |> Base.encode64()
+      else
+        result_image =
+          images_base64
+          |> ImageService.image_from_dataurl()
+          |> Image.thumbnail!(
+            dimensions.width,
+            resize: :force,
+            height: dimensions.height
+          )
+
+        {:ok, result_image} =
+          result_image
+          |> Image.compose(mask_image, blend_mode: :dest_in)
+
+        result_image
+        |> Image.write!(:memory, suffix: ".png")
+        |> Base.encode64()
+      end
+
+    result_image
   end
 
   defp put_denoising_strength(
@@ -276,6 +380,18 @@ defmodule ExSd.Sd.SdService do
     )
   end
 
+  defp generate_seed(%GenerationParams{seed: seed} = generation_params) do
+    generation_params
+    |> Map.put(
+      :seed,
+      if(
+        seed == -1,
+        do: :rand.uniform(1_000_000_000_000_000),
+        else: seed
+      )
+    )
+  end
+
   defp get_second_pass_init_image(
          %GenerationParams{txt2img: txt2img, init_images: init_images} = _generation_params,
          result_images_base64
@@ -292,40 +408,63 @@ defmodule ExSd.Sd.SdService do
     )
   end
 
-  @spec interrupt() :: {:ok, any}
-  defdelegate interrupt(), to: AutoClient
+  @spec interrupt(backend()) :: {:ok, any}
+  def interrupt(:auto), do: AutoClient.interrupt()
+  def interrupt(:comfy), do: ComfyClient.interrupt()
 
   defdelegate controlnet_detect(params), to: AutoClient
 
-  @spec get_samplers() :: {:error, any} | {:ok, list}
-  defdelegate get_samplers(), to: AutoClient
+  @spec get_samplers(backend()) :: {:error, any} | {:ok, list}
+  def get_samplers(:auto), do: AutoClient.get_samplers()
+  def get_samplers(:comfy), do: ComfyClient.get_samplers()
 
-  @spec get_controlnet_models() :: {:error, any} | {:ok, any}
-  defdelegate get_controlnet_models(), to: AutoClient
+  @spec get_controlnet_models(backend()) :: {:error, any} | {:ok, any}
+  def get_controlnet_models(:auto), do: AutoClient.get_controlnet_models()
+  def get_controlnet_models(:comfy), do: ComfyClient.get_controlnet_models()
 
-  @spec get_controlnet_modules() ::
-          {:error, any} | {:ok, list(binary), map}
-  defdelegate get_controlnet_modules(), to: AutoClient
+  @spec get_controlnet_preprocessors(:auto) :: {:error, any} | {:ok, list(binary), any}
+  def get_controlnet_preprocessors(:auto), do: AutoClient.get_controlnet_preprocessors()
+  @spec get_controlnet_preprocessors(:comfy) :: {:error, any} | {:ok, list(binary)}
+  def get_controlnet_preprocessors(:comfy), do: ComfyClient.get_controlnet_preprocessors()
 
-  @spec get_models() :: {:error, any} | {:ok, any}
-  defdelegate get_models(), to: AutoClient
+  @spec get_models(backend()) :: {:error, any} | {:ok, any}
+  def get_models(:auto), do: AutoClient.get_models()
+  def get_models(:comfy), do: ComfyClient.get_models()
+
+  @spec get_vaes(backend()) :: {:error, any} | {:ok, any}
+  def get_vaes(:auto), do: AutoClient.get_vaes()
+  def get_vaes(:comfy), do: ComfyClient.get_vaes()
 
   @spec refresh_models() :: {:error, any} | {:ok, any}
   defdelegate refresh_models(), to: AutoClient
 
-  @spec get_upscalers() :: {:error, any} | {:ok, any}
-  defdelegate get_upscalers(), to: AutoClient
+  @spec get_upscalers(backend()) :: {:error, any} | {:ok, any}
+  def get_upscalers(:auto), do: AutoClient.get_upscalers()
+  def get_upscalers(:comfy), do: ComfyClient.get_upscalers()
 
-  @spec get_loras() :: {:error, any} | {:ok, any}
-  defdelegate get_loras(), to: AutoClient
+  @spec get_loras(backend()) :: {:error, any} | {:ok, any}
+  def get_loras(:auto), do: AutoClient.get_loras()
+  def get_loras(:comfy), do: ComfyClient.get_loras()
 
-  @spec get_embeddings() :: {:error, any} | {:ok, any}
-  def get_embeddings() do
+  @spec get_embeddings(backend()) :: {:error, any} | {:ok, any}
+  def get_embeddings(:auto) do
     case AutoClient.get_embeddings() do
       {:ok, embeddings} ->
         {:ok,
          embeddings["loaded"]
          |> Enum.map(fn {k, _v} -> k end)
+         |> Enum.sort_by(&String.downcase/1, &<=/2)}
+
+      result ->
+        result
+    end
+  end
+
+  def get_embeddings(:comfy) do
+    case ComfyClient.get_embeddings() do
+      {:ok, embeddings} ->
+        {:ok,
+         embeddings
          |> Enum.sort_by(&String.downcase/1, &<=/2)}
 
       result ->
@@ -342,16 +481,43 @@ defmodule ExSd.Sd.SdService do
   @spec get_scripts() :: {:error, any} | {:ok, any}
   defdelegate get_scripts(), to: AutoClient
 
-  @spec get_progress() :: {:error, any} | {:ok, any}
-  defdelegate get_progress(), to: AutoClient
+  @spec get_progress(backend()) :: {:error, any} | {:ok, any}
+  def get_progress(:auto), do: AutoClient.get_progress()
+  # def get_progress(:comfy), do: ComfyClient.get_progress()
 
-  @spec get_memory_usage() :: {:error, any} | {:ok, any}
-  defdelegate get_memory_usage(), to: AutoClient
+  @spec get_memory_usage(backend()) :: {:error, any} | {:ok, any}
+  def get_memory_usage(:comfy), do: ComfyClient.get_memory_usage()
+  def get_memory_usage(:auto), do: AutoClient.get_memory_usage()
 
-  @spec post_active_model(any) :: {:error, any} | {:ok, any}
+  @spec post_active_model(binary()) :: {:error, any} | {:ok, any}
   defdelegate post_active_model(model_title), to: AutoClient
 
   def round_to_closest_multiple_of_8_down(number) do
     round((number - 4) / 8) * 8
+  end
+
+  @spec extract_loras(ExSd.Sd.GenerationParams.t()) :: {ExSd.Sd.GenerationParams.t(), list, list}
+  def extract_loras(
+        %GenerationParams{prompt: prompt, negative_prompt: negative_prompt} = generation_params
+      ) do
+    lora_regex = ~r/<lora:(?<name>\S+):(?<value>\S+)>/
+
+    positive_loras =
+      Regex.scan(lora_regex, prompt, capture: :all_names)
+      |> Enum.map(fn [name, value] ->
+        %{name: name, value: Float.parse(value) |> elem(0)}
+      end)
+
+    negative_loras =
+      Regex.scan(lora_regex, negative_prompt, capture: :all_names)
+      |> Enum.map(fn [name, value] ->
+        %{name: name, value: Float.parse(value) |> elem(0)}
+      end)
+
+    cleaned_prompt = Regex.replace(lora_regex, prompt, "")
+    cleaned_negative_prompt = Regex.replace(lora_regex, negative_prompt, "")
+
+    {%{generation_params | prompt: cleaned_prompt, negative_prompt: cleaned_negative_prompt},
+     positive_loras, negative_loras}
   end
 end

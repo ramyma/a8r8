@@ -580,3 +580,6 @@ function actionsThrottlingFilter(action) {
   }, IGNORE_TIME);
   return true;
 }
+
+export const isSdXlModel = (modelName: string): boolean =>
+  modelName?.toLowerCase()?.includes("xl");

@@ -5,6 +5,9 @@ import { selectIsConnected, selectStats } from "./state/statsSlice";
 import useProgress from "./hooks/useProgress";
 import { useSelector } from "react-redux";
 import { selectSessions } from "./state/sessionsSlice";
+import { selectBackend } from "./state/optionsSlice";
+import Select from "./components/Select";
+import useBackend from "./hooks/useBackend";
 
 const Stats = () => {
   const stats = useAppSelector(selectStats);
@@ -14,37 +17,64 @@ const Stats = () => {
 
   const etaMins = Math.floor(stats?.etaRelative / 60);
   const etaSecs = Math.round(stats?.etaRelative % 60);
+
+  const backend = useAppSelector(selectBackend);
+  const { changeBackend } = useBackend();
+  const handleBackendChange = (backend) => {
+    changeBackend(backend);
+  };
   return (
-    <div className="text-sm absolute bottom-2 right-2 z-10 flex flex-col gap-1 bg-black/90 backdrop-blur-sm rounded p-4 shadow-md shadow-black/20">
-      {stats.isConnected && stats.progress !== 0 && (
-        <>
-          {stats?.progress > 1 && !!stats?.etaRelative && (
-            <span className="text-orange-400">
-              ETA: {etaMins ? `${etaMins}m` : ""}
-              {etaSecs}s
-            </span>
-          )}
-          <span className="text-orange-400">Progress: {stats.progress}%</span>
-        </>
-      )}
-      {!!stats.vRamUsage && isConnected && (
-        <span>vRam usage: {stats.vRamUsage}%</span>
-      )}
-      <ConnectionStatus isConnected={isConnected} />
-      <SessionsStatus />
+    <div className="flex absolute bottom-2 right-2 z-10 items-end gap-2">
+      <Select
+        className="!w-fit"
+        items={[
+          { label: "Auto", value: "auto" },
+          { label: "Comfy", value: "comfy" },
+        ]}
+        title="Select Backend"
+        value={backend}
+        disabled={!!stats.progress}
+        onChange={handleBackendChange}
+      />
+      <div className="text-sm flex w-fit flex-col gap-1 bg-black/90 backdrop-blur-sm rounded p-4 shadow-md shadow-black/20">
+        {stats.isConnected && stats.progress !== 0 && (
+          <>
+            {stats?.progress > 1 &&
+              !!stats?.etaRelative &&
+              stats?.etaRelative > 0 && (
+                <span className="text-orange-400">
+                  ETA: {etaMins ? `${etaMins}m` : ""}
+                  {etaSecs}s
+                </span>
+              )}
+            <span className="text-orange-400">Progress: {stats.progress}%</span>
+          </>
+        )}
+        {!!stats.vRamUsage && isConnected && (
+          <span>vRam usage: {stats.vRamUsage}%</span>
+        )}
+        <ConnectionStatus isConnected={isConnected} backend={backend} />
+        <SessionsStatus />
+      </div>
     </div>
   );
 };
 
-const ConnectionStatus = ({ isConnected }: { isConnected: boolean }) => {
+const ConnectionStatus = ({
+  isConnected,
+  backend,
+}: {
+  isConnected: boolean;
+  backend: string;
+}) => {
   const textColorClass = isConnected ? "text-success" : "text-red-700";
-  const text = isConnected ? "Connected" : "Disconnected";
+  const text = isConnected ? `Connected (${backend})` : "Disconnected";
   return (
     <div
       className={`flex items-center gap-2 text-shadow shadow-black/20 ${textColorClass}`}
     >
       {isConnected ? <Link1Icon /> : <LinkBreak1Icon />}
-      <span>{text}</span>
+      <span className="capitalize">{text}</span>
     </div>
   );
 };

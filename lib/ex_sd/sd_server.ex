@@ -3,11 +3,11 @@ defmodule ExSd.SdSever do
 
   require Logger
 
+  alias ExSd.ComfyClient
   alias ExSd.Sd.ImageService
   alias ExSd.Sd.SdService
   alias ExSd.Sd.{MemoryStats, GenerationParams}
   alias ExSd.Sd
-  alias ExSd.AutoClient
 
   def start_link(init_args) do
     # you may want to register your server with `name: __MODULE__`
@@ -18,6 +18,7 @@ defmodule ExSd.SdSever do
   @impl true
   def init(_args) do
     Logger.info("Initializing data")
+    Phoenix.PubSub.subscribe(ExSd.PubSub, "generation")
 
     {:ok,
      %{
@@ -25,25 +26,28 @@ defmodule ExSd.SdSever do
        options: nil,
        samplers: [],
        models: [],
+       vaes: [],
        upscalers: [],
        loras: [],
        embeddings: [],
        controlnet_models: [],
-       controlnet_modules: [],
+       controlnet_preprocessors: [],
        task: nil,
        generating_session_name: nil,
        progress: 0,
        eta_relative: 0,
        is_connected: false,
-       scripts: nil
+       is_generating: false,
+       scripts: nil,
+       backend: :auto
      }, {:continue, :init_status_loop}}
   end
 
   @impl true
   def handle_continue(:init_status_loop, state) do
-    Process.send(self(), :status, [])
-
     initialize_state(state)
+
+    Process.send(self(), :status, [])
 
     {:noreply, state}
   end
@@ -55,11 +59,29 @@ defmodule ExSd.SdSever do
     new_state = state |> put_memory_usage() |> put_progress()
 
     new_state =
-      if(
-        !state.is_connected and new_state.is_connected,
-        do: initialize_state(new_state),
-        else: new_state
+      if !state.is_connected and new_state.is_connected do
+        Logger.info("Backend connected")
+
+        init_state = initialize_state(new_state)
+
+        Phoenix.PubSub.broadcast!(
+          ExSd.PubSub,
+          "sd_server",
+          {:backend_connection, init_state.backend, true}
+        )
+
+        init_state
+      else
+        new_state
+      end
+
+    if state.is_connected and !new_state.is_connected do
+      Phoenix.PubSub.broadcast!(
+        ExSd.PubSub,
+        "sd_server",
+        {:backend_connection, state.backend, false}
       )
+    end
 
     if not Map.equal?(new_state.memory_stats, state.memory_stats) do
       Sd.broadcast_memory_stats(new_state.memory_stats)
@@ -86,6 +108,8 @@ defmodule ExSd.SdSever do
   @impl true
   def handle_info({ref, {:error, error}}, state) when state.task.ref == ref do
     Logger.error("Generation: Server error!")
+
+    IO.inspect(error)
     handle_generation_error(error)
 
     Sd.broadcast_progress(%{
@@ -94,7 +118,15 @@ defmodule ExSd.SdSever do
       isGenerating: false
     })
 
-    {:noreply, %{state | task: nil, progress: 0, eta_relative: 0, generating_session_name: nil}}
+    {:noreply,
+     %{
+       state
+       | task: nil,
+         progress: 0,
+         eta_relative: 0,
+         generating_session_name: nil,
+         is_generating: false
+     }}
   end
 
   @impl true
@@ -126,17 +158,116 @@ defmodule ExSd.SdSever do
     end)
 
     #  push_event("current_image", %{currentImage: List.first(images_base64)}
-    {:noreply, %{state | progress: 0, eta_relative: 0}}
+    {:noreply, %{state | progress: 0, eta_relative: 0, is_generating: false}}
+  end
+
+  @impl true
+  def handle_info(
+        {ref, :ok},
+        state
+      )
+      when state.task.ref == ref do
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(
+        {:progress, progress},
+        %{backend: :comfy, is_generating: true} = state
+      ) do
+    ExSd.Sd.broadcast_progress(%{
+      progress: progress,
+      etaRelative: 0,
+      isGenerating: true
+    })
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(
+        {:progress_preview, image_base64_string},
+        %{backend: :comfy, is_generating: true, generating_session_name: generating_session_name} =
+          state
+      ) do
+    Sd.broadcast_progress(%{
+      currentImage: "data:image/png;base64,#{image_base64_string}",
+      generatingSessionName: generating_session_name
+    })
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(
+        {:progress, _progress},
+        %{backend: :comfy, is_generating: false} = state
+      ) do
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(
+        {:generation_complete,
+         %{attrs: attrs, dimensions: dimensions, flow: %{generation_params: %{seed: seed}}} =
+           result},
+        %{backend: :comfy} = state
+      ) do
+    # {seed, images_base64, position, dimensions} = result
+    image = Sd.SdService.handle_generation_completion(result, :comfy)
+
+    # {seed, images_base64 |> List.replace_at(0, change), position, %{width: width, height: height}}
+
+    ExSd.Sd.broadcast_generated_image(%{
+      image: "data:image/png;base64,#{image}",
+      position: attrs["position"],
+      dimensions: dimensions,
+      seed: seed
+    })
+
+    ExSd.Sd.broadcast_progress(%{
+      progress: 0,
+      etaRelative: 0,
+      isGenerating: false
+    })
+
+    {:noreply, %{state | is_generating: false, generating_session_name: nil}}
+  end
+
+  @impl true
+  def handle_info(
+        {:generation_error, error},
+        %{generating_session_name: generating_session_name} = state
+      ) do
+    handle_generation_error(error, backend: :comfy)
+
+    Sd.broadcast_progress(%{
+      progress: 0,
+      etaRelative: 0,
+      isGenerating: false,
+      generatingSessionName: generating_session_name
+    })
+
+    {:noreply,
+     %{state | task: nil, generating_session_name: nil, progress: 0, is_generating: false}}
   end
 
   @impl true
   def handle_info(
         {:DOWN, ref, :process, _, :normal},
-        state
+        %{backend: :auto} = state
       )
       when state.task.ref == ref do
-    # |> push_event("current_image", %{currentImage: nil, preview: true})
-    {:noreply, %{state | task: nil, generating_session_name: nil}}
+    {:noreply, %{state | task: nil, generating_session_name: nil, is_generating: false}}
+  end
+
+  @impl true
+  def handle_info(
+        {:DOWN, ref, :process, _, :normal},
+        %{backend: :comfy} = state
+      )
+      when state.task.ref == ref do
+    {:noreply, %{state | task: nil}}
   end
 
   @impl true
@@ -184,16 +315,17 @@ defmodule ExSd.SdSever do
   @impl true
   def handle_cast(
         {:generate, generation_params, attrs, session_name},
-        state
+        %{backend: backend} = state
       ) do
-    task = Task.async(fn -> SdService.generate_image(generation_params, attrs) end)
+    task =
+      Task.async(fn -> SdService.generate_image(generation_params, attrs, backend: backend) end)
 
-    {:noreply, %{state | task: task, generating_session_name: session_name}}
+    {:noreply, %{state | task: task, generating_session_name: session_name, is_generating: true}}
   end
 
   @impl true
-  def handle_cast(:interrupt, state) when not is_nil(state.task) do
-    SdService.interrupt()
+  def handle_cast(:interrupt, %{backend: backend} = state) when not is_nil(state.task) do
+    SdService.interrupt(backend)
     Task.shutdown(state.task, :brutal_kill)
 
     Sd.broadcast_progress(%{
@@ -202,12 +334,13 @@ defmodule ExSd.SdSever do
       isGenerating: false
     })
 
-    {:noreply, %{state | task: nil, generating_session_name: nil}}
+    {:noreply,
+     %{state | task: nil, generating_session_name: nil, progress: 0, is_generating: false}}
   end
 
   @impl true
-  def handle_cast(:interrupt, state) when is_nil(state.task) do
-    SdService.interrupt()
+  def handle_cast(:interrupt, %{backend: backend} = state) when is_nil(state.task) do
+    SdService.interrupt(backend)
 
     Sd.broadcast_progress(%{
       progress: 0,
@@ -215,7 +348,7 @@ defmodule ExSd.SdSever do
       isGenerating: false
     })
 
-    {:noreply, state}
+    {:noreply, %{state | is_generating: false}}
   end
 
   @impl true
@@ -248,6 +381,23 @@ defmodule ExSd.SdSever do
   end
 
   @impl true
+  def handle_cast({:set_backend, backend}, state) do
+    new_state =
+      initialize_state(%{state | backend: String.to_existing_atom(backend), is_connected: false})
+
+    Phoenix.PubSub.broadcast!(
+      ExSd.PubSub,
+      "sd_server",
+      {:backend_change, backend}
+    )
+
+    Sd.broadcast_connection_status(%{isConnected: false})
+    Sd.broadcast_data("backend", backend)
+    Sd.broadcast_data("models", [])
+    {:noreply, new_state}
+  end
+
+  @impl true
   def handle_call(:samplers, _, %{samplers: samplers} = state) do
     {:reply, {:ok, samplers}, state}
   end
@@ -256,6 +406,12 @@ defmodule ExSd.SdSever do
   def handle_call(:models, _, state) do
     new_state = state |> refresh_and_put_models
     {:reply, {:ok, new_state.models}, state}
+  end
+
+  @impl true
+  def handle_call(:vaes, _, state) do
+    new_state = state |> put_vaes()
+    {:reply, {:ok, new_state.vaes}, state}
   end
 
   @impl true
@@ -282,13 +438,22 @@ defmodule ExSd.SdSever do
   end
 
   @impl true
+  def handle_call(:backend, _, %{backend: backend} = state) do
+    {:reply, {:ok, backend}, state}
+  end
+
+  @impl true
   def handle_call(:controlnet_models, _, %{controlnet_models: controlnet_models} = state) do
     {:reply, {:ok, controlnet_models}, state}
   end
 
   @impl true
-  def handle_call(:controlnet_modules, _, %{controlnet_modules: controlnet_modules} = state) do
-    {:reply, {:ok, controlnet_modules}, state}
+  def handle_call(
+        :controlnet_preprocessors,
+        _,
+        %{controlnet_preprocessors: controlnet_preprocessors} = state
+      ) do
+    {:reply, {:ok, controlnet_preprocessors}, state}
   end
 
   @impl true
@@ -318,16 +483,17 @@ defmodule ExSd.SdSever do
     |> put_progress()
     |> put_samplers()
     |> put_models()
+    |> put_vaes()
     |> put_upscalers()
     |> put_loras()
     |> put_scripts()
     |> put_embeddings()
     |> put_controlnet_models()
-    |> put_controlnet_modules()
+    |> put_controlnet_preprocessors()
   end
 
-  defp put_samplers(state) do
-    case SdService.get_samplers() do
+  defp put_samplers(%{backend: backend} = state) do
+    case SdService.get_samplers(backend) do
       {:ok, samplers} ->
         state |> Map.put(:samplers, samplers)
 
@@ -336,8 +502,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_controlnet_models(state) do
-    case SdService.get_controlnet_models() do
+  defp put_controlnet_models(%{backend: backend} = state) do
+    case SdService.get_controlnet_models(backend) do
       {:ok, controlnet_models} ->
         state |> Map.put(:controlnet_models, controlnet_models)
 
@@ -346,27 +512,77 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_controlnet_modules(state) do
-    case SdService.get_controlnet_modules() do
-      {:ok, controlnet_modules, controlnet_module_detail} ->
+  defp put_controlnet_preprocessors(%{backend: :auto} = state) do
+    case SdService.get_controlnet_preprocessors(:auto) do
+      {:ok, controlnet_preprocessors, controlnet_module_detail} ->
         mapped_modules =
-          controlnet_modules
+          controlnet_preprocessors
           |> Enum.map(fn module ->
             %{name: module, sliders: controlnet_module_detail[module]["sliders"]}
           end)
 
         state
-        |> Map.put(:controlnet_modules, mapped_modules)
+        |> Map.put(:controlnet_preprocessors, mapped_modules)
 
       {:error, _} ->
         state
     end
   end
 
-  defp put_models(state) do
-    case SdService.get_models() do
+  defp put_controlnet_preprocessors(%{backend: :comfy} = state) do
+    case SdService.get_controlnet_preprocessors(:comfy) do
+      {:ok, controlnet_preprocessors} ->
+        mapped_modules =
+          controlnet_preprocessors
+          |> Enum.sort()
+          |> List.insert_at(0, "none")
+
+        state
+        |> Map.put(:controlnet_preprocessors, mapped_modules)
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_models(%{backend: :auto} = state) do
+    case SdService.get_models(:auto) do
       {:ok, models} ->
         state |> Map.put(:models, models |> Enum.sort_by(& &1["model_name"]))
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_models(%{backend: :comfy} = state) do
+    case SdService.get_models(:comfy) do
+      {:ok, models} ->
+        state |> Map.put(:models, models |> Enum.sort())
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_vaes(%{backend: :auto} = state) do
+    case SdService.get_vaes(:auto) do
+      {:ok, vaes} ->
+        state
+        |> Map.put(
+          :vaes,
+          vaes |> Enum.map(& &1["model_name"]) |> Enum.sort()
+        )
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_vaes(%{backend: :comfy} = state) do
+    case SdService.get_vaes(:comfy) do
+      {:ok, vaes} ->
+        state |> Map.put(:vaes, vaes |> Enum.sort())
 
       {:error, _} ->
         state
@@ -393,10 +609,10 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_upscalers(state) do
+  defp put_upscalers(%{backend: :auto} = state) do
     # upscalers = Sd.load_upscalers()
     # state |> Map.put(:upscalers, upscalers)
-    case SdService.get_upscalers() do
+    case SdService.get_upscalers(:auto) do
       {:ok, upscalers} ->
         state
         |> Map.put(
@@ -404,6 +620,23 @@ defmodule ExSd.SdSever do
           upscalers
           |> Enum.map(& &1["name"])
           |> Enum.filter(&(!is_nil(&1) and !String.match?(&1, ~r/none/i)))
+          # |> Enum.sort()
+        )
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_upscalers(%{backend: :comfy} = state) do
+    # upscalers = Sd.load_upscalers()
+    # state |> Map.put(:upscalers, upscalers)
+    case SdService.get_upscalers(:comfy) do
+      {:ok, upscalers} ->
+        state
+        |> Map.put(
+          :upscalers,
+          upscalers
           |> Enum.sort()
         )
 
@@ -412,10 +645,10 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_loras(state) do
+  defp put_loras(%{backend: backend} = state) do
     # loras = Sd.load_loras()
     # state |> Map.put(:loras, loras)
-    case SdService.get_loras() do
+    case SdService.get_loras(backend) do
       {:ok, loras} ->
         state |> Map.put(:loras, loras)
 
@@ -424,8 +657,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_embeddings(state) do
-    case SdService.get_embeddings() do
+  defp put_embeddings(%{backend: backend} = state) do
+    case SdService.get_embeddings(backend) do
       {:ok, embeddings} ->
         state
         |> Map.put(:embeddings, embeddings)
@@ -435,8 +668,8 @@ defmodule ExSd.SdSever do
     end
   end
 
-  defp put_memory_usage(state) do
-    case SdService.get_memory_usage() do
+  defp put_memory_usage(%{backend: backend} = state) do
+    case SdService.get_memory_usage(backend) do
       {:ok,
        %{
          "ram" => %{
@@ -496,6 +729,14 @@ defmodule ExSd.SdSever do
     end
   end
 
+  defp handle_generation_error(%{"error" => error}, backend: :comfy) do
+    handle_generation_error(error, backend: :comfy)
+  end
+
+  defp handle_generation_error(error, backend: :comfy) when is_binary(error) do
+    handle_generation_error(%{message: error})
+  end
+
   defp handle_generation_error(error) when is_map(error) do
     Sd.broadcast_error(error)
   end
@@ -508,9 +749,13 @@ defmodule ExSd.SdSever do
     Sd.broadcast_error(%{error: "Connection timeout"})
   end
 
-  def put_progress(%{task: task, generating_session_name: generating_session_name} = state)
+  def put_progress(%{backend: :comfy} = state), do: state
+
+  def put_progress(
+        %{task: task, generating_session_name: generating_session_name, backend: backend} = state
+      )
       when not is_nil(task) do
-    case SdService.get_progress() do
+    case SdService.get_progress(backend) do
       {:ok,
        %{
          "progress" => progress,
@@ -573,7 +818,12 @@ defmodule ExSd.SdSever do
     GenServer.call(__MODULE__, :models)
   end
 
-  @spec get_models :: {:ok, map()}
+  @spec get_vaes :: {:ok, list()}
+  def get_vaes() do
+    GenServer.call(__MODULE__, :vaes)
+  end
+
+  @spec get_scripts :: {:ok, map()}
   def get_scripts() do
     GenServer.call(__MODULE__, :scripts)
   end
@@ -593,14 +843,19 @@ defmodule ExSd.SdSever do
     GenServer.call(__MODULE__, :embeddings)
   end
 
+  @spec get_backend :: {:ok, binary()}
+  def get_backend() do
+    GenServer.call(__MODULE__, :backend)
+  end
+
   @spec get_controlnet_models :: {:ok, list(binary)}
   def get_controlnet_models() do
     GenServer.call(__MODULE__, :controlnet_models)
   end
 
-  @spec get_controlnet_modules :: {:ok, list(binary)}
-  def get_controlnet_modules() do
-    GenServer.call(__MODULE__, :controlnet_modules)
+  @spec get_controlnet_preprocessors :: {:ok, list(binary)}
+  def get_controlnet_preprocessors() do
+    GenServer.call(__MODULE__, :controlnet_preprocessors)
   end
 
   @spec get_options :: {:ok, map()}
@@ -618,6 +873,10 @@ defmodule ExSd.SdSever do
 
   def get_is_connected() do
     GenServer.call(__MODULE__, :get_is_connected)
+  end
+
+  def set_backend(backend) do
+    GenServer.cast(__MODULE__, {:set_backend, backend})
   end
 
   def controlnet_detect(params) do

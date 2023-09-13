@@ -1,27 +1,47 @@
+import { useCallback, useEffect } from "react";
 import { Options } from "../App.d";
-import { useAppDispatch } from "../hooks";
-import { setSelectedModel } from "../state/optionsSlice";
+import { useAppDispatch, useAppSelector } from "../hooks";
+import { selectBackend, setSelectedModel } from "../state/optionsSlice";
+import { isSdXlModel } from "../utils";
 import useData, { FetchPolicy } from "./useData";
+import useModels from "./useModels";
 
 type Props = { fetchPolicy?: FetchPolicy };
 
 const useOptions = ({ fetchPolicy }: Props = {}) => {
   const dispatch = useAppDispatch();
-
-  const callback = (options: Options) => {
-    // console.log(options);
-    dispatch(setSelectedModel(options.sd_checkpoint_hash));
-  };
-
+  const backend = useAppSelector(selectBackend);
+  const { models } = useModels();
   const { data: options, fetchData } = useData<Options>({
     name: "options",
     fetchPolicy,
-    callback,
   });
+  const updateSelectedModel = useCallback(
+    (options: Options) => {
+      // console.log(options);
+      if (backend === "auto") {
+        const model = models?.find(
+          (model) => model?.sha256 === options?.sd_checkpoint_hash
+        );
+
+        dispatch(
+          setSelectedModel({
+            hash: options.sd_checkpoint_hash,
+            name: model?.model_name ?? "",
+            isSdXl: isSdXlModel(model?.model_name as string),
+          })
+        );
+      }
+    },
+    [backend, dispatch, models]
+  );
+  useEffect(() => {
+    models && options && updateSelectedModel(options);
+  }, [updateSelectedModel, models, options]);
 
   const refetch = async () => {
     const options = await fetchData();
-    callback(options);
+    updateSelectedModel(options);
   };
 
   return { options, refetch };

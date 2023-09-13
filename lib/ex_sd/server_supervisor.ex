@@ -7,7 +7,10 @@ defmodule ExSd.ServerSupervisor do
 
   @impl true
   def init([_args]) do
-    children = [ExSd.SdSever]
+    children = [
+      ExSd.SdSever,
+      ExSd.ComfyGenerationServer
+    ]
 
     Supervisor.init(children, strategy: :one_for_one)
   end

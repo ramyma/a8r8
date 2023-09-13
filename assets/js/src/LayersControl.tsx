@@ -46,6 +46,8 @@ import {
   emitClearBaseImages,
   emitClearLayerLines,
 } from "./Canvas/hooks/useCustomEventsListener";
+import useScripts from "./hooks/useScripts";
+import { selectBackend } from "./state/optionsSlice";
 
 type LayerProps = {
   id: ActiveLayer;
@@ -93,7 +95,6 @@ const LayerItem = ({
     !isActive && dispatch(setActiveLayer(id));
   };
 
-  // TODO: integrate controlnet values from png info on paste or drop.
   return (
     <li
       className={
@@ -148,7 +149,9 @@ const LayersControl = () => {
   const isMaskLayerVisible = useAppSelector(selectIsMaskLayerVisible);
   const isMaskLayerEnabled = useAppSelector(selectIsMaskLayerEnabled);
   const invertMask = useAppSelector(selectInvertMask);
+  const backend = useAppSelector(selectBackend);
 
+  const { hasControlnet } = useScripts();
   // const isControlnetLayerVisible = useAppSelector(
   //   selectIsControlnetLayerVisible
   // );
@@ -156,7 +159,7 @@ const LayersControl = () => {
 
   const controlnetArgs = useAppSelector(selectControlnetLayers);
 
-  const { controlnet_models, controlnet_modules, controlnetDetect } =
+  const { controlnet_models, controlnet_preprocessors, controlnetDetect } =
     useControlnet();
 
   // const { register, handleSubmit, setValue } = useForm();
@@ -266,7 +269,7 @@ const LayersControl = () => {
         />,
       ],
     },
-    ...controlnetLayers,
+    ...(hasControlnet ? controlnetLayers : []),
   ];
 
   // const handleSketchLayerToggle = () => {
@@ -287,7 +290,8 @@ const LayersControl = () => {
   const handleControlnetSelectChange = ({ name, value, layerId, type }) => {
     const controlnetModuleSliders =
       (name === "module" &&
-        controlnet_modules.find((module) => module.name === value)?.sliders) ||
+        controlnet_preprocessors.find((module) => module.name === value)
+          ?.sliders) ||
       [];
 
     dispatch(
@@ -326,7 +330,7 @@ const LayersControl = () => {
     } else {
       const controlnetModuleSliders =
         (name === "module" &&
-          controlnet_modules.find((module) => module.name === value)
+          controlnet_preprocessors.find((module) => module.name === value)
             ?.sliders) ||
         [];
 
@@ -386,7 +390,7 @@ const LayersControl = () => {
       )
     : null;
 
-  const controlnetModuleSliders = controlnet_modules?.find(
+  const controlnetModuleSliders = controlnet_preprocessors?.find(
     ({ name }) => name === activeControlnetLayer?.module
   )?.sliders;
 
@@ -475,7 +479,7 @@ const LayersControl = () => {
                   }
                   value={activeControlnetLayer?.module}
                 >
-                  {controlnet_modules?.map((controlnet_module) => (
+                  {controlnet_preprocessors?.map((controlnet_module) => (
                     <option
                       key={controlnet_module.name}
                       value={controlnet_module.name}
@@ -486,7 +490,7 @@ const LayersControl = () => {
                 </select> */}
                 <Select
                   name="module"
-                  items={controlnet_modules}
+                  items={controlnet_preprocessors}
                   textAttr="name"
                   valueAttr="name"
                   value={activeControlnetLayer?.module}
@@ -557,11 +561,12 @@ const LayersControl = () => {
                   value={activeControlnetLayer?.weight}
                 /> */}
               {/* </div> */}
-              <div className="flex gap-2 flex-col">
-                <Label htmlFor={`module${activeControlnetLayer?.id}`}>
-                  Control Mode
-                </Label>
-                {/* <select
+              {backend === "auto" && (
+                <div className="flex gap-2 flex-col">
+                  <Label htmlFor={`mode${activeControlnetLayer?.id}`}>
+                    Control Mode
+                  </Label>
+                  {/* <select
                   className="p-2 rounded"
                   name="control_mode"
                   id={`module${activeControlnetLayer?.id}`}
@@ -579,21 +584,23 @@ const LayersControl = () => {
                     </option>
                   ))}
                 </select> */}
-                <Select
-                  name="model"
-                  id={`module${activeControlnetLayer?.id}`}
-                  items={CONTROL_MODES}
-                  value={activeControlnetLayer?.control_mode}
-                  onChange={(value) =>
-                    handleControlnetSelectChange({
-                      name: "control_mode",
-                      type: "number",
-                      value,
-                      layerId: activeControlnetLayer.id,
-                    })
-                  }
-                />
-              </div>
+
+                  <Select
+                    name="control_mode"
+                    id={`mode${activeControlnetLayer?.id}`}
+                    items={CONTROL_MODES}
+                    value={activeControlnetLayer?.control_mode}
+                    onChange={(value) =>
+                      handleControlnetSelectChange({
+                        name: "control_mode",
+                        type: "number",
+                        value,
+                        layerId: activeControlnetLayer.id,
+                      })
+                    }
+                  />
+                </div>
+              )}
 
               <Slider
                 label="Controlnet Weight"
@@ -794,33 +801,36 @@ const LayersControl = () => {
                 checked={activeControlnetLayer?.overrideBaseLayer}
               />
             </div> */}
-
-              <Checkbox
-                id={`pixel_perfect${activeControlnetLayer?.id}`}
-                checked={activeControlnetLayer?.pixel_perfect}
-                onChange={(value) =>
-                  handleControlnetAttrsChange(
-                    "pixel_perfect",
-                    value,
-                    activeControlnetLayer.id
-                  )
-                }
-              >
-                Pixel Perfect
-              </Checkbox>
-              <Checkbox
-                id={`lowvram${activeControlnetLayer?.id}`}
-                checked={activeControlnetLayer?.lowvram}
-                onChange={(value) =>
-                  handleControlnetAttrsChange(
-                    "lowvram",
-                    value,
-                    activeControlnetLayer.id
-                  )
-                }
-              >
-                Low VRAM
-              </Checkbox>
+              {backend === "auto" && (
+                <>
+                  <Checkbox
+                    id={`pixel_perfect${activeControlnetLayer?.id}`}
+                    checked={activeControlnetLayer?.pixel_perfect}
+                    onChange={(value) =>
+                      handleControlnetAttrsChange(
+                        "pixel_perfect",
+                        value,
+                        activeControlnetLayer.id
+                      )
+                    }
+                  >
+                    Pixel Perfect
+                  </Checkbox>
+                  <Checkbox
+                    id={`lowvram${activeControlnetLayer?.id}`}
+                    checked={activeControlnetLayer?.lowvram}
+                    onChange={(value) =>
+                      handleControlnetAttrsChange(
+                        "lowvram",
+                        value,
+                        activeControlnetLayer.id
+                      )
+                    }
+                  >
+                    Low VRAM
+                  </Checkbox>
+                </>
+              )}
               <Checkbox
                 id={`overrideBaseLayer${activeControlnetLayer?.id}`}
                 checked={activeControlnetLayer?.overrideBaseLayer}
@@ -835,12 +845,14 @@ const LayersControl = () => {
                 Override Base Layer
               </Checkbox>
 
-              <button
-                className="sticky bottom-0 z-2 text-sm shadow-md shadow-black/30 border border-neutral-700 rounded"
-                onClick={handleControlnetDetect}
-              >
-                Detect
-              </button>
+              {backend === "auto" && (
+                <button
+                  className="sticky bottom-0 z-2 text-sm shadow-md shadow-black/30 border border-neutral-700 rounded"
+                  onClick={handleControlnetDetect}
+                >
+                  Detect
+                </button>
+              )}
             </div>
           </ScrollArea>
         )}

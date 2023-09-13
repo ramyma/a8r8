@@ -2,12 +2,23 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Model } from "../App.d";
 import { RootState } from "../store";
 
+export type Backend = "auto" | "comfy";
 interface OptionsState {
-  selectedModel: Model["sha256"];
+  selectedModel: {
+    hash?: Model["sha256"];
+    name: string;
+    isSdXl: boolean;
+  };
+  backend: Backend;
 }
 
 const initialState: OptionsState = {
-  selectedModel: "",
+  backend: "auto",
+  selectedModel: {
+    hash: "",
+    name: "",
+    isSdXl: false,
+  },
 };
 export const optionsSlice = createSlice({
   name: "options",
@@ -19,13 +30,18 @@ export const optionsSlice = createSlice({
     ) => {
       state.selectedModel = action.payload;
     },
+    setBackend: (state, action: PayloadAction<OptionsState["backend"]>) => {
+      state.backend = action.payload;
+    },
   },
 });
 
-export const { setSelectedModel } = optionsSlice.actions;
+export const { setSelectedModel, setBackend } = optionsSlice.actions;
 
 export const selectSelectedModel = (state: RootState) =>
   state.options.selectedModel;
+
+export const selectBackend = (state: RootState) => state.options.backend;
 
 export const selectOptions = (state: RootState) => state.options;
 

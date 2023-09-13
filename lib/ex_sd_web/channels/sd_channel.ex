@@ -50,6 +50,12 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
+  def handle_in("get_vaes", _payload, socket) do
+    vaes = Sd.get_vaes()
+    {:reply, vaes, socket}
+  end
+
+  @impl true
   def handle_in("get_scripts", _payload, socket) do
     scripts = Sd.get_scripts()
     {:reply, scripts, socket}
@@ -74,6 +80,12 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
+  def handle_in("get_backend", _payload, socket) do
+    backend = Sd.get_backend()
+    {:reply, backend, socket}
+  end
+
+  @impl true
   def handle_in("get_memory", _payload, socket) do
     Sd.get_memory_usage()
     {:noreply, socket}
@@ -86,9 +98,9 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
-  def handle_in("get_controlnet_modules", _payload, socket) do
-    controlnet_modules = Sd.get_controlnet_modules()
-    {:reply, controlnet_modules, socket}
+  def handle_in("get_controlnet_preprocessors", _payload, socket) do
+    controlnet_preprocessors = Sd.get_controlnet_preprocessors()
+    {:reply, controlnet_preprocessors, socket}
   end
 
   @impl true
@@ -104,6 +116,12 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
+  def handle_in("set_backend", backend, socket) do
+    Sd.set_backend(backend)
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_in("get_png_info", png_data_url, socket) do
     {:ok, png_info} = Sd.get_png_info(png_data_url)
     {:reply, png_info, socket}
@@ -113,6 +131,12 @@ defmodule ExSdWeb.SdChannel do
   def handle_in("controlnet_detect", params, socket) do
     Sd.controlnet_detect(params)
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("get_selection", image_data_url, socket) do
+    selection_mask = Sd.py(image_data_url["image"])
+    {:reply, {:ok, selection_mask}, socket}
   end
 
   # Add authorization logic here as required.

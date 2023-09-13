@@ -24,7 +24,7 @@ interface CanvasState {
 }
 
 const initialState: CanvasState = {
-  brushColor: theme.colors.primary,
+  brushColor: theme.colors.black,
   maskColor: theme.colors.primary,
   brushSize: 40,
   brushPreviewPosition: { x: -100, y: -100 },
