@@ -84,7 +84,6 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 
 &nbsp;
 
-
 ## Getting started
 
 ### Installation
@@ -95,7 +94,7 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 4. Run `docker compose build`
 5. Start the SD backend of your choice
    1. Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
-   2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI): add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
+   2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI): install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes) and add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
 6. Currently the VAE choice is hardcoded depending on the version of the selected model; it'll be configurable through the interface in a future update. Make sure you have these VAE files in the configured paths in either backend:
    1. [`sdxl_vae.safetensors`](https://huggingface.co/madebyollin/sdxl-vae-fp16-fix/resolve/main/sdxl_vae.safetensors) for SDXL
    2. `vae-ft-mse-840000-ema-pruned.ckpt` for SD 1.5
