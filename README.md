@@ -24,14 +24,15 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 
 ## Features
 
-- Works with existing [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui) SD installation; **NO NEED** to reinstall yet another SD implementation
+- Works with existing [A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui) and [ComfyUI](https://github.com/comfyanonymous/ComfyUI) SD installations; **NO NEED** to reinstall yet another SD implementation
 - Runs in browser
 - Full [Controlnet](https://github.com/Mikubill/sd-webui-controlnet) support
 - Open canvas with unified interface
-- Inpainting/Outpainting with masking and scaling 
+- Inpainting/Outpainting with masking and scaling
 - VRam usage info
 - Scaling and hires like built in solution
 - Integration with [TiledVAE](https://github.com/pkuliyi2015/multidiffusion-upscaler-for-automatic1111), [Tiled Diffusion](https://github.com/pkuliyi2015/multidiffusion-upscaler-for-automatic1111) and [Self Attention Guidance](https://github.com/ashen-sensored/sd_webui_SAG)
+- Integration with Ultimate Scale with [A1111](https://github.com/Coyote-A/ultimate-upscale-for-automatic1111) and [ComfyUI](https://github.com/ssitu/ComfyUI_UltimateSDUpscale)
 - Sketch, mask and Controlnet layers
 - Image info support (on import only for now)
 - Text editor with auto complete for installed LORAs & embeddings
@@ -44,14 +45,6 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 - Potential to add any A1111 extension in the future
 
 &nbsp;
-
-[A1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui) has deservedly held it's place as the go to SD tool, it's awesome and everyday there're amazing new integrations and extensions, however, the interface leaves somethings to be desired.
-
-A8R8 has been in the making for the past few months, and I tried to make it as intuitive as possible. It's not meant to be a full image editor nor a beginner's tool; it's more of an opinionated power tool.
-
-&nbsp;
-
-A lot more to come, this is just starting!
 
 &nbsp;
 
@@ -100,7 +93,12 @@ A lot more to come, this is just starting!
 2. Install [Docker Compose](https://docs.docker.com/compose/gettingstarted/)
 3. Clone this repo and open a terminal at the root directory
 4. Run `docker compose build`
-5. Start Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
+5. Start the SD backend of your choice
+   1. Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
+   2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI): add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
+6. Currently the VAE choice is hardcoded depending on the version of the selected model; it'll be configurable through the interface in a future update. Make sure you have these VAE files in the configured paths in either backend:
+   1. [`sdxl_vae.safetensors`](https://huggingface.co/madebyollin/sdxl-vae-fp16-fix/resolve/main/sdxl_vae.safetensors) for SDXL
+   2. `vae-ft-mse-840000-ema-pruned.ckpt` for SD 1.5
 
 ### Running
 
