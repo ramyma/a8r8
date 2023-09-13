@@ -190,8 +190,6 @@ defmodule ExSd.SdSever do
         %{backend: :comfy, is_generating: true, generating_session_name: generating_session_name} =
           state
       ) do
-    Logger.info("Broadcasting progress preview")
-
     Sd.broadcast_progress(%{
       currentImage: "data:image/png;base64,#{image_base64_string}",
       generatingSessionName: generating_session_name
