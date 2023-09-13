@@ -17,3 +17,4 @@
 ### Fixed
 
 - Scale adaptation when generation box is scaled down below the native resolution of the active model
+- Docker build was broken; removed some dependencies until it's sorted out
