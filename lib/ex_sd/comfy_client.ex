@@ -1072,8 +1072,6 @@ defmodule ExSd.ComfyClient do
           },
           class_type: "Base64ImageInput"
         },
-        # FIXME: handle none
-        "cn#{index}_preprocessor": controlnet_preprocessor(index, %{}, entry.module),
         "cn#{index}_controlnet_loader": %{
           inputs: %{
             control_net_name: entry.model
@@ -1112,13 +1110,25 @@ defmodule ExSd.ComfyClient do
               0
             ],
             image: [
-              "cn#{index}_preprocessor",
+              if(
+                entry.module == "none",
+                do: "cn#{index}_image",
+                else: "cn#{index}_preprocessor"
+              ),
               0
             ]
           },
           class_type: "ControlNetApplyAdvanced"
         }
       })
+      |> Map.merge(
+        if(entry.module == "none",
+          do: %{},
+          else: %{
+            "cn#{index}_preprocessor": controlnet_preprocessor(index, %{}, entry.module)
+          }
+        )
+      )
     end)
   end
 
