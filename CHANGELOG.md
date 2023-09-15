@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1] - 2023-09-15
+
+### Fixed
+
+- Comfy controlnet with preprocessor set to none
+
 ## [0.2.0] - 2023-09-13
 
 ### Added
