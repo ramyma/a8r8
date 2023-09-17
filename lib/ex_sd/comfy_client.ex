@@ -762,10 +762,12 @@ defmodule ExSd.ComfyClient do
   def get_controlnet_preprocessors() do
     with response <- get("/object_info/AIO_Preprocessor"),
          {:ok, body} <- handle_response(response) do
-      # TODO: fail gracefully if attribute is not present in body
+      preprocessors_node =
+        get_in(body, ["AIO_Preprocessor", "input", "required", "preprocessor"]) ||
+          get_in(body, ["AIO_Preprocessor", "input", "optional", "preprocessor"])
+
       controlnet_preprocessors =
-        body
-        |> get_in(["AIO_Preprocessor", "input", "required", "preprocessor"])
+        preprocessors_node
         |> List.first()
         |> List.insert_at(0, "InpaintPreprocessor")
         |> List.insert_at(0, "Invert")
