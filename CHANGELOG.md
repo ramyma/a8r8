@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.2] - 2023-09-18
+
+### Changed
+
+- Updated JS dependencies
+
+### Fixed
+
+- Fixed Comfy Controlnet integration after comfyui_controlnet_aux update
+
 ## [0.2.1] - 2023-09-15
 
 ### Fixed
