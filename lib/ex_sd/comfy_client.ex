@@ -1236,13 +1236,89 @@ defmodule ExSd.ComfyClient do
         },
         class_type: "LatentUpscale"
       },
+      first_pass_vae_decode: %{
+        class_type: "VAEDecode",
+        inputs: %{
+          samples: [
+            "sampler",
+            0
+          ],
+          vae: [
+            "vae",
+            0
+          ]
+        }
+      },
+      scaler: %{
+        inputs: %{
+          upscale_method: "nearest-exact",
+          width:
+            ExSd.Sd.SdService.round_to_closest_multiple_of_8_down(
+              if(generation_params.hr_scale < 1,
+                do: generation_params.width * (1 / generation_params.hr_scale),
+                else: generation_params.width * generation_params.hr_scale
+              )
+            ),
+          height:
+            ExSd.Sd.SdService.round_to_closest_multiple_of_8_down(
+              if(generation_params.hr_scale < 1,
+                do: generation_params.height * (1 / generation_params.hr_scale),
+                else: generation_params.height * generation_params.hr_scale
+              )
+            ),
+          crop: "disabled",
+          image: [
+            if(generation_params.hr_upscaler == "None" or generation_params.hr_scale < 1,
+              do: "first_pass_vae_decode",
+              else: "upscale_with_model"
+            ),
+            0
+          ]
+        },
+        class_type: "ImageScale"
+      },
+      upscale_with_model: %{
+        inputs: %{
+          upscale_model: [
+            "upscaler",
+            0
+          ],
+          image: [
+            "first_pass_vae_decode",
+            0
+          ]
+        },
+        class_type: "ImageUpscaleWithModel"
+      },
+      upscaler: %{
+        inputs: %{
+          model_name: generation_params.hr_upscaler
+        },
+        class_type: "UpscaleModelLoader"
+      },
+      second_pass_vae_encode: %{
+        inputs: %{
+          pixels: [
+            "scaler",
+            0
+          ],
+          vae: [
+            "vae",
+            0
+          ]
+        },
+        class_type: "VAEEncode"
+      },
       hires_sampler: %{
         class_type: "KSampler",
         inputs: %{
           cfg: generation_params.cfg_scale,
           denoise: generation_params.sp_denoising_strength,
           latent_image: [
-            "hires_latent_scaler",
+            if(generation_params.hr_upscaler == "Latent",
+              do: "hires_latent_scaler",
+              else: "second_pass_vae_encode"
+            ),
             0
           ],
           model: [
