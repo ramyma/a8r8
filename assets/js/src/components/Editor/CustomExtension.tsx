@@ -99,7 +99,7 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
             tr.setNodeAttribute(
               state.selection.from,
               "value",
-              formatToMaxDecimalPlaces(Math.min(3, parseFloat(value) + 0.01), 2)
+              formatToMaxDecimalPlaces(Math.min(3, parseFloat(value) + 0.1), 2)
             )
           );
         } else if (node?.type?.name === "attention") {
@@ -150,10 +150,7 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
             tr.setNodeAttribute(
               state.selection.from,
               "value",
-              formatToMaxDecimalPlaces(
-                Math.max(-3, parseFloat(value) - 0.01),
-                2
-              )
+              formatToMaxDecimalPlaces(Math.max(-3, parseFloat(value) - 0.1), 2)
             )
             // .setSelection({
             //   $head: state.selection.$head,
