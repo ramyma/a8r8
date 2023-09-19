@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.3] - 2023-09-18
+
+### Fixed
+
+- Comfy txt2img with upscalers other than latent
+ 
+### Changed
+
+- Changed lora attention increment to 0.1
+
 ## [0.2.2] - 2023-09-18
 
 ### Changed
