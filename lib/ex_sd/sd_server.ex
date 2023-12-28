@@ -25,6 +25,7 @@ defmodule ExSd.SdSever do
        memory_stats: %MemoryStats{},
        options: nil,
        samplers: [],
+       schedulers: [],
        models: [],
        vaes: [],
        upscalers: [],
@@ -366,6 +367,14 @@ defmodule ExSd.SdSever do
   end
 
   @impl true
+  def handle_cast({:set_vae, vae}, state) do
+    Sd.broadcast_vae_loading_status(true)
+    new_state = state |> put_active_vae(vae)
+    Sd.broadcast_vae_loading_status(false)
+    {:noreply, new_state}
+  end
+
+  @impl true
   def handle_cast({:controlnet_detect, params}, state) do
     Task.start(fn ->
       case SdService.controlnet_detect(params) do
@@ -412,6 +421,16 @@ defmodule ExSd.SdSever do
   def handle_call(:vaes, _, state) do
     new_state = state |> put_vaes()
     {:reply, {:ok, new_state.vaes}, state}
+  end
+
+  @impl true
+  def handle_call(:schedulers, _, %{backend: :comfy} = state) do
+    new_state = state |> put_schedulers()
+    {:reply, {:ok, new_state.schedulers}, state}
+  end
+
+  def handle_call(:schedulers, _, state) do
+    {:reply, {:ok, state.schedulers}, state}
   end
 
   @impl true
@@ -609,6 +628,16 @@ defmodule ExSd.SdSever do
     end
   end
 
+  defp put_schedulers(%{backend: :comfy} = state) do
+    case SdService.get_schedulers(:comfy) do
+      {:ok, schedulers} ->
+        state |> Map.put(:schedulers, schedulers |> Enum.sort())
+
+      {:error, _} ->
+        state
+    end
+  end
+
   defp put_upscalers(%{backend: :auto} = state) do
     # upscalers = Sd.load_upscalers()
     # state |> Map.put(:upscalers, upscalers)
@@ -729,6 +758,16 @@ defmodule ExSd.SdSever do
     end
   end
 
+  defp put_active_vae(state, vae) do
+    case SdService.post_active_vae(vae) do
+      {:ok, options} ->
+        state |> Map.put(:options, options)
+
+      {:error, _} ->
+        state
+    end
+  end
+
   defp handle_generation_error(%{"error" => error}, backend: :comfy) do
     handle_generation_error(error, backend: :comfy)
   end
@@ -823,6 +862,11 @@ defmodule ExSd.SdSever do
     GenServer.call(__MODULE__, :vaes)
   end
 
+  @spec get_schedulers :: {:ok, list()}
+  def get_schedulers() do
+    GenServer.call(__MODULE__, :schedulers)
+  end
+
   @spec get_scripts :: {:ok, map()}
   def get_scripts() do
     GenServer.call(__MODULE__, :scripts)
@@ -865,6 +909,10 @@ defmodule ExSd.SdSever do
 
   def set_model(model_title) do
     GenServer.cast(__MODULE__, {:set_model, model_title})
+  end
+
+  def set_vae(vae) do
+    GenServer.cast(__MODULE__, {:set_vae, vae})
   end
 
   def get_png_info(png_data_url) do

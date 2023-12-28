@@ -48,8 +48,12 @@ import Toggle from "../components/Toggle";
 import { LockClosedIcon, LockOpen2Icon } from "@radix-ui/react-icons";
 import { selectInvertMask } from "../state/canvasSlice";
 import useScripts from "../hooks/useScripts";
-import { selectBackend, selectSelectedModel } from "../state/optionsSlice";
-
+import {
+  selectBackend,
+  selectSelectedModel,
+  selectSelectedVae,
+} from "../state/optionsSlice";
+import useSchedulers from "../hooks/useSchedulers";
 const MainForm = () => {
   const { channel, sendMessage } = useSocket();
   const backend = useAppSelector(selectBackend);
@@ -114,6 +118,7 @@ const MainForm = () => {
   );
 
   const model = useAppSelector(selectSelectedModel);
+  const vae = useAppSelector(selectSelectedVae);
 
   const isConnected = useAppSelector(selectIsConnected);
 
@@ -206,6 +211,7 @@ const MainForm = () => {
       upscaler,
       prompt,
       negative_prompt,
+      scheduler,
       ...rest
     } = data;
 
@@ -371,30 +377,23 @@ const MainForm = () => {
               ],
             },
           }),
-      },
-    };
-    console.log(image, {
-      attrs: {
-        position: selectionBoxRef?.current?.getPosition(),
-        scale,
-        use_scaled_dimensions: showUseScaledDimensions && use_scaled_dimensions,
-        full_scale_pass,
-        invertMask,
-        model: model?.name,
-        ultimate_upscale: true,
-      },
-    });
-    sendMessage("generate", {
-      image,
-      attrs: {
+    const attrs = {
         position: selectionBoxRef?.current?.getPosition(),
         scale,
         use_scaled_dimensions: showUseScaledDimensions && use_scaled_dimensions,
         full_scale_pass: showFullScalePass && fullScalePass,
         invert_mask: invertMask,
         model: model?.name,
+      vae,
+      ...(backend === "comfy" && { scheduler }),
         ultimate_upscale: isUltimateUpscaleEnabled,
-      },
+    };
+
+    console.log(image, { attrs });
+
+    sendMessage("generate", {
+      image,
+      attrs,
       session_name: sessionName,
     });
 
@@ -436,6 +435,7 @@ const MainForm = () => {
   useGlobalKeydown({ handleKeydown, override: true });
 
   const { samplers } = useSamplers();
+  const { schedulers } = useSchedulers();
 
   useEffect(() => {
     const ref = channel?.on("image", (data) => {
@@ -520,6 +520,18 @@ const MainForm = () => {
           render={({ field }) => <Select items={samplers} {...field} />}
         />
       </div>
+
+      {backend === "comfy" && (
+        <div className="flex flex-col gap-2">
+          <Label>Scheduler</Label>
+          <Controller
+            name="scheduler"
+            control={control}
+            defaultValue="karras"
+            render={({ field }) => <Select items={schedulers} {...field} />}
+          />
+        </div>
+      )}
 
       {!txt2img && backend === "auto" && (
         <div className="flex flex-col gap-2">

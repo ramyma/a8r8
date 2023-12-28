@@ -56,6 +56,12 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
+  def handle_in("get_schedulers", _payload, socket) do
+    schedulers = Sd.get_schedulers()
+    {:reply, schedulers, socket}
+  end
+
+  @impl true
   def handle_in("get_scripts", _payload, socket) do
     scripts = Sd.get_scripts()
     {:reply, scripts, socket}
@@ -112,6 +118,12 @@ defmodule ExSdWeb.SdChannel do
   @impl true
   def handle_in("set_model", model_title, socket) do
     Sd.set_model(model_title)
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("set_vae", vae, socket) do
+    Sd.set_vae(vae)
     {:noreply, socket}
   end
 

@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { Model } from "../App.d";
+import { Model, Vae } from "../App.d";
 import { useAppDispatch, useAppSelector } from "../hooks";
 import {
   selectBackend,
   selectSelectedModel,
+  selectSelectedVae,
   setSelectedModel,
+  setSelectedVae,
 } from "../state/optionsSlice";
 import useData, { FetchPolicy } from "./useData";
 import useSocket from "./useSocket";
@@ -19,17 +21,19 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
   const { channel, sendMessage } = useSocket();
   const isConnected = useAppSelector(selectIsConnected);
   const selectedModel = useAppSelector(selectSelectedModel);
+  const selectedVae = useAppSelector(selectSelectedVae);
   const backend = useAppSelector(selectBackend);
   const dispatch = useAppDispatch();
   //FIXME: remove useState and redux instead to sync across multiple usages
   const [isModelLoading, setIsModelLoading] = useState<boolean>(false);
+  const [isVaeLoading, setIsVaeLoading] = useState<boolean>(false);
 
   const { fetchData, data: models } = useData<Model[]>({
     name: "models",
     fetchPolicy,
   });
 
-  const { fetchData: fetchVaes, data: vaes } = useData<string[]>({
+  const { fetchData: fetchVaes, data: vaes } = useData<Vae[]>({
     name: "vaes",
     fetchPolicy,
   });
@@ -66,6 +70,20 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
     }
   };
 
+  const setVae = async (vae: string) => {
+    if (isConnected) {
+      if (backend === "auto") {
+        if (vae) {
+          selectedVae !== vae && sendMessage("set_vae", vae);
+          //TODO: handle failure
+          dispatch(setSelectedVae(vae));
+        }
+      } else {
+        dispatch(setSelectedVae(vae));
+      }
+    }
+  };
+
   useEffect(() => {
     if (channel) {
       const ref = channel.on(
@@ -74,19 +92,29 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
           setIsModelLoading(is_model_loading);
         }
       );
+      const vaeRef = channel.on(
+        "is_vae_loading",
+        ({ is_vae_loading }: { is_vae_loading: boolean }) => {
+          setIsVaeLoading(is_vae_loading);
+        }
+      );
       return () => {
         channel.off("is_model_loading", ref);
+        channel.off("is_vae_loading", vaeRef);
       };
     }
   }, [channel]);
 
   return {
     isModelLoading,
+    isVaeLoading,
     models,
+    vaes,
     setModel,
+    setVae,
     fetchData,
     selectedModel,
-    vaes,
+    selectedVae,
     fetchVaes,
   };
 };

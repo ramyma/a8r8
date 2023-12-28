@@ -435,6 +435,9 @@ defmodule ExSd.Sd.SdService do
   def get_vaes(:auto), do: AutoClient.get_vaes()
   def get_vaes(:comfy), do: ComfyClient.get_vaes()
 
+  @spec get_schedulers(backend()) :: {:error, any} | {:ok, any}
+  def get_schedulers(:comfy), do: ComfyClient.get_schedulers()
+
   @spec refresh_models() :: {:error, any} | {:ok, any}
   defdelegate refresh_models(), to: AutoClient
 
@@ -491,6 +494,9 @@ defmodule ExSd.Sd.SdService do
 
   @spec post_active_model(binary()) :: {:error, any} | {:ok, any}
   defdelegate post_active_model(model_title), to: AutoClient
+
+  @spec post_active_vae(binary()) :: {:error, any} | {:ok, any}
+  defdelegate post_active_vae(vae), to: AutoClient
 
   def round_to_closest_multiple_of_8_down(number) do
     round((number - 4) / 8) * 8
