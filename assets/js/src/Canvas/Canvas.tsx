@@ -48,7 +48,7 @@ import {
 } from "../state/layersSlice";
 // import { setMaskLines as setStateMaskLines } from "./state/canvasSlice";
 
-import { scalePoint } from "../utils";
+import { roundToClosestMultipleOf8, scalePoint } from "../utils";
 import useGlobalKeydown from "../hooks/useGlobalKeydown";
 import { selectGenerationParams } from "../state/generationParamsSlice";
 import {
@@ -196,8 +196,12 @@ export default function Canvas() {
         height: ref.current.clientHeight,
       });
       const selectionBoxInitialPos = {
-        x: Math.floor(ref.current.clientWidth / 2 - 512 / 2),
-        y: Math.floor(ref.current.clientHeight / 2 - 512 / 2),
+        x: roundToClosestMultipleOf8(
+          Math.floor(ref.current.clientWidth / 2 - 512 / 2)
+        ),
+        y: roundToClosestMultipleOf8(
+          Math.floor(ref.current.clientHeight / 2 - 512 / 2)
+        ),
       };
       dispatch(updateSelectionBox(selectionBoxInitialPos));
       broadcastSelectionBoxUpdate({
@@ -312,7 +316,6 @@ export default function Canvas() {
         stage && zoomCanvas(stage, direction);
       }
       if (e.key === "[") {
-        console.log(brushSize);
         if (brushSize > 5) dispatch(decrementBrushSize());
       }
       if (e.key === "]") {
@@ -328,7 +331,7 @@ export default function Canvas() {
         if (tool === "brush") dispatch(setTool("eraser"));
         else dispatch(setTool("brush"));
       }
-      if (e.key.toLocaleLowerCase() === "p") {
+      if (e.key.toLocaleLowerCase() === "p" && !e.ctrlKey && !e.altKey) {
         dispatch(toggleColorPickerVisibility());
       }
       if (e.key.toLocaleLowerCase() === "h") {
