@@ -1,4 +1,4 @@
-import React, { KeyboardEvent, useCallback } from "react";
+import React, { KeyboardEventHandler, useCallback } from "react";
 import { HexAlphaColorPicker } from "react-colorful";
 import useEyeDropper from "use-eye-dropper";
 import { BiSolidEyedropper } from "react-icons/bi";
@@ -33,9 +33,12 @@ const ColorPicker = () => {
     if (activeLayer === "sketch" || activeLayer.startsWith("controlnet"))
       dispatch(setBrushColor(color));
   };
-  const handleKeydown = useCallback(
+  const handleKeydown: KeyboardEventHandler<HTMLElement> = useCallback(
     (e) => {
-      if (e.key === "Escape") {
+      if (
+        e.key === "Escape" ||
+        (e.key.toLowerCase() === "p" && !e.shiftKey && !e.altKey && !e.ctrlKey)
+      ) {
         dispatch(toggleColorPickerVisibility());
       }
     },
