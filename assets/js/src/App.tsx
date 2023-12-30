@@ -87,31 +87,10 @@ function App() {
         <div className="absolute left-0 top-0 max-w-[20vw] md:w-[17vw] lg:w-[33vw] flex flex-1 h-full bg-black/90 backdrop-blur-sm flex-col z-10">
           <ScrollArea>
             <div className="flex p-4 px-6 flex-col gap-2">
-              {/* <Select
-              items={models}
-              idAttr="model_name"
-              textAttr="model_name"
-              valueAttr="sha256"
-              value={selectedModel}
-            /> */}
-              {/* <select
-              className="w-full rounded rounded-tr-none rounded-br-none p-2"
-              name="models"
-              id="models"
-              title="Select Checkpoint"
-              value={selectedModel}
-              onChange={handleModelChange}
-              disabled={isModelLoading}
-              >
-              {models?.map((model) => (
-                <option key={model.model_name} value={model.sha256}>
-                {model.model_name}
-                </option>
-                ))}
-            </select> */}
               <ModelSelect
                 refetchOptions={refetchOptions}
                 isModelLoading={isModelLoading}
+                isVaeLoading={isVaeLoading}
                 models={models}
                 refetchModels={refetchModels}
                 setModel={setModel}
@@ -124,6 +103,7 @@ function App() {
                 setVae={setVae}
                 selectedVae={selectedVae}
                 isVaeLoading={isVaeLoading}
+                isModelLoading={isModelLoading}
               />
             </div>
             <MainForm />
@@ -149,13 +129,15 @@ const ModelSelect = ({
   refetchModels,
   selectedModel,
   isModelLoading,
+  isVaeLoading,
 }: {
   refetchOptions: () => void;
   models;
   setModel;
   refetchModels;
   selectedModel;
-  isModelLoading;
+  isModelLoading: boolean;
+  isVaeLoading: boolean;
 }) => {
   const backend = useAppSelector(selectBackend);
 
@@ -186,7 +168,7 @@ const ModelSelect = ({
             value={selectedModel?.hash}
             onChange={handleModelChange}
             title={title}
-            disabled={isModelLoading}
+            disabled={isModelLoading || isVaeLoading}
           />
           <button
             onClick={handleModelRefreshClick}
@@ -216,13 +198,15 @@ const VaeSelect = ({
   refetchVaes,
   selectedVae,
   isVaeLoading,
+  isModelLoading,
 }: {
   refetchOptions: () => void;
   vaes;
   setVae;
   refetchVaes;
   selectedVae;
-  isVaeLoading;
+  isVaeLoading: boolean;
+  isModelLoading: boolean;
 }) => {
   const backend = useAppSelector(selectBackend);
 
@@ -252,7 +236,7 @@ const VaeSelect = ({
             value={selectedVae}
             onChange={handleVaeChange}
             title={title}
-            disabled={isVaeLoading}
+            disabled={isVaeLoading || isModelLoading}
           />
 
           <button
