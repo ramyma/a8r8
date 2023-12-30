@@ -226,8 +226,8 @@ const MainForm = () => {
           : editorJsonToText((negative_prompt as EditorState).doc.toJSON()),
       ...rest,
       ...(!isSeedPinned && { seed: -1 }),
-      mask: maskDataUrl,
-      init_images: [initImageDataUrl],
+      mask: txt2img ? "" : maskDataUrl,
+      init_images: txt2img ? [] : [initImageDataUrl],
       enable_hr: scale > 1,
       hr_upscaler:
         backend == "auto" && upscaler === "Latent"
