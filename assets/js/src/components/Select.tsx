@@ -196,6 +196,7 @@ const Select = forwardRef(
     const toggleOpen = () => {
       if (isOpen) {
         triggerRef.current?.focus();
+      } else {
         setSearch("");
       }
       setIsOpen((isOpen) => !isOpen);
