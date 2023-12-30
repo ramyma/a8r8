@@ -40,6 +40,7 @@ defmodule ExSd.SdSever do
        is_connected: false,
        is_generating: false,
        scripts: nil,
+       #  FIXME: reinitialize backend on crash correctly
        backend: :auto
      }, {:continue, :init_status_loop}}
   end
@@ -195,6 +196,16 @@ defmodule ExSd.SdSever do
       currentImage: "data:image/png;base64,#{image_base64_string}",
       generatingSessionName: generating_session_name
     })
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(
+        {:progress_preview, _image_base64_string},
+        state
+      ) do
+    Logger.warning("Unexpected progress preview")
 
     {:noreply, state}
   end
