@@ -89,6 +89,21 @@ const SelectionBox = ({
   const rectX = x - selectionOutlineStrokeWidth / 2;
   const rectY = y - selectionOutlineStrokeWidth / 2;
 
+  const previewImgWidth = previewImg
+    ? width < height
+      ? width
+      : (height * previewImg?.width) / previewImg?.height
+    : width;
+
+  const previewImgHeight = previewImg
+    ? height < width
+      ? height
+      : (width * previewImg?.height) / previewImg?.width
+    : height;
+
+  const previewImgX = width > height ? x - (previewImgWidth - width) / 2 : x;
+  const previewImgY = height > width ? y - (previewImgHeight - height) / 2 : y;
+
   return (
     <>
       <Group
@@ -96,7 +111,6 @@ const SelectionBox = ({
         visible={!isNaN(rectX) && !isNaN(rectY)}
       >
         {/* FIXME: framing has empty pixels in the result image */}
-
         <Rect
           x={rectX}
           y={rectY}
@@ -151,15 +165,23 @@ const SelectionBox = ({
           visible={isTransforming}
         />
       )}
-      {isGenerating && isConnected && (
+      {isConnected && isGenerating && !!previewImg && (
         <>
+          <Rect
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            fill="black"
+            opacity={0.9}
+            // filters={}
+          />
           <Image
             //TODO: link position to generation position and dimensions
-            x={x ?? 0}
-            y={y ?? 0}
-            width={width ?? 0}
-            height={height ?? 0}
-            // ref={previewImageRef}
+            x={previewImgX}
+            y={previewImgY}
+            width={previewImgWidth}
+            height={previewImgHeight}
             visible={isGenerating}
             image={previewImg}
           />
