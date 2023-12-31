@@ -1154,6 +1154,7 @@ defmodule ExSd.ComfyClient do
           tile_height: if(is_sd_xl, do: 1024, else: 512),
           mask_blur: 8,
           tile_padding: 32,
+          tiled_decode: "disabled",
           seam_fix_mode: "None",
           seam_fix_denoise: 1,
           seam_fix_width: 64,
