@@ -309,17 +309,17 @@ const MainForm = () => {
           "Tiled VAE": {
             args: [
               // # enabled,
-              !model?.isSdXl,
+              !model?.isSdXl, //TODO: try with SDXL
               // # encoder_tile_size,
-              960,
+              960, //1536,
               // # decoder_tile_size
-              64,
+              64, //96,
               // # vae_to_gpu,
               true,
               // # fast_decoder,
-              true,
+              false,
               // # fast_encoder,
-              true,
+              false,
               // # color_fix,
               false,
             ],
