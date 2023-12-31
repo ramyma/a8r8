@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.2.4] - 2023-12-31
+
+### Added
+
+- New selection box component with search
+- VAE select
+- Scheduler select for comfy
+- Color picker button in toolbar
+- Image uploader for controlnet layers
+
+### Fixed
+
+- Ultimate upscale latest version with comfy
+- Generation preview aspect ratio
+- Round selection box drag position correctly
+- Bug fixes for some random generation errors
+
+### Changed
+
+- Generation time optimization for t2i; 40%~50% faster with A1111
+- Text editor attention text style and incrementation behavior
+- Allow deselecting mode and tool in toolbar
+- Set default controlnet mode to resize and crop
+- Smarter resizing logic based on model type (1.*/XL)
+- Style tweaks
+- Dependencies update
+
+
 ## [0.2.3] - 2023-09-18
 
 ### Fixed
