@@ -40,7 +40,8 @@ defmodule ExSd.ComfyClient do
           get_scale_subflow(generation_params,
             positive_loras: positive_loras,
             controlnet_args: controlnet_args,
-            seed: seed
+            seed: seed,
+            attrs: attrs
           )
       )
 
@@ -55,11 +56,7 @@ defmodule ExSd.ComfyClient do
           },
           vae: %{
             inputs: %{
-              vae_name:
-                if(attrs["model"] |> String.downcase() |> String.contains?("xl"),
-                  do: "sdxl_vae.safetensors",
-                  else: "vae-ft-mse-840000-ema-pruned.ckpt"
-                )
+              vae_name: attrs["vae"]
             },
             class_type: "VAELoader"
           },
@@ -136,7 +133,7 @@ defmodule ExSd.ComfyClient do
                   ]
                 ),
               sampler_name: generation_params.sampler_name,
-              scheduler: "karras",
+              scheduler: attrs["scheduler"] || "karras",
               seed: seed,
               steps: generation_params.steps
             }
@@ -153,10 +150,7 @@ defmodule ExSd.ComfyClient do
                 ),
                 0
               ],
-              vae: [
-                "vae",
-                0
-              ]
+              vae: get_vae(attrs)
             }
           },
           output: %{
@@ -234,7 +228,8 @@ defmodule ExSd.ComfyClient do
             controlnet_args: controlnet_args,
             positive_loras: positive_loras,
             seed: seed,
-            is_sd_xl: is_sd_xl
+            is_sd_xl: is_sd_xl,
+            attrs: attrs
           ),
         else: %{}
       )
@@ -284,11 +279,7 @@ defmodule ExSd.ComfyClient do
           },
           vae: %{
             inputs: %{
-              vae_name:
-                if(attrs["model"] |> String.downcase() |> String.contains?("xl"),
-                  do: "sdxl_vae.safetensors",
-                  else: "vae-ft-mse-840000-ema-pruned.ckpt"
-                )
+              vae_name: attrs["vae"]
             },
             class_type: "VAELoader"
           },
@@ -306,7 +297,8 @@ defmodule ExSd.ComfyClient do
           },
           scaler: %{
             inputs: %{
-              upscale_method: "nearest-exact",
+              # "nearest-exact",
+              upscale_method: "lanczos",
               width: generation_params.width,
               height: generation_params.height,
               crop: "disabled",
@@ -351,10 +343,7 @@ defmodule ExSd.ComfyClient do
                 ),
                 0
               ],
-              vae: [
-                "vae",
-                0
-              ]
+              vae: get_vae(attrs)
             },
             class_type: "VAEEncode"
           },
@@ -450,7 +439,7 @@ defmodule ExSd.ComfyClient do
                   ]
                 ),
               sampler_name: generation_params.sampler_name,
-              scheduler: "karras",
+              scheduler: attrs["scheduler"] || "karras",
               seed: seed,
               steps: generation_params.steps
             }
@@ -461,7 +450,8 @@ defmodule ExSd.ComfyClient do
                 "sampler",
                 0
               ],
-              upscale_method: "nearest-exact",
+              # "nearest-exact",
+              upscale_method: "lanczos",
               width:
                 ExSd.Sd.SdService.round_to_closest_multiple_of_8_down(
                   generation_params.width * (1 / generation_params.hr_scale)
@@ -481,10 +471,7 @@ defmodule ExSd.ComfyClient do
                 "sampler",
                 0
               ],
-              vae: [
-                "vae",
-                0
-              ]
+              vae: get_vae(attrs)
             }
           },
           fullscale_upscale_with_model: %{
@@ -502,7 +489,8 @@ defmodule ExSd.ComfyClient do
           },
           second_pass_scaler: %{
             inputs: %{
-              upscale_method: "nearest-exact",
+              # "nearest-exact",
+              upscale_method: "lanczos",
               width:
                 ExSd.Sd.SdService.round_to_closest_multiple_of_8_down(
                   generation_params.width * (1 / generation_params.hr_scale)
@@ -528,10 +516,7 @@ defmodule ExSd.ComfyClient do
                 "second_pass_scaler",
                 0
               ],
-              vae: [
-                "vae",
-                0
-              ]
+              vae: get_vae(attrs)
             },
             class_type: "VAEEncode"
           },
@@ -578,7 +563,7 @@ defmodule ExSd.ComfyClient do
                   ]
                 ),
               sampler_name: generation_params.sampler_name,
-              scheduler: "karras",
+              scheduler: attrs["scheduler"] || "karras",
               seed: seed,
               steps: generation_params.steps
             }
@@ -596,10 +581,7 @@ defmodule ExSd.ComfyClient do
                 ),
                 0
               ],
-              vae: [
-                "vae",
-                0
-              ]
+              vae: get_vae(attrs)
             }
           },
           output: %{
@@ -735,6 +717,21 @@ defmodule ExSd.ComfyClient do
       sampler_names =
         body
         |> get_in(["KSampler", "input", "required", "sampler_name"])
+        |> List.first()
+
+      {:ok, sampler_names}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  def get_schedulers() do
+    with response <- get("/object_info/KSampler"),
+         {:ok, body} <- handle_response(response) do
+      sampler_names =
+        body
+        |> get_in(["KSampler", "input", "required", "scheduler"])
         |> List.first()
 
       {:ok, sampler_names}
@@ -1138,7 +1135,8 @@ defmodule ExSd.ComfyClient do
          controlnet_args: controlnet_args,
          positive_loras: positive_loras,
          seed: seed,
-         is_sd_xl: is_sd_xl
+         is_sd_xl: is_sd_xl,
+         attrs: attrs
        ) do
     %{
       ultimate_upscale: %{
@@ -1147,7 +1145,7 @@ defmodule ExSd.ComfyClient do
           steps: generation_params.steps,
           cfg: generation_params.cfg_scale,
           sampler_name: generation_params.sampler_name,
-          scheduler: "karras",
+          scheduler: attrs["scheduler"] || "karras",
           denoise: generation_params.denoising_strength,
           mode_type: "Linear",
           # TODO: use 1024 with XL
@@ -1156,6 +1154,7 @@ defmodule ExSd.ComfyClient do
           tile_height: if(is_sd_xl, do: 1024, else: 512),
           mask_blur: 8,
           tile_padding: 32,
+          tiled_decode: "disabled",
           seam_fix_mode: "None",
           seam_fix_denoise: 1,
           seam_fix_width: 64,
@@ -1195,10 +1194,7 @@ defmodule ExSd.ComfyClient do
                 1
               ]
             ),
-          vae: [
-            "vae",
-            0
-          ]
+          vae: get_vae(attrs)
         },
         class_type: "UltimateSDUpscaleNoUpscale"
       }
@@ -1208,7 +1204,8 @@ defmodule ExSd.ComfyClient do
   defp get_scale_subflow(%GenerationParams{} = generation_params,
          positive_loras: positive_loras,
          controlnet_args: controlnet_args,
-         seed: seed
+         seed: seed,
+         attrs: attrs
        ) do
     %{
       hires_latent_scaler: %{
@@ -1243,15 +1240,13 @@ defmodule ExSd.ComfyClient do
             "sampler",
             0
           ],
-          vae: [
-            "vae",
-            0
-          ]
+          vae: get_vae(attrs)
         }
       },
       scaler: %{
         inputs: %{
-          upscale_method: "nearest-exact",
+          # "nearest-exact",
+          upscale_method: "lanczos",
           width:
             ExSd.Sd.SdService.round_to_closest_multiple_of_8_down(
               if(generation_params.hr_scale < 1,
@@ -1302,10 +1297,7 @@ defmodule ExSd.ComfyClient do
             "scaler",
             0
           ],
-          vae: [
-            "vae",
-            0
-          ]
+          vae: get_vae(attrs)
         },
         class_type: "VAEEncode"
       },
@@ -1351,7 +1343,7 @@ defmodule ExSd.ComfyClient do
               ]
             ),
           sampler_name: generation_params.sampler_name,
-          scheduler: "karras",
+          scheduler: attrs["scheduler"] || "karras",
           seed: seed,
           steps: generation_params.steps
         }
@@ -1443,5 +1435,14 @@ defmodule ExSd.ComfyClient do
       },
       class_type: "AIO_Preprocessor"
     }
+  end
+
+  defp get_vae(attrs) do
+    vae = attrs["vae"]
+
+    if(vae |> String.downcase() == "automatic",
+      do: ["model", 2],
+      else: ["vae", 0]
+    )
   end
 end

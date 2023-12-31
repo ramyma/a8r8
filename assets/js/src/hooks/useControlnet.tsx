@@ -68,8 +68,12 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
     threshold_b,
     pixel_perfect,
     resize_mode,
-  }: ControlnetDetection & { layerId: ControlnetLayer["id"] }) => {
-    const imageDataUrl = await getImageDataUrl();
+    imageDataUrl,
+  }: ControlnetDetection & {
+    layerId: ControlnetLayer["id"];
+    imageDataUrl?: string;
+  }) => {
+    imageDataUrl ??= await getImageDataUrl();
     if (module === "none") return;
     sendMessage("controlnet_detect", {
       layer_id: layerId,
@@ -96,6 +100,8 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
             setDetectionImage({
               image: images[0],
               layerId,
+              //FIXME: fit detection image according to received dimensions and fill method
+              // or delegate to renderer
               position: selectionBoxRef.current.getPosition(),
               dimensions: selectionBoxRef.current.size(),
             })

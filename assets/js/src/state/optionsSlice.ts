@@ -9,6 +9,7 @@ interface OptionsState {
     name: string;
     isSdXl: boolean;
   };
+  sd_vae: string;
   backend: Backend;
 }
 
@@ -30,16 +31,22 @@ export const optionsSlice = createSlice({
     ) => {
       state.selectedModel = action.payload;
     },
+    setSelectedVae: (state, action: PayloadAction<OptionsState["sd_vae"]>) => {
+      state.sd_vae = action.payload;
+    },
     setBackend: (state, action: PayloadAction<OptionsState["backend"]>) => {
       state.backend = action.payload;
     },
   },
 });
 
-export const { setSelectedModel, setBackend } = optionsSlice.actions;
+export const { setSelectedModel, setSelectedVae, setBackend } =
+  optionsSlice.actions;
 
 export const selectSelectedModel = (state: RootState) =>
   state.options.selectedModel;
+
+export const selectSelectedVae = (state: RootState) => state.options.sd_vae;
 
 export const selectBackend = (state: RootState) => state.options.backend;
 

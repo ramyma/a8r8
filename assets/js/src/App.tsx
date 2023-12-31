@@ -1,4 +1,4 @@
-import React, { MouseEvent } from "react";
+import React, { MouseEvent, useMemo } from "react";
 import "./App.css";
 import Canvas from "./Canvas/Canvas";
 import Stats from "./Stats";
@@ -26,9 +26,11 @@ import useScripts from "./hooks/useScripts";
 import { useAppSelector } from "./hooks";
 import { selectBackend } from "./state/optionsSlice";
 import useBackend from "./hooks/useBackend";
+import useSchedulers from "./hooks/useSchedulers";
 function App() {
   const { refetch: refetchOptions } = useOptions({ fetchPolicy: "eager" });
   useSamplers({ fetchPolicy: "eager" });
+  useSchedulers({ fetchPolicy: "eager" });
   useMemoryStats({ fetchPolicy: "eager" });
 
   useClipboard({ emit: true });
@@ -64,10 +66,15 @@ function App() {
 
   const {
     isModelLoading,
+    isVaeLoading,
     models,
     setModel,
+    setVae,
     selectedModel,
+    selectedVae,
     fetchData: refetchModels,
+    fetchVaes: refetchVaes,
+    vaes,
   } = useModels({
     fetchPolicy: "eager",
   });
@@ -79,36 +86,24 @@ function App() {
       <div className="relative flex h-full w-full ">
         <div className="absolute left-0 top-0 max-w-[20vw] md:w-[17vw] lg:w-[33vw] flex flex-1 h-full bg-black/90 backdrop-blur-sm flex-col z-10">
           <ScrollArea>
-            <div className="flex p-4 px-6">
-              {/* <Select
-              items={models}
-              idAttr="model_name"
-              textAttr="model_name"
-              valueAttr="sha256"
-              value={selectedModel}
-            /> */}
-              {/* <select
-              className="w-full rounded rounded-tr-none rounded-br-none p-2"
-              name="models"
-              id="models"
-              title="Select Checkpoint"
-              value={selectedModel}
-              onChange={handleModelChange}
-              disabled={isModelLoading}
-              >
-              {models?.map((model) => (
-                <option key={model.model_name} value={model.sha256}>
-                {model.model_name}
-                </option>
-                ))}
-            </select> */}
+            <div className="flex p-4 px-6 flex-col gap-2">
               <ModelSelect
                 refetchOptions={refetchOptions}
                 isModelLoading={isModelLoading}
+                isVaeLoading={isVaeLoading}
                 models={models}
                 refetchModels={refetchModels}
                 setModel={setModel}
                 selectedModel={selectedModel}
+              />
+              <VaeSelect
+                refetchOptions={refetchOptions}
+                vaes={vaes}
+                refetchVaes={refetchVaes}
+                setVae={setVae}
+                selectedVae={selectedVae}
+                isVaeLoading={isVaeLoading}
+                isModelLoading={isModelLoading}
               />
             </div>
             <MainForm />
@@ -134,13 +129,15 @@ const ModelSelect = ({
   refetchModels,
   selectedModel,
   isModelLoading,
+  isVaeLoading,
 }: {
   refetchOptions: () => void;
   models;
   setModel;
   refetchModels;
   selectedModel;
-  isModelLoading;
+  isModelLoading: boolean;
+  isVaeLoading: boolean;
 }) => {
   const backend = useAppSelector(selectBackend);
 
@@ -171,7 +168,7 @@ const ModelSelect = ({
             value={selectedModel?.hash}
             onChange={handleModelChange}
             title={title}
-            disabled={isModelLoading}
+            disabled={isModelLoading || isVaeLoading}
           />
           <button
             onClick={handleModelRefreshClick}
@@ -189,7 +186,75 @@ const ModelSelect = ({
           value={selectedModel?.name}
           onChange={handleModelChange}
           title={title}
-          disabled={isModelLoading}
+        />
+      )}
+    </>
+  );
+};
+const VaeSelect = ({
+  refetchOptions,
+  vaes,
+  setVae,
+  refetchVaes,
+  selectedVae,
+  isVaeLoading,
+  isModelLoading,
+}: {
+  refetchOptions: () => void;
+  vaes;
+  setVae;
+  refetchVaes;
+  selectedVae;
+  isVaeLoading: boolean;
+  isModelLoading: boolean;
+}) => {
+  const backend = useAppSelector(selectBackend);
+
+  const handleVaeChange = (value: string) => {
+    if (value && (selectedVae || backend === "comfy")) setVae(value);
+  };
+
+  const handleModelRefreshClick = (e: MouseEvent) => {
+    e.preventDefault();
+    refetchOptions();
+    refetchVaes();
+  };
+
+  const title = "Select VAE";
+  const name = "vae";
+
+  const vaeList = useMemo(() => ["Automatic", ...(vaes ?? [])], [vaes]);
+
+  return (
+    <>
+      {backend === "auto" ? (
+        <div className="inline-flex w-full">
+          <Select
+            id="auto_vae"
+            items={vaeList}
+            name={name}
+            value={selectedVae}
+            onChange={handleVaeChange}
+            title={title}
+            disabled={isVaeLoading || isModelLoading}
+          />
+
+          <button
+            onClick={handleModelRefreshClick}
+            className="rounded rounded-tl-none rounded-bl-none p-2"
+            title="Refresh"
+          >
+            <ReloadIcon />
+          </button>
+        </div>
+      ) : (
+        <Select
+          id="comfy_model"
+          items={vaeList}
+          name={name}
+          value={selectedVae}
+          onChange={handleVaeChange}
+          title={title}
         />
       )}
     </>

@@ -22,9 +22,9 @@ const Slider = forwardRef(
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) =>
       onChange(+e.target.value);
     return (
-      <div className="flex flex-col max-w-72">
+      <div className="flex flex-col">
         {showInput && (
-          <div className="flex flex-row gap-2 mb-2 items-center justify-between">
+          <div className="flex flex-col lg:flex-row gap-2 mb-2 items-start lg:items-center  justify-between">
             <Label className="w-7/12">{label}</Label>
             <Input
               className="px-1 min-w-[60px]"

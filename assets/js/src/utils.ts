@@ -443,7 +443,8 @@ export const getLayers = async ({
       const layerGroup: Group = controlnetLayerGroups[index];
       layerGroup.visible(true);
       const controlnetDataUrl = layer.overrideBaseLayer
-        ? controlnetLayer.toDataURL({
+        ? layer.image ||
+          controlnetLayer.toDataURL({
             x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
             y: selectionBox?.getAbsolutePosition().y,
             width: selectionBox?.width(),

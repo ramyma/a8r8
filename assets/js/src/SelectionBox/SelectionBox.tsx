@@ -1,14 +1,15 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { Vector2d } from "konva/lib/types";
+import { Group, Image, Rect, Text } from "react-konva";
 import RefsContext from "../context/RefsContext";
 import { useAppSelector } from "../hooks";
 import { selectMode, selectStageScale } from "../state/canvasSlice";
-import { Group, Image, Rect, Text } from "react-konva";
 import { selectStats } from "../state/statsSlice";
 import { AnchorPoints } from "./AnchorPoints";
 import useEvents from "./hooks/useEvents";
 import ThemeContext from "../context/ThemeContext";
 import useProgress from "../hooks/useProgress";
+import { roundToClosestMultipleOf8 } from "../utils";
 
 interface Props {
   remoteSession?: boolean;
@@ -89,6 +90,31 @@ const SelectionBox = ({
   const rectX = x - selectionOutlineStrokeWidth / 2;
   const rectY = y - selectionOutlineStrokeWidth / 2;
 
+  const previewImgWidth = previewImg
+    ? width < height
+      ? width
+      : roundToClosestMultipleOf8(
+          (height * previewImg?.width) / previewImg?.height
+        )
+    : width;
+
+  const previewImgHeight = previewImg
+    ? height < width
+      ? height
+      : roundToClosestMultipleOf8(
+          (width * previewImg?.height) / previewImg?.width
+        )
+    : height;
+
+  const previewImgX =
+    width > height
+      ? roundToClosestMultipleOf8(x - (previewImgWidth - width) / 2)
+      : x;
+  const previewImgY =
+    height > width
+      ? roundToClosestMultipleOf8(y - (previewImgHeight - height) / 2)
+      : y;
+
   return (
     <>
       <Group
@@ -96,7 +122,6 @@ const SelectionBox = ({
         visible={!isNaN(rectX) && !isNaN(rectY)}
       >
         {/* FIXME: framing has empty pixels in the result image */}
-
         <Rect
           x={rectX}
           y={rectY}
@@ -151,15 +176,23 @@ const SelectionBox = ({
           visible={isTransforming}
         />
       )}
-      {isGenerating && isConnected && (
+      {isConnected && isGenerating && !!previewImg && (
         <>
+          <Rect
+            x={x}
+            y={y}
+            width={width}
+            height={height}
+            fill="black"
+            opacity={0.9}
+            // filters={}
+          />
           <Image
             //TODO: link position to generation position and dimensions
-            x={x ?? 0}
-            y={y ?? 0}
-            width={width ?? 0}
-            height={height ?? 0}
-            // ref={previewImageRef}
+            x={previewImgX}
+            y={previewImgY}
+            width={previewImgWidth}
+            height={previewImgHeight}
             visible={isGenerating}
             image={previewImg}
           />

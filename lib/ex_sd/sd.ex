@@ -39,6 +39,9 @@ defmodule ExSd.Sd do
   @spec get_vaes :: {:ok, list()}
   defdelegate get_vaes(), to: SdSever
 
+  @spec get_schedulers :: {:ok, list()}
+  defdelegate get_schedulers(), to: SdSever
+
   @spec get_scripts :: {:ok, map()}
   defdelegate get_scripts(), to: SdSever
 
@@ -64,6 +67,8 @@ defmodule ExSd.Sd do
   defdelegate get_options(), to: SdSever
 
   defdelegate set_model(model_title), to: SdSever
+
+  defdelegate set_vae(vae), to: SdSever
 
   @spec set_backend(binary()) :: any
   defdelegate set_backend(backend), to: SdSever
@@ -95,6 +100,10 @@ defmodule ExSd.Sd do
 
   def broadcast_model_loading_status(is_model_loading) do
     ExSdWeb.Endpoint.broadcast!("sd", "is_model_loading", %{is_model_loading: is_model_loading})
+  end
+
+  def broadcast_vae_loading_status(is_vae_loading) do
+    ExSdWeb.Endpoint.broadcast!("sd", "is_vae_loading", %{is_vae_loading: is_vae_loading})
   end
 
   @spec broadcast_controlenet_detection([binary()], binary()) :: :ok

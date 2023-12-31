@@ -3,13 +3,17 @@ defmodule ExSd.Sd.ImageService do
     data_url_to_upload(data_url, name)
   end
 
+  def save("data:image/jpeg;base64," <> _ = data_url, name) do
+    data_url_to_upload(data_url, name)
+  end
+
   def save(base64_string_image, name) do
     data_url_to_upload("data:image/png;base64,#{base64_string_image}", name)
   end
 
   defp data_url_to_upload(data_url, name) do
     with %{scheme: "data"} = uri <- URI.parse(data_url),
-         %URL.Data{data: data} <- URL.Data.parse(uri) do
+         {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri) do
       binary_to_upload(data, name)
     end
   end
@@ -26,7 +30,7 @@ defmodule ExSd.Sd.ImageService do
   # Creates a mask image that fills the transparent parts with white.
   defp fill_mask!(mask_data_url, image_average, invert_mask) do
     with %{scheme: "data"} = uri <- URI.parse(mask_data_url),
-         %URL.Data{data: data} <- URL.Data.parse(uri),
+         {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri),
          {:ok, image} <- Image.from_binary(data),
          average <- Image.average(image) do
       image =
@@ -68,7 +72,7 @@ defmodule ExSd.Sd.ImageService do
 
   def image_from_dataurl("data:image/png;base64," <> _binary = dataurl_image) do
     with %{scheme: "data"} = uri <- URI.parse(dataurl_image),
-         %URL.Data{data: data} <- URL.Data.parse(uri),
+         {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri),
          {:ok, image} <- Image.from_binary(data) do
       image
       # |> Image.new!(bands: 4, color: [0, 0, 0, 1], format: {:u, 16})
@@ -83,7 +87,7 @@ defmodule ExSd.Sd.ImageService do
 
   def mask_from_alpha(image_data_url, mask_data_url, invert_mask) do
     with %{scheme: "data"} = uri <- URI.parse(image_data_url),
-         %URL.Data{data: data} <- URL.Data.parse(uri),
+         {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri),
          {:ok, image} <- Image.from_binary(data) do
       mask_from_image =
         image
@@ -104,7 +108,9 @@ defmodule ExSd.Sd.ImageService do
 
       save(mask_binary, "mask")
 
-      {"data:image/png;base64,#{mask_binary}", mask}
+      {:ok, "data:image/png;base64,#{mask_binary}", mask}
+    else
+      error -> {:error, error}
     end
   end
 end

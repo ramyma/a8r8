@@ -1,7 +1,11 @@
 import { useCallback, useEffect } from "react";
 import { Options } from "../App.d";
 import { useAppDispatch, useAppSelector } from "../hooks";
-import { selectBackend, setSelectedModel } from "../state/optionsSlice";
+import {
+  selectBackend,
+  setSelectedVae,
+  setSelectedModel,
+} from "../state/optionsSlice";
 import { isSdXlModel } from "../utils";
 import useData, { FetchPolicy } from "./useData";
 import useModels from "./useModels";
@@ -31,6 +35,8 @@ const useOptions = ({ fetchPolicy }: Props = {}) => {
             isSdXl: isSdXlModel(model?.model_name as string),
           })
         );
+
+        dispatch(setSelectedVae(options.sd_vae));
       }
     },
     [backend, dispatch, models]

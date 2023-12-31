@@ -79,6 +79,16 @@ defmodule ExSd.AutoClient do
     end
   end
 
+  def post_active_vae(vae) do
+    with response <- post("/options", %{sd_vae: vae}),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
   def get_memory_usage() do
     with response <- get("/memory"),
          {:ok, body} <- handle_response(response) do
@@ -162,6 +172,16 @@ defmodule ExSd.AutoClient do
 
   def refresh_models() do
     with response <- post("/refresh-checkpoints", %{}),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  def refresh_vaes() do
+    with response <- post("/refresh-vae", %{}),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else

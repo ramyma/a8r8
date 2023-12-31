@@ -65,7 +65,7 @@ const BrushPreview = forwardRef((_props, ref: LegacyRef<BrushPreviewNode>) => {
   }, [maskColor, svgImage]);
 
   const isVisible =
-    isBrushPreviewVisible && mode !== "selection" && activeLayer !== "base";
+    isBrushPreviewVisible && tool && mode === "paint" && activeLayer !== "base";
   return (
     <Circle
       radius={brushSize / 2}

@@ -48,8 +48,12 @@ import Toggle from "../components/Toggle";
 import { LockClosedIcon, LockOpen2Icon } from "@radix-ui/react-icons";
 import { selectInvertMask } from "../state/canvasSlice";
 import useScripts from "../hooks/useScripts";
-import { selectBackend, selectSelectedModel } from "../state/optionsSlice";
-
+import {
+  selectBackend,
+  selectSelectedModel,
+  selectSelectedVae,
+} from "../state/optionsSlice";
+import useSchedulers from "../hooks/useSchedulers";
 const MainForm = () => {
   const { channel, sendMessage } = useSocket();
   const backend = useAppSelector(selectBackend);
@@ -114,6 +118,7 @@ const MainForm = () => {
   );
 
   const model = useAppSelector(selectSelectedModel);
+  const vae = useAppSelector(selectSelectedVae);
 
   const isConnected = useAppSelector(selectIsConnected);
 
@@ -206,6 +211,7 @@ const MainForm = () => {
       upscaler,
       prompt,
       negative_prompt,
+      scheduler,
       ...rest
     } = data;
 
@@ -220,8 +226,8 @@ const MainForm = () => {
           : editorJsonToText((negative_prompt as EditorState).doc.toJSON()),
       ...rest,
       ...(!isSeedPinned && { seed: -1 }),
-      mask: maskDataUrl,
-      init_images: [initImageDataUrl],
+      mask: txt2img ? "" : maskDataUrl,
+      init_images: txt2img ? [] : [initImageDataUrl],
       enable_hr: scale > 1,
       hr_upscaler:
         backend == "auto" && upscaler === "Latent"
@@ -303,17 +309,17 @@ const MainForm = () => {
           "Tiled VAE": {
             args: [
               // # enabled,
-              !model?.isSdXl,
+              !model?.isSdXl, //TODO: try with SDXL
               // # encoder_tile_size,
-              960,
+              960, //1536,
               // # decoder_tile_size
-              64,
+              64, //96,
               // # vae_to_gpu,
               true,
               // # fast_decoder,
-              true,
+              false,
               // # fast_encoder,
-              true,
+              false,
               // # color_fix,
               false,
             ],
@@ -373,28 +379,23 @@ const MainForm = () => {
           }),
       },
     };
-    console.log(image, {
-      attrs: {
-        position: selectionBoxRef?.current?.getPosition(),
-        scale,
-        use_scaled_dimensions: showUseScaledDimensions && use_scaled_dimensions,
-        full_scale_pass,
-        invertMask,
-        model: model?.name,
-        ultimate_upscale: true,
-      },
-    });
+    const attrs = {
+      position: selectionBoxRef?.current?.getPosition(),
+      scale,
+      use_scaled_dimensions: showUseScaledDimensions && use_scaled_dimensions,
+      full_scale_pass: showFullScalePass && fullScalePass,
+      invert_mask: invertMask,
+      model: model?.name,
+      vae,
+      ...(backend === "comfy" && { scheduler }),
+      ultimate_upscale: isUltimateUpscaleEnabled,
+    };
+
+    console.log(image, { attrs });
+
     sendMessage("generate", {
       image,
-      attrs: {
-        position: selectionBoxRef?.current?.getPosition(),
-        scale,
-        use_scaled_dimensions: showUseScaledDimensions && use_scaled_dimensions,
-        full_scale_pass: showFullScalePass && fullScalePass,
-        invert_mask: invertMask,
-        model: model?.name,
-        ultimate_upscale: isUltimateUpscaleEnabled,
-      },
+      attrs,
       session_name: sessionName,
     });
 
@@ -436,6 +437,7 @@ const MainForm = () => {
   useGlobalKeydown({ handleKeydown, override: true });
 
   const { samplers } = useSamplers();
+  const { schedulers } = useSchedulers();
 
   useEffect(() => {
     const ref = channel?.on("image", (data) => {
@@ -468,21 +470,21 @@ const MainForm = () => {
       {!isGenerating || !isConnected ? (
         <button
           type="submit"
-          className="bg-[#302d2d] border border-neutral-700 enabled:hover:bg-[#494949] disabled:cursor-not-allowed mb-2 p-2 rounded cursor-pointer sticky top-0 w-[100%] stuck::bg-red-200 z-10 shadow-md shadow-black/30"
+          className="bg-[#302d2d] border border-neutral-700 enabled:hover:bg-[#494949] disabled:cursor-not-allowed mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] stuck::bg-red-200 z-10 shadow-md shadow-black/50"
           disabled={!isConnected}
         >
           Generate
         </button>
       ) : (
         <button
-          className="bg-red-600 mb-2 p-2 rounded cursor-pointer sticky top-0 w-[100%] z-10"
+          className="bg-red-600 mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] z-10"
           onClick={handleInterrupt}
         >
           Interrupt
         </button>
       )}
       <div className="flex flex-col gap-2">
-        <Label htmlFor="prompt">Prompt</Label>
+        <Label>Prompt</Label>
 
         <Controller
           name="prompt"
@@ -494,7 +496,7 @@ const MainForm = () => {
         />
       </div>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="negativePrompt">Negative Prompt</Label>
+        <Label>Negative Prompt</Label>
 
         <Controller
           name="negative_prompt"
@@ -513,13 +515,25 @@ const MainForm = () => {
         render={({ field }) => <Txt2ImageButtonGroup {...field} />}
       />
       <div className="flex flex-col gap-2">
-        <Label htmlFor="sampler_name">Sampler</Label>
+        <Label>Sampler</Label>
         <Controller
           name="sampler_name"
           control={control}
           render={({ field }) => <Select items={samplers} {...field} />}
         />
       </div>
+
+      {backend === "comfy" && (
+        <div className="flex flex-col gap-2">
+          <Label>Scheduler</Label>
+          <Controller
+            name="scheduler"
+            control={control}
+            defaultValue="karras"
+            render={({ field }) => <Select items={schedulers} {...field} />}
+          />
+        </div>
+      )}
 
       {!txt2img && backend === "auto" && (
         <div className="flex flex-col gap-2">
@@ -537,7 +551,7 @@ const MainForm = () => {
                 }
               },
             }}
-            defaultValue={"3"}
+            defaultValue={"1"}
             render={({ field }) => (
               <Select
                 items={[
@@ -577,7 +591,7 @@ const MainForm = () => {
               {...field}
             />
           )}
-          defaultValue={1}
+          defaultValue={0.7}
         />
       )}
       <Controller
@@ -612,7 +626,7 @@ const MainForm = () => {
         control={control}
         // rules={{ required: true }}
         render={({ field }) => (
-          <Slider min={0} max={3072} step={8} label="Width" {...field} />
+          <Slider min={0} max={5000} step={8} label="Width" {...field} />
         )}
         defaultValue={DEFAULT_WIDTH_VALUE}
         rules={{
@@ -628,7 +642,7 @@ const MainForm = () => {
         name="height"
         control={control}
         render={({ field }) => (
-          <Slider min={0} max={3072} step={8} label="Height" {...field} />
+          <Slider min={0} max={5000} step={8} label="Height" {...field} />
         )}
         defaultValue={DEFAULT_HEIGHT_VALUE}
         rules={{
@@ -660,7 +674,7 @@ const MainForm = () => {
       </div>
       {showUpscaler && (
         <div className="flex flex-col gap-2">
-          <Label htmlFor="upscaler">Upscaler</Label>
+          <Label>Upscaler</Label>
           <Controller
             name="upscaler"
             control={control}
@@ -771,7 +785,7 @@ const MainForm = () => {
       )}
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="Seed">Seed</Label>
+        <Label htmlFor="seed">Seed</Label>
         <div className="flex">
           <Controller
             name="seed"

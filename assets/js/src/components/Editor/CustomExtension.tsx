@@ -99,7 +99,7 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
             tr.setNodeAttribute(
               state.selection.from,
               "value",
-              formatToMaxDecimalPlaces(Math.min(3, parseFloat(value) + 0.1), 2)
+              formatToMaxDecimalPlaces(Math.min(3, parseFloat(value) + 0.05), 2)
             )
           );
         } else if (node?.type?.name === "attention") {
@@ -109,7 +109,7 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
             tr.setNodeAttribute(
               state.selection.from,
               "value",
-              formatToMaxDecimalPlaces(Math.min(3, parseFloat(value) + 0.1), 2)
+              formatToMaxDecimalPlaces(Math.min(3, parseFloat(value) + 0.05), 2)
             )
           );
         } else {
@@ -150,7 +150,10 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
             tr.setNodeAttribute(
               state.selection.from,
               "value",
-              formatToMaxDecimalPlaces(Math.max(-3, parseFloat(value) - 0.1), 2)
+              formatToMaxDecimalPlaces(
+                Math.max(-3, parseFloat(value) - 0.05),
+                2
+              )
             )
             // .setSelection({
             //   $head: state.selection.$head,
@@ -160,13 +163,25 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
         } else if (node?.type?.name === "attention") {
           const { value = 0 } = node.attrs ?? {};
 
-          (dispatch as DispatchFunction)(
-            tr.setNodeAttribute(
-              state.selection.from,
-              "value",
-              formatToMaxDecimalPlaces(Math.max(-3, parseFloat(value) - 0.1), 2)
-            )
+          const upadatedValue = formatToMaxDecimalPlaces(
+            Math.max(-3, parseFloat(value) - 0.05),
+            2
           );
+
+          if (upadatedValue > 0) {
+            (dispatch as DispatchFunction)(
+              tr.setNodeAttribute(state.selection.from, "value", upadatedValue)
+            );
+          } else {
+            (dispatch as DispatchFunction)(
+              tr.replaceSelectionWith(
+                Node.fromJSON(state.schema, {
+                  type: "text",
+                  text: node.attrs.code,
+                })
+              )
+            );
+          }
         } else {
           const { from } = getTextSelection(
             state.selection ?? tr.selection,

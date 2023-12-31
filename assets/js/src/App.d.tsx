@@ -7,6 +7,11 @@ export type Model = {
   config: string;
 };
 
+export type Vae = {
+  model_name: string;
+  filename: string;
+};
+
 export type Lora = {
   alias: string;
   name: string;
@@ -20,6 +25,7 @@ export type Sampler = string;
 
 export type Options = {
   sd_checkpoint_hash: string;
+  sd_vae: string;
 };
 
 export type MemoryStats = {

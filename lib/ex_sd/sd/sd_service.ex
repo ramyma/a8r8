@@ -14,7 +14,7 @@ defmodule ExSd.Sd.SdService do
         %GenerationParams{
           width: width,
           height: height,
-          txt2img: _txt2img
+          txt2img: txt2img
         } = generation_params,
         %{"invert_mask" => invert_mask} = attrs,
         backend: :comfy
@@ -23,12 +23,25 @@ defmodule ExSd.Sd.SdService do
     # mask = fill_mask(generation_params.mask)
 
     # create mask
-    {mask_binary, mask_image} =
-      ImageService.mask_from_alpha(
-        List.first(generation_params.init_images),
-        generation_params.mask,
-        invert_mask
-      )
+    {:ok, mask_binary, mask_image} =
+      if txt2img do
+        new_mask_image =
+          Image.new!(original_dimensions.width, original_dimensions.height)
+          |> Image.Draw.flood!(0, 0, color: :white)
+
+        new_mask_binary =
+          new_mask_image
+          |> Image.write!(:memory, suffix: ".png")
+          |> Base.encode64()
+
+        {:ok, new_mask_binary, new_mask_image}
+      else
+        ImageService.mask_from_alpha(
+          List.first(generation_params.init_images),
+          generation_params.mask,
+          invert_mask
+        )
+      end
 
     Logger.info("Start generation")
 
@@ -71,7 +84,7 @@ defmodule ExSd.Sd.SdService do
         %GenerationParams{
           width: width,
           height: height,
-          txt2img: _txt2img
+          txt2img: txt2img
         } = generation_params,
         %{"scale" => scale, "invert_mask" => invert_mask} = attrs,
         backend: :auto
@@ -81,12 +94,25 @@ defmodule ExSd.Sd.SdService do
     # mask = fill_mask(generation_params.mask)
 
     # create mask
-    {mask_binary, mask_image} =
-      ImageService.mask_from_alpha(
-        List.first(generation_params.init_images),
-        generation_params.mask,
-        invert_mask
-      )
+    {:ok, mask_binary, mask_image} =
+      if txt2img do
+        new_mask_image =
+          Image.new!(original_dimensions.width, original_dimensions.height)
+          |> Image.Draw.flood!(0, 0, color: :white)
+
+        new_mask_binary =
+          new_mask_image
+          |> Image.write!(:memory, suffix: ".png")
+          |> Base.encode64()
+
+        {:ok, new_mask_binary, new_mask_image}
+      else
+        ImageService.mask_from_alpha(
+          List.first(generation_params.init_images),
+          generation_params.mask,
+          invert_mask
+        )
+      end
 
     Logger.info("Start generation")
 
@@ -435,6 +461,9 @@ defmodule ExSd.Sd.SdService do
   def get_vaes(:auto), do: AutoClient.get_vaes()
   def get_vaes(:comfy), do: ComfyClient.get_vaes()
 
+  @spec get_schedulers(backend()) :: {:error, any} | {:ok, any}
+  def get_schedulers(:comfy), do: ComfyClient.get_schedulers()
+
   @spec refresh_models() :: {:error, any} | {:ok, any}
   defdelegate refresh_models(), to: AutoClient
 
@@ -491,6 +520,9 @@ defmodule ExSd.Sd.SdService do
 
   @spec post_active_model(binary()) :: {:error, any} | {:ok, any}
   defdelegate post_active_model(model_title), to: AutoClient
+
+  @spec post_active_vae(binary()) :: {:error, any} | {:ok, any}
+  defdelegate post_active_vae(vae), to: AutoClient
 
   def round_to_closest_multiple_of_8_down(number) do
     round((number - 4) / 8) * 8

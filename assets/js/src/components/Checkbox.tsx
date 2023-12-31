@@ -14,14 +14,14 @@ const Checkbox = forwardRef(
     { id, children, onChange, ...rest }: Props & RadixCheckbox.CheckboxProps,
     _ref: Ref<HTMLInputElement>
   ) => (
-    <div className="flex items-center gap-4 justify-between">
+    <div className="flex items-start md:items-center gap-4 justify-between flex-col md:flex-row">
       {children && (
         <Label className="Label" htmlFor={id}>
           {children}
         </Label>
       )}
       <RadixCheckbox.Root
-        className="w-8 h-8 flex items-center  justify-center  bg-neutral-900 p-0 rounded bg-neutral-800/80 hover:bg-neutral-800 border border-neutral-700"
+        className="w-8 h-8 shrink-0 flex items-center  justify-center bg-neutral-900 p-0 rounded bg-neutral-800/80 hover:bg-neutral-800 border border-neutral-700"
         onCheckedChange={onChange}
         id={id}
         checked={rest.value}

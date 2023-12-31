@@ -70,7 +70,7 @@ export class AttentionExtension extends NodeExtension<ExtrasOptions> {
         return [
           "span",
           {
-            class: "bg-white rounded text-primary p-1",
+            class: "bg-neutral-600 rounded text-white p-1",
           },
           `(${code}:${value})`,
         ];

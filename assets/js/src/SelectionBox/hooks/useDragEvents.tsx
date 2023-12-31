@@ -210,8 +210,12 @@ const useDragEvents = () => {
           });
         }
         if (selectionAnchorId.current === "selectionBox") {
-          const newX = Math.round(pos.x - dragOffset.current.x);
-          const newY = Math.round(pos.y - dragOffset.current.y);
+          const newX = roundToClosestMultipleOf8(
+            Math.round(pos.x - dragOffset.current.x)
+          );
+          const newY = roundToClosestMultipleOf8(
+            Math.round(pos.y - dragOffset.current.y)
+          );
           startingDragPos.current = {
             x: pos.x,
             y: pos.y,
