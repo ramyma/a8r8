@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config ./vitest.config.ts",
-    "build": "tsc && vite build --config ./vitest.config.ts",
+    "build": "vite build --config ./vitest.config.ts",
     "preview": "vite preview",
     "test": "vitest --config ./vitest.config.ts",
     "coverage": "vitest run --coverage",
