@@ -377,16 +377,18 @@ const MainForm = () => {
               ],
             },
           }),
+      },
+    };
     const attrs = {
-        position: selectionBoxRef?.current?.getPosition(),
-        scale,
-        use_scaled_dimensions: showUseScaledDimensions && use_scaled_dimensions,
-        full_scale_pass: showFullScalePass && fullScalePass,
-        invert_mask: invertMask,
-        model: model?.name,
+      position: selectionBoxRef?.current?.getPosition(),
+      scale,
+      use_scaled_dimensions: showUseScaledDimensions && use_scaled_dimensions,
+      full_scale_pass: showFullScalePass && fullScalePass,
+      invert_mask: invertMask,
+      model: model?.name,
       vae,
       ...(backend === "comfy" && { scheduler }),
-        ultimate_upscale: isUltimateUpscaleEnabled,
+      ultimate_upscale: isUltimateUpscaleEnabled,
     };
 
     console.log(image, { attrs });
