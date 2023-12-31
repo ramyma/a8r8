@@ -99,9 +99,7 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
-   3. Currently the VAE choice is hardcoded depending on the version of the selected model; it'll be configurable through the interface in a future update. Make sure you have these VAE files in the configured paths in either backend:
-      1. [`sdxl_vae.safetensors`](https://huggingface.co/madebyollin/sdxl-vae-fp16-fix/resolve/main/sdxl_vae.safetensors) for SDXL
-      2. [`vae-ft-mse-840000-ema-pruned.ckpt`](https://huggingface.co/stabilityai/sd-vae-ft-mse-original/tree/main) for SD 1.5
+   
 
 ### Running
 
