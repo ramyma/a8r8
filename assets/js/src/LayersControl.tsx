@@ -39,15 +39,14 @@ import Slider from "./components/Slider";
 import ScrollArea from "./components/ScrollArea";
 import Select from "./components/Select";
 import Label from "./components/Label";
-import { Button } from "@radix-ui/react-toolbar";
 import { selectInvertMask, toggleInvertMask } from "./state/canvasSlice";
-import { emitCustomEvent } from "react-custom-events";
 import {
   emitClearBaseImages,
   emitClearLayerLines,
 } from "./Canvas/hooks/useCustomEventsListener";
 import useScripts from "./hooks/useScripts";
 import { selectBackend } from "./state/optionsSlice";
+import ImageUploader from "./components/ImageUploader";
 
 type LayerProps = {
   id: ActiveLayer;
@@ -96,9 +95,10 @@ const LayerItem = ({
   };
 
   return (
+    // FIXME: width on smaller window size
     <li
       className={
-        "flex flex-row p-3 items-center justify-between gap-2 " +
+        "grid grid-cols-2 flex-row p-3 items-center justify-between gap-1 " +
         `${
           isActive
             ? "bg-gray-200/80 text-black"
@@ -108,11 +108,13 @@ const LayerItem = ({
       onClick={handleClick}
     >
       <div className="flex flex-col">
-        <span>{name}</span>
-        <span className="text-sm">{subtitle}</span>
+        <span title={name}>{name}</span>
+        <span className="text-xs truncate" title={subtitle}>
+          {subtitle}
+        </span>
       </div>
-      <div className="flex">
-        {actions?.map((Action, index) => Action)}
+      <div className="flex justify-end">
+        {actions?.map((Action, _index) => Action)}
 
         {!!visiblitiyActionCreator && (
           // <div onClick={toggleVisibility}>{`${isVisible}`}</div>
@@ -165,11 +167,17 @@ const LayersControl = () => {
   // const { register, handleSubmit, setValue } = useForm();
 
   const controlnetLayers: LayerProps[] = controlnetArgs.map(
-    ({ isEnabled, isVisible, module, id }, index) => ({
+    ({ isEnabled, isVisible, module, model, id }, index) => ({
       id: `controlnet${id as string}`,
       isEnabled,
       name: `Controlnet ${index + 1}`,
-      subtitle: `${module?.toLowerCase() != "none" ? module : ""}`,
+      subtitle: `${
+        module?.toLowerCase() != "none"
+          ? module
+          : model?.toLowerCase() != "none"
+          ? model
+          : ""
+      }`,
       isEnabledActionCreator: updateControlnetLayer,
       isEnabledActionCreatorPayload: {
         layerId: id,
@@ -371,8 +379,9 @@ const LayersControl = () => {
         threshold_b,
         pixel_perfect,
         id,
+        overrideBaseLayer,
+        image,
       } = activeControlnetLayer;
-      // TODO: override res with selection box dims when pixel perfect is on
       controlnetDetect({
         module,
         processor_res,
@@ -380,6 +389,8 @@ const LayersControl = () => {
         threshold_b,
         layerId: id,
         pixel_perfect,
+        imageDataUrl:
+          overrideBaseLayer && image ? (image as string) : undefined,
       });
     }
   }, 0);
@@ -395,7 +406,7 @@ const LayersControl = () => {
   )?.sliders;
 
   return (
-    <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[20vw] p-4 rounded backdrop-blur-sm select-none overflow-hidden ">
+    <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[20vw] p-4 rounded backdrop-blur-sm select-none overflow-hidden">
       {/* <div className="flex flex-row gap-4">
         <div className="flex gap-2">
           <Label htmlFor="mode">Mode</label>
@@ -463,6 +474,37 @@ const LayersControl = () => {
         {activeControlnetLayer?.isEnabled && (
           <ScrollArea classNames="px-2">
             <div className="flex gap-5 flex-col mt-2 h-[40vh]  pt-1 pl-1.5 pr-2.5">
+              <div>
+                <ImageUploader
+                  image={
+                    typeof activeControlnetLayer?.image === "string"
+                      ? activeControlnetLayer?.image
+                      : activeControlnetLayer?.image?.src
+                  }
+                  onChange={(value) => {
+                    handleControlnetSelectChange({
+                      name: "image",
+                      type: "text",
+                      value,
+                      layerId: activeControlnetLayer.id,
+                    });
+                  }}
+                  title="Image"
+                />
+              </div>
+              <Checkbox
+                id={`overrideBaseLayer${activeControlnetLayer?.id}`}
+                checked={activeControlnetLayer?.overrideBaseLayer}
+                onChange={(value) =>
+                  handleControlnetAttrsChange(
+                    "overrideBaseLayer",
+                    value,
+                    activeControlnetLayer.id
+                  )
+                }
+              >
+                Override Base Layer
+              </Checkbox>
               <div className="flex gap-2 flex-col">
                 <Label htmlFor={`module${activeControlnetLayer?.id}`}>
                   Controlnet Preprocessor
@@ -831,19 +873,6 @@ const LayersControl = () => {
                   </Checkbox>
                 </>
               )}
-              <Checkbox
-                id={`overrideBaseLayer${activeControlnetLayer?.id}`}
-                checked={activeControlnetLayer?.overrideBaseLayer}
-                onChange={(value) =>
-                  handleControlnetAttrsChange(
-                    "overrideBaseLayer",
-                    value,
-                    activeControlnetLayer.id
-                  )
-                }
-              >
-                Override Base Layer
-              </Checkbox>
 
               {backend === "auto" && (
                 <button

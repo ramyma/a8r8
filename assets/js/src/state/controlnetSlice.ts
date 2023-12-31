@@ -34,7 +34,7 @@ type ControlnetUi = {
   overrideBaseLayer: boolean;
   lines: BrushStroke[];
   isVisible: boolean;
-  image?: ImageItem;
+  image?: ImageItem | string;
 };
 export type ControlnetLayer = {
   id?: string;
@@ -57,8 +57,8 @@ const controlnetLayerInitialState: ControlnetLayer = {
   model: "",
   module: "none",
   weight: 1,
-  resize_mode: "Just Resize", //"Just Resize",
-  lowvram: true,
+  resize_mode: "Crop and Resize", //"Just Resize",
+  lowvram: false,
   processor_res: 512,
   threshold_a: 0,
   threshold_b: 0,
