@@ -54,8 +54,8 @@ dependencies:
     specifier: ^2.0.19
     version: 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
   '@remirror/extension-events':
-    specifier: ^2.1.16
-    version: 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+    specifier: ^2.1.17
+    version: 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
   '@remirror/extension-mention':
     specifier: ^2.0.15
     version: 2.0.15(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
@@ -115,10 +115,10 @@ dependencies:
     version: 1.4.3
   prosemirror-suggest:
     specifier: ^2.0.6
-    version: 2.0.6(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.31.8)
+    version: 2.0.6(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.32.7)
   prosemirror-view:
-    specifier: ^1.31.8
-    version: 1.31.8
+    specifier: ^1.32.7
+    version: 1.32.7
   react:
     specifier: ^18.2.0
     version: 18.2.0
@@ -147,8 +147,8 @@ dependencies:
     specifier: ^1.1.0
     version: 1.1.0
   remirror:
-    specifier: ^2.0.36
-    version: 2.0.36(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+    specifier: ^2.0.38
+    version: 2.0.38(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
   use-eye-dropper:
     specifier: ^1.6.0
     version: 1.6.0(react@18.2.0)
@@ -5234,7 +5234,7 @@ packages:
     dependencies:
       '@babel/runtime': 7.22.15
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-events': 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-events': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-positioner': 2.1.8(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/pm': 2.0.8
     transitivePeerDependencies:
@@ -5258,8 +5258,8 @@ packages:
       - supports-color
     dev: false
 
-  /@remirror/extension-events@2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0):
-    resolution: {integrity: sha512-QHmYyLqKSaYnxsbZOVI3cx543lrTOzooHdH3FKjh5KBiZ84vmqBdngKvZIMWj6/2iPMIE6y+kp4VOXqm8qrLKA==}
+  /@remirror/extension-events@2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0):
+    resolution: {integrity: sha512-vIBV5tQYgQ8hkYXWPrgQwjmBxTe55FynKS4aDSpde1pfSf6MUUaTWNlMGQzmTWBukhw1tGppNiJkKuYpOL/YxQ==}
     peerDependencies:
       '@remirror/pm': ^2.0.7
     dependencies:
@@ -5434,7 +5434,7 @@ packages:
     dependencies:
       '@babel/runtime': 7.22.15
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-events': 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-events': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/messages': 2.0.6
       '@remirror/pm': 2.0.8
       extract-domain: 2.2.1
@@ -5451,7 +5451,7 @@ packages:
     dependencies:
       '@babel/runtime': 7.22.15
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-events': 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-events': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/messages': 2.0.6
       '@remirror/pm': 2.0.8
       '@remirror/theme': 2.0.9(@remirror/pm@2.0.8)
@@ -5488,7 +5488,7 @@ packages:
     dependencies:
       '@babel/runtime': 7.22.15
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-events': 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-events': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/messages': 2.0.6
       '@remirror/pm': 2.0.8
       '@remirror/theme': 2.0.9(@remirror/pm@2.0.8)
@@ -5505,7 +5505,7 @@ packages:
     dependencies:
       '@babel/runtime': 7.22.15
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-events': 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-events': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/messages': 2.0.6
       '@remirror/pm': 2.0.8
       escape-string-regexp: 4.0.0
@@ -5568,7 +5568,7 @@ packages:
     dependencies:
       '@babel/runtime': 7.22.15
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-events': 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-events': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/messages': 2.0.6
       '@remirror/pm': 2.0.8
       '@remirror/theme': 2.0.9(@remirror/pm@2.0.8)
@@ -5608,8 +5608,8 @@ packages:
       - supports-color
     dev: false
 
-  /@remirror/extension-react-tables@2.2.18(@remirror/pm@2.0.8)(@types/node@20.6.2)(@types/react-dom@18.2.7)(@types/react@18.2.21)(jsdom@22.1.0)(react-dom@18.2.0)(react@18.2.0):
-    resolution: {integrity: sha512-hv4edyYEBzZ0VhAHbzcfFxbLGbHhw1jGb20jU+qx1zPrgpMakdAl5qESMdy+1yyB7kHPRPGOpzpH62pkvm9HgQ==}
+  /@remirror/extension-react-tables@2.2.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(@types/react-dom@18.2.7)(@types/react@18.2.21)(jsdom@22.1.0)(react-dom@18.2.0)(react@18.2.0):
+    resolution: {integrity: sha512-Fu4M16HCkJODYtN2ilTbpO3R1LvPTUEnvkfQgzypUT0SGSJbVM4cPsQpEKKwh207t7O5Ht7XlkrczrAntFXBDA==}
     peerDependencies:
       '@remirror/pm': ^2.0.7
       react: ^16.14.0 || ^17 || ^18
@@ -5626,7 +5626,7 @@ packages:
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/core-utils': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-positioner': 2.1.8(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-tables': 2.3.1(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-tables': 2.4.1(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/icons': 2.0.3
       '@remirror/messages': 2.0.6
       '@remirror/pm': 2.0.8
@@ -5635,7 +5635,6 @@ packages:
       '@remirror/react-core': 2.0.21(@remirror/pm@2.0.8)(@types/node@20.6.2)(@types/react-dom@18.2.7)(@types/react@18.2.21)(jsdom@22.1.0)(react-dom@18.2.0)(react@18.2.0)
       '@remirror/react-hooks': 2.0.25(@remirror/pm@2.0.8)(@types/node@20.6.2)(@types/react-dom@18.2.7)(@types/react@18.2.21)(jsdom@22.1.0)(react-dom@18.2.0)(react@18.2.0)
       '@remirror/theme': 2.0.9(@remirror/pm@2.0.8)
-      jsx-dom-cjs: 8.0.7
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
     transitivePeerDependencies:
@@ -5723,14 +5722,14 @@ packages:
       - supports-color
     dev: false
 
-  /@remirror/extension-tables@2.3.1(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0):
-    resolution: {integrity: sha512-SJ/vIrEql+dSC1K2vWr+g9fGONGYMId4D4AZWq0E/ttENZo8jZqEeUAV+Z6NIfPJyScVsXKxolZAVGWfZ4JK6g==}
+  /@remirror/extension-tables@2.4.1(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0):
+    resolution: {integrity: sha512-8qcNNAQzUqbP1jDDuPRQE+/Nv99oDijnkS87anTVtZhjfHGsNHjLloFb/OsUxAb/RaW9I/+2Jh+Am1abyWwMlw==}
     peerDependencies:
       '@remirror/pm': ^2.0.7
     dependencies:
       '@babel/runtime': 7.22.15
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-events': 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-events': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-positioner': 2.1.8(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/messages': 2.0.6
       '@remirror/pm': 2.0.8
@@ -5860,10 +5859,10 @@ packages:
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/messages': 2.0.6
       '@remirror/pm': 2.0.8
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
       prosemirror-state: 1.4.3
-      prosemirror-view: 1.31.8
-      y-prosemirror: 1.2.1(prosemirror-model@1.19.3)(prosemirror-state@1.4.3)(prosemirror-view@1.31.8)(y-protocols@1.0.5)(yjs@13.6.7)
+      prosemirror-view: 1.32.7
+      y-prosemirror: 1.2.1(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.32.7)(y-protocols@1.0.5)(yjs@13.6.7)
       y-protocols: 1.0.5
       yjs: 13.6.7
     transitivePeerDependencies:
@@ -5907,17 +5906,17 @@ packages:
       prosemirror-dropcursor: 1.8.1
       prosemirror-gapcursor: 1.3.2
       prosemirror-history: 1.3.2
-      prosemirror-inputrules: 1.2.1
+      prosemirror-inputrules: 1.3.0
       prosemirror-keymap: 1.2.2
-      prosemirror-model: 1.19.3
-      prosemirror-paste-rules: 2.0.7(prosemirror-model@1.19.3)(prosemirror-state@1.4.3)(prosemirror-view@1.31.8)
+      prosemirror-model: 1.19.4
+      prosemirror-paste-rules: 2.0.7(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.32.7)
       prosemirror-schema-list: 1.3.0
       prosemirror-state: 1.4.3
-      prosemirror-suggest: 2.0.6(prosemirror-model@1.19.3)(prosemirror-state@1.4.3)(prosemirror-view@1.31.8)
-      prosemirror-tables: 1.3.4
-      prosemirror-trailing-node: 2.0.7(prosemirror-model@1.19.3)(prosemirror-state@1.4.3)(prosemirror-view@1.31.8)
-      prosemirror-transform: 1.7.5
-      prosemirror-view: 1.31.8
+      prosemirror-suggest: 2.0.6(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.32.7)
+      prosemirror-tables: 1.3.5
+      prosemirror-trailing-node: 2.0.7(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.32.7)
+      prosemirror-transform: 1.8.0
+      prosemirror-view: 1.32.7
 
   /@remirror/preset-core@2.0.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0):
     resolution: {integrity: sha512-Qg5kDJIoSqSCtqwuT/+xq1pXf5XHonnqE4oRL5Z7Tu9RRmQ6evMhdc6CqehP5xwI+52g7q9CCRQYyNAtAhS3LQ==}
@@ -5927,7 +5926,7 @@ packages:
       '@babel/runtime': 7.22.15
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-doc': 2.1.5(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-events': 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-events': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-gap-cursor': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-history': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-paragraph': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
@@ -6074,7 +6073,7 @@ packages:
       '@remirror/extension-strike': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-sub': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-sup': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-tables': 2.3.1(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-tables': 2.4.1(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-text-color': 2.0.15(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-underline': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-whitespace': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
@@ -6165,7 +6164,7 @@ packages:
       '@babel/runtime': 7.22.15
       '@remirror/core': 2.0.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-emoji': 2.0.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-events': 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-events': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-history': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-mention': 2.0.15(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-mention-atom': 2.0.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
@@ -6243,7 +6242,7 @@ packages:
       '@remirror/extension-placeholder': 2.0.14(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-positioner': 2.1.8(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-react-component': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(@types/react-dom@18.2.7)(@types/react@18.2.21)(jsdom@22.1.0)(react-dom@18.2.0)(react@18.2.0)
-      '@remirror/extension-react-tables': 2.2.18(@remirror/pm@2.0.8)(@types/node@20.6.2)(@types/react-dom@18.2.7)(@types/react@18.2.21)(jsdom@22.1.0)(react-dom@18.2.0)(react@18.2.0)
+      '@remirror/extension-react-tables': 2.2.19(@remirror/pm@2.0.8)(@types/node@20.6.2)(@types/react-dom@18.2.7)(@types/react@18.2.21)(jsdom@22.1.0)(react-dom@18.2.0)(react@18.2.0)
       '@remirror/preset-react': 2.0.14(@remirror/pm@2.0.8)(@types/node@20.6.2)(@types/react-dom@18.2.7)(@types/react@18.2.21)(jsdom@22.1.0)(react-dom@18.2.0)(react@18.2.0)
       '@remirror/react-components': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(@types/react-dom@18.2.7)(@types/react@18.2.21)(jsdom@22.1.0)(react-dom@18.2.0)(react@18.2.0)
       '@remirror/react-core': 2.0.21(@remirror/pm@2.0.8)(@types/node@20.6.2)(@types/react-dom@18.2.7)(@types/react@18.2.21)(jsdom@22.1.0)(react-dom@18.2.0)(react@18.2.0)
@@ -11738,7 +11737,7 @@ packages:
       jest: 29.7.0(@types/node@20.6.2)
       jest-matcher-utils: 29.7.0
       prosemirror-schema-basic: 1.2.2
-      prosemirror-tables: 1.3.4
+      prosemirror-tables: 1.3.5
       prosemirror-test-builder: 1.1.1
       stringify-object: 3.3.0
       test-keyboard: 2.0.6(@remirror/pm@2.0.8)
@@ -12128,12 +12127,6 @@ packages:
       object.assign: 4.1.4
       object.values: 1.1.7
     dev: true
-
-  /jsx-dom-cjs@8.0.7:
-    resolution: {integrity: sha512-dQWnuQ+bTm7o72ZlJU4glzeMX8KLxx5U+ZwmEAzVP1+roL7BSM0MrkWdHjdsuNgmxobZCJ+qgiot9EgbJPOoEg==}
-    dependencies:
-      csstype: 3.1.2
-    dev: false
 
   /keyv@4.5.3:
     resolution: {integrity: sha512-QCiSav9WaX1PgETJ+SpNnx2PRRapJ/oRSXM4VO5OGYGSjrxbKPVFVhB3l2OCbLCk329N8qyAtsJjSjvVBWzEug==}
@@ -13229,38 +13222,38 @@ packages:
   /prosemirror-commands@1.5.2:
     resolution: {integrity: sha512-hgLcPaakxH8tu6YvVAaILV2tXYsW3rAdDR8WNkeKGcgeMVQg3/TMhPdVoh7iAmfgVjZGtcOSjKiQaoeKjzd2mQ==}
     dependencies:
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
       prosemirror-state: 1.4.3
-      prosemirror-transform: 1.7.5
+      prosemirror-transform: 1.8.0
 
   /prosemirror-dropcursor@1.8.1:
     resolution: {integrity: sha512-M30WJdJZLyXHi3N8vxN6Zh5O8ZBbQCz0gURTfPmTIBNQ5pxrdU7A58QkNqfa98YEjSAL1HUyyU34f6Pm5xBSGw==}
     dependencies:
       prosemirror-state: 1.4.3
-      prosemirror-transform: 1.7.5
-      prosemirror-view: 1.31.8
+      prosemirror-transform: 1.8.0
+      prosemirror-view: 1.32.7
 
   /prosemirror-gapcursor@1.3.2:
     resolution: {integrity: sha512-wtjswVBd2vaQRrnYZaBCbyDqr232Ed4p2QPtRIUK5FuqHYKGWkEwl08oQM4Tw7DOR0FsasARV5uJFvMZWxdNxQ==}
     dependencies:
       prosemirror-keymap: 1.2.2
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
       prosemirror-state: 1.4.3
-      prosemirror-view: 1.31.8
+      prosemirror-view: 1.32.7
 
   /prosemirror-history@1.3.2:
     resolution: {integrity: sha512-/zm0XoU/N/+u7i5zepjmZAEnpvjDtzoPWW6VmKptcAnPadN/SStsBjMImdCEbb3seiNTpveziPTIrXQbHLtU1g==}
     dependencies:
       prosemirror-state: 1.4.3
-      prosemirror-transform: 1.7.5
-      prosemirror-view: 1.31.8
+      prosemirror-transform: 1.8.0
+      prosemirror-view: 1.32.7
       rope-sequence: 1.3.4
 
-  /prosemirror-inputrules@1.2.1:
-    resolution: {integrity: sha512-3LrWJX1+ULRh5SZvbIQlwZafOXqp1XuV21MGBu/i5xsztd+9VD15x6OtN6mdqSFI7/8Y77gYUbQ6vwwJ4mr6QQ==}
+  /prosemirror-inputrules@1.3.0:
+    resolution: {integrity: sha512-z1GRP2vhh5CihYMQYsJSa1cOwXb3SYxALXOIfAkX8nZserARtl9LiL+CEl+T+OFIsXc3mJIHKhbsmRzC0HDAXA==}
     dependencies:
       prosemirror-state: 1.4.3
-      prosemirror-transform: 1.7.5
+      prosemirror-transform: 1.8.0
 
   /prosemirror-keymap@1.2.2:
     resolution: {integrity: sha512-EAlXoksqC6Vbocqc0GtzCruZEzYgrn+iiGnNjsJsH4mrnIGex4qbLdWWNza3AW5W36ZRrlBID0eM6bdKH4OStQ==}
@@ -13268,18 +13261,12 @@ packages:
       prosemirror-state: 1.4.3
       w3c-keyname: 2.2.8
 
-  /prosemirror-model@1.19.3:
-    resolution: {integrity: sha512-tgSnwN7BS7/UM0sSARcW+IQryx2vODKX4MI7xpqY2X+iaepJdKBPc7I4aACIsDV/LTaTjt12Z56MhDr9LsyuZQ==}
-    dependencies:
-      orderedmap: 2.1.1
-
   /prosemirror-model@1.19.4:
     resolution: {integrity: sha512-RPmVXxUfOhyFdayHawjuZCxiROsm9L4FCUA6pWI+l7n2yCBsWy9VpdE1hpDHUS8Vad661YLY9AzqfjLhAKQ4iQ==}
     dependencies:
       orderedmap: 2.1.1
-    dev: false
 
-  /prosemirror-paste-rules@2.0.7(prosemirror-model@1.19.3)(prosemirror-state@1.4.3)(prosemirror-view@1.31.8):
+  /prosemirror-paste-rules@2.0.7(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.32.7):
     resolution: {integrity: sha512-0vQ+S8wksW1c9W88pzNEg3T4XHihl1QJy+i8fuF2HpCEkNkKM44P8x71XKh8QBdANuGQynDVKCVJRCvJfB5F4g==}
     peerDependencies:
       prosemirror-model: ^1.19.0
@@ -13290,9 +13277,9 @@ packages:
       '@remirror/core-constants': 2.0.2
       '@remirror/core-helpers': 3.0.0
       escape-string-regexp: 4.0.0
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
       prosemirror-state: 1.4.3
-      prosemirror-view: 1.31.8
+      prosemirror-view: 1.32.7
 
   /prosemirror-resizable-view@2.0.14(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0):
     resolution: {integrity: sha512-TgCaOWaMdR/R34AYsxHtHuQlC9rtHTuSBEgcmD5V9ldVe1+Ul72xz9G73xo9wLhVpTwt3YxzpenTcRWPZIofow==}
@@ -13300,8 +13287,8 @@ packages:
       '@babel/runtime': 7.22.15
       '@remirror/core-helpers': 3.0.0
       '@remirror/core-utils': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      prosemirror-model: 1.19.3
-      prosemirror-view: 1.31.8
+      prosemirror-model: 1.19.4
+      prosemirror-view: 1.32.7
     transitivePeerDependencies:
       - '@remirror/pm'
       - '@types/node'
@@ -13311,39 +13298,23 @@ packages:
   /prosemirror-schema-basic@1.2.2:
     resolution: {integrity: sha512-/dT4JFEGyO7QnNTe9UaKUhjDXbTNkiWTq/N4VpKaF79bBjSExVV2NXmJpcM7z/gD7mbqNjxbmWW5nf1iNSSGnw==}
     dependencies:
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
 
   /prosemirror-schema-list@1.3.0:
     resolution: {integrity: sha512-Hz/7gM4skaaYfRPNgr421CU4GSwotmEwBVvJh5ltGiffUJwm7C8GfN/Bc6DR1EKEp5pDKhODmdXXyi9uIsZl5A==}
     dependencies:
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
       prosemirror-state: 1.4.3
-      prosemirror-transform: 1.7.5
+      prosemirror-transform: 1.8.0
 
   /prosemirror-state@1.4.3:
     resolution: {integrity: sha512-goFKORVbvPuAQaXhpbemJFRKJ2aixr+AZMGiquiqKxaucC6hlpHNZHWgz5R7dS4roHiwq9vDctE//CZ++o0W1Q==}
     dependencies:
-      prosemirror-model: 1.19.3
-      prosemirror-transform: 1.7.5
-      prosemirror-view: 1.31.8
+      prosemirror-model: 1.19.4
+      prosemirror-transform: 1.8.0
+      prosemirror-view: 1.32.7
 
-  /prosemirror-suggest@2.0.6(prosemirror-model@1.19.3)(prosemirror-state@1.4.3)(prosemirror-view@1.31.8):
-    resolution: {integrity: sha512-plcfFPyLFQ/egCn6DR+Ml3ONFhO+tR3Wt3yO5aJo6dnhoyudKiRQsf0rgQDPoWBPc8L7l9opUfDWFXHrDQYvkg==}
-    peerDependencies:
-      prosemirror-model: ^1.19.0
-      prosemirror-state: ^1.4.2
-      prosemirror-view: ^1.31.2
-    dependencies:
-      '@babel/runtime': 7.22.15
-      '@remirror/core-constants': 2.0.2
-      '@remirror/core-helpers': 3.0.0
-      '@remirror/types': 1.0.1
-      escape-string-regexp: 4.0.0
-      prosemirror-model: 1.19.3
-      prosemirror-state: 1.4.3
-      prosemirror-view: 1.31.8
-
-  /prosemirror-suggest@2.0.6(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.31.8):
+  /prosemirror-suggest@2.0.6(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.32.7):
     resolution: {integrity: sha512-plcfFPyLFQ/egCn6DR+Ml3ONFhO+tR3Wt3yO5aJo6dnhoyudKiRQsf0rgQDPoWBPc8L7l9opUfDWFXHrDQYvkg==}
     peerDependencies:
       prosemirror-model: ^1.19.0
@@ -13357,27 +13328,26 @@ packages:
       escape-string-regexp: 4.0.0
       prosemirror-model: 1.19.4
       prosemirror-state: 1.4.3
-      prosemirror-view: 1.31.8
-    dev: false
+      prosemirror-view: 1.32.7
 
-  /prosemirror-tables@1.3.4:
-    resolution: {integrity: sha512-z6uLSQ1BLC3rgbGwZmpfb+xkdvD7W/UOsURDfognZFYaTtc0gsk7u/t71Yijp2eLflVpffMk6X0u0+u+MMDvIw==}
+  /prosemirror-tables@1.3.5:
+    resolution: {integrity: sha512-JSZ2cCNlApu/ObAhdPyotrjBe2cimniniTpz60YXzbL0kZ+47nEYk2LWbfKU2lKpBkUNquta2PjteoNi4YCluQ==}
     dependencies:
       prosemirror-keymap: 1.2.2
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
       prosemirror-state: 1.4.3
-      prosemirror-transform: 1.7.5
-      prosemirror-view: 1.31.8
+      prosemirror-transform: 1.8.0
+      prosemirror-view: 1.32.7
 
   /prosemirror-test-builder@1.1.1:
     resolution: {integrity: sha512-DJ1+4TNTE9ZcYN/ozXCaWJVrGA99UttMoVvZuidvAotRg7FaiNtEYxL/vlDwfZDRnzJDXNYhmM3XPv3EweK7yA==}
     dependencies:
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
       prosemirror-schema-basic: 1.2.2
       prosemirror-schema-list: 1.3.0
     dev: true
 
-  /prosemirror-trailing-node@2.0.7(prosemirror-model@1.19.3)(prosemirror-state@1.4.3)(prosemirror-view@1.31.8):
+  /prosemirror-trailing-node@2.0.7(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.32.7):
     resolution: {integrity: sha512-8zcZORYj/8WEwsGo6yVCRXFMOfBo0Ub3hCUvmoWIZYfMP26WqENU0mpEP27w7mt8buZWuGrydBewr0tOArPb1Q==}
     peerDependencies:
       prosemirror-model: ^1.19.0
@@ -13387,21 +13357,21 @@ packages:
       '@remirror/core-constants': 2.0.2
       '@remirror/core-helpers': 3.0.0
       escape-string-regexp: 4.0.0
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
       prosemirror-state: 1.4.3
-      prosemirror-view: 1.31.8
+      prosemirror-view: 1.32.7
 
-  /prosemirror-transform@1.7.5:
-    resolution: {integrity: sha512-U/fWB6frEzY7dzwJUo+ir8dU1JEanaI/RwL12Imy9js/527N0v/IRUKewocP1kTq998JNT18IGtThaDLwLOBxQ==}
+  /prosemirror-transform@1.8.0:
+    resolution: {integrity: sha512-BaSBsIMv52F1BVVMvOmp1yzD3u65uC3HTzCBQV1WDPqJRQ2LuHKcyfn0jwqodo8sR9vVzMzZyI+Dal5W9E6a9A==}
     dependencies:
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
 
-  /prosemirror-view@1.31.8:
-    resolution: {integrity: sha512-VQrEIdiPJ4YV65Ifj2kWISwaiqocMHy7cpUKVQYt19C/87FepoqnwVW3kMKRpeY/nQzED8L+vyOaYDBn0WqT7w==}
+  /prosemirror-view@1.32.7:
+    resolution: {integrity: sha512-pvxiOoD4shW41X5bYDjRQk3DSG4fMqxh36yPMt7VYgU3dWRmqFzWJM/R6zeo1KtC8nyk717ZbQND3CC9VNeptw==}
     dependencies:
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
       prosemirror-state: 1.4.3
-      prosemirror-transform: 1.7.5
+      prosemirror-transform: 1.8.0
 
   /proxy-addr@2.0.7:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
@@ -13967,8 +13937,8 @@ packages:
       unist-util-visit: 2.0.3
     dev: true
 
-  /remirror@2.0.36(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0):
-    resolution: {integrity: sha512-oGOeEaYFILgxNrL33qCEJ/kGE+wNhYgcCiHwuTXOHFCmPnHn32+l0aZaQ2FRHeMW602i2wpkwy8HWWsBFz5PXg==}
+  /remirror@2.0.38(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0):
+    resolution: {integrity: sha512-X70dT3Gl4GUtok0czcHoG+GZmmYfKTHzKca4v8kI/2b4q2Ww7wJxj8ZErIcVfg5ngudVYq8rbzALiN80woAZCg==}
     peerDependencies:
       '@remirror/pm': ^2.0.8
       '@types/prettier': ^2.7.2
@@ -14003,7 +13973,7 @@ packages:
       '@remirror/extension-emoji': 2.0.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-entity-reference': 2.2.6(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-epic-mode': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-events': 2.1.16(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-events': 2.1.17(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-font-family': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-font-size': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-gap-cursor': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
@@ -14027,7 +13997,7 @@ packages:
       '@remirror/extension-strike': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-sub': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-sup': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
-      '@remirror/extension-tables': 2.3.1(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
+      '@remirror/extension-tables': 2.4.1(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-text': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-text-case': 2.0.13(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
       '@remirror/extension-text-color': 2.0.15(@remirror/pm@2.0.8)(@types/node@20.6.2)(jsdom@22.1.0)
@@ -15726,7 +15696,7 @@ packages:
     resolution: {integrity: sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==}
     engines: {node: '>=0.4'}
 
-  /y-prosemirror@1.2.1(prosemirror-model@1.19.3)(prosemirror-state@1.4.3)(prosemirror-view@1.31.8)(y-protocols@1.0.5)(yjs@13.6.7):
+  /y-prosemirror@1.2.1(prosemirror-model@1.19.4)(prosemirror-state@1.4.3)(prosemirror-view@1.32.7)(y-protocols@1.0.5)(yjs@13.6.7):
     resolution: {integrity: sha512-czMBfB1eL2awqmOSxQM8cS/fsUOGE6fjvyPLInrh4crPxFiw67wDpwIW+EGBYKRa04sYbS0ScGj7ZgvWuDrmBQ==}
     peerDependencies:
       prosemirror-model: ^1.7.1
@@ -15736,9 +15706,9 @@ packages:
       yjs: ^13.5.38
     dependencies:
       lib0: 0.2.85
-      prosemirror-model: 1.19.3
+      prosemirror-model: 1.19.4
       prosemirror-state: 1.4.3
-      prosemirror-view: 1.31.8
+      prosemirror-view: 1.32.7
       y-protocols: 1.0.5
       yjs: 13.6.7
     dev: false
