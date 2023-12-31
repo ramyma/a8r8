@@ -27,7 +27,6 @@
 - Style tweaks
 - Dependencies update
 
-
 ## [0.2.3] - 2023-09-18
 
 ### Fixed
