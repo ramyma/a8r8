@@ -1,14 +1,15 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { Vector2d } from "konva/lib/types";
+import { Group, Image, Rect, Text } from "react-konva";
 import RefsContext from "../context/RefsContext";
 import { useAppSelector } from "../hooks";
 import { selectMode, selectStageScale } from "../state/canvasSlice";
-import { Group, Image, Rect, Text } from "react-konva";
 import { selectStats } from "../state/statsSlice";
 import { AnchorPoints } from "./AnchorPoints";
 import useEvents from "./hooks/useEvents";
 import ThemeContext from "../context/ThemeContext";
 import useProgress from "../hooks/useProgress";
+import { roundToClosestMultipleOf8 } from "../utils";
 
 interface Props {
   remoteSession?: boolean;
@@ -92,17 +93,27 @@ const SelectionBox = ({
   const previewImgWidth = previewImg
     ? width < height
       ? width
-      : (height * previewImg?.width) / previewImg?.height
+      : roundToClosestMultipleOf8(
+          (height * previewImg?.width) / previewImg?.height
+        )
     : width;
 
   const previewImgHeight = previewImg
     ? height < width
       ? height
-      : (width * previewImg?.height) / previewImg?.width
+      : roundToClosestMultipleOf8(
+          (width * previewImg?.height) / previewImg?.width
+        )
     : height;
 
-  const previewImgX = width > height ? x - (previewImgWidth - width) / 2 : x;
-  const previewImgY = height > width ? y - (previewImgHeight - height) / 2 : y;
+  const previewImgX =
+    width > height
+      ? roundToClosestMultipleOf8(x - (previewImgWidth - width) / 2)
+      : x;
+  const previewImgY =
+    height > width
+      ? roundToClosestMultipleOf8(y - (previewImgHeight - height) / 2)
+      : y;
 
   return (
     <>
