@@ -109,8 +109,8 @@ const Select = forwardRef(
           );
         }
       }
+      isOpen && setActiveItem(selectedItemIdx);
       setPrevIsOpen(isOpen);
-      setActiveItem(selectedItemIdx);
     }
 
     const [pos, setPos] = useState({ x: 0, y: 0, yDir: "bottom" });
