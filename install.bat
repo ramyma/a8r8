@@ -7,8 +7,8 @@ if errorlevel 1 (
 
 echo "Installing scoop for dependency management"
 
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+PowerShell -Command "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser"
+PowerShell -Command "Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression"
 
 
 scoop bucket add main
