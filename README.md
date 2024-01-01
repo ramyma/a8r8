@@ -14,13 +14,13 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
   - [Features](#features)
   - [Getting started](#getting-started)
     - [Installation](#installation)
-      - [Windows (experimental)](#windows-experimental)
+      - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken)
       - [Docker](#docker)
     - [Running](#running)
-      - [Windows (experimental)](#windows-experimental-1)
+      - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-1)
       - [Docker](#docker-1)
     - [Updating](#updating)
-      - [Windows (experimental)](#windows-experimental-2)
+      - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-2)
       - [Docker](#docker-2)
   - [Key Shortcuts](#key-shortcuts)
   - [Development Environment](#development-environment)
@@ -93,20 +93,23 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 
 ### Installation
 
-#### Windows (experimental)
+**Update:** Added one click installer for Windows `install-docker.ps1`, check [installation steps](#docker) for details.
+
+#### Windows (EXPERIMENTAL / BROKEN)
 
 1. Clone this repo and open a terminal at the root directory
-2. Run `install.bat`
+2. Run `install.ps1` in a powershell window
 
 Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
 
 #### Docker
 
 1. Install [Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) and/or [ComfyUI](https://github.com/comfyanonymous/ComfyUI)  if you haven't yet
-2. Install [Docker Compose](https://docs.docker.com/compose/gettingstarted/)
-3. Clone this repo and open a terminal at the root directory
-4. Run `docker compose build`
-5. Start the SD backend of your choice
+2. Clone this repo and open a terminal at the root directory
+3. On Windows you can run `install-docker.ps1` in a powershell window or:
+   1. Install [Docker Compose](https://docs.docker.com/compose/gettingstarted/)
+   2. Run `docker compose build`
+4. Start the SD backend of your choice
    1. Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
@@ -116,29 +119,40 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 
 ### Running
 
-#### Windows (experimental)
+#### Windows (EXPERIMENTAL / BROKEN)
 
-1. Run `run.bat`
+1. Run `run.ps1` in a powershell window
 
 Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
 
+Update: one of the dependencies doesn't work with Windows at the moment, so it won't run successfully
+
 #### Docker
+
+On Windows you can run `install-docker.ps1` in a powershell window
+
+Or
 
 1. Run `docker compose up`
 2. Point your browser to [http://localhost:4000](http://localhost:4000), it's preferred to use a chromium based browser (Brave, Chromium, Chrome)
 
 ### Updating
 
-#### Windows (experimental)
+#### Windows (EXPERIMENTAL / BROKEN)
 
-1. Run `install.bat`
+1. Run `install.ps1` in a powershell window
 2. Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
 
+Update: one of the dependencies doesn't work with Windows at the moment, so it won't run successfully
 
 #### Docker
 
-1. Run `docker compose build`
-2. Run `docker compose up`
+On Windows you can run `install-docker.ps1` in a powershell window
+
+Or
+
+1. Run `git pull`
+2. Run `docker compose build`
 
 ## Key Shortcuts
 
