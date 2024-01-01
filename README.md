@@ -14,8 +14,14 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
   - [Features](#features)
   - [Getting started](#getting-started)
     - [Installation](#installation)
+      - [Windows (experimental)](#windows-experimental)
+      - [Docker](#docker)
     - [Running](#running)
+      - [Windows (experimental)](#windows-experimental-1)
+      - [Docker](#docker-1)
     - [Updating](#updating)
+      - [Windows (experimental)](#windows-experimental-2)
+      - [Docker](#docker-2)
   - [Key Shortcuts](#key-shortcuts)
   - [Development Environment](#development-environment)
   - [Sample Generations](#sample-generations)
@@ -81,12 +87,20 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 ![Toggle layer visibility](readme/screenshots/toggle_layer_visibility.png)
 *Toggle layer visibility*
 
-
 &nbsp;
 
 ## Getting started
 
 ### Installation
+
+#### Windows (experimental)
+
+1. Clone this repo and open a terminal at the root directory
+2. Run `install.bat`
+
+Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
+
+#### Docker
 
 1. Install [Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) and/or [ComfyUI](https://github.com/comfyanonymous/ComfyUI)  if you haven't yet
 2. Install [Docker Compose](https://docs.docker.com/compose/gettingstarted/)
@@ -99,14 +113,29 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
-   
 
 ### Running
+
+#### Windows (experimental)
+
+1. Run `run.bat`
+
+Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
+
+#### Docker
 
 1. Run `docker compose up`
 2. Point your browser to [http://localhost:4000](http://localhost:4000), it's preferred to use a chromium based browser (Brave, Chromium, Chrome)
 
 ### Updating
+
+#### Windows (experimental)
+
+1. Run `install.bat`
+2. Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
+
+
+#### Docker
 
 1. Run `docker compose build`
 2. Run `docker compose up`
