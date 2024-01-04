@@ -4,7 +4,11 @@ import { useAppDispatch, useAppSelector } from "../../hooks";
 import { selectMode } from "../../state/canvasSlice";
 import RefsContext from "../../context/RefsContext";
 import { Vector2d } from "konva/lib/types";
-import { roundToClosestMultipleOf8, scalePoint } from "../../utils";
+import {
+  roundToClosestMultipleOf8,
+  roundToClosestMultipleOf8Up,
+  scalePoint,
+} from "../../utils";
 import {
   selectSelectionBox,
   updateSelectionBox,
@@ -210,11 +214,11 @@ const useDragEvents = () => {
           });
         }
         if (selectionAnchorId.current === "selectionBox") {
-          const newX = roundToClosestMultipleOf8(
-            Math.round(pos.x - dragOffset.current.x)
+          const newX = roundToClosestMultipleOf8Up(
+            pos.x - dragOffset.current.x
           );
-          const newY = roundToClosestMultipleOf8(
-            Math.round(pos.y - dragOffset.current.y)
+          const newY = roundToClosestMultipleOf8Up(
+            pos.y - dragOffset.current.y
           );
           startingDragPos.current = {
             x: pos.x,
