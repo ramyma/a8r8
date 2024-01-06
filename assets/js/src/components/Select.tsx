@@ -317,11 +317,11 @@ const Select = forwardRef(
           <RadixSelect.Icon className="text-neutral-700 data-[highlighted]:text-neutral-100 ml-auto" />
         </RadixSelect.Trigger>
 
-        <Portal.Root asChild>
-          <div
+        {isOpen && (
+          <Portal.Root
             className={
-              "absolute top-0 left-0 w-screen h-screen z-50 overflow-hidden transition-all duration-200 ease-in-out " +
-              (!isOpen ? "pointer-events-none opacity-0" : "opacity-100")
+              "absolute top-0 left-0 w-screen h-screen z-50 overflow-hidden " +
+              (!isOpen ? "pointer-events-none" : "")
             }
           >
             <div
@@ -401,8 +401,8 @@ const Select = forwardRef(
                 </div>
               </ScrollArea>
             </div>
-          </div>
-        </Portal.Root>
+          </Portal.Root>
+        )}
       </RadixSelect.Root>
     );
   }
