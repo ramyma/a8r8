@@ -21,7 +21,10 @@ import {
   updateSelectionBox,
 } from "../state/selectionBoxSlice";
 import useSamplers from "../hooks/useSamplers";
-import { selectControlnetLayers } from "../state/controlnetSlice";
+import {
+  ControlnetLayer,
+  selectControlnetLayers,
+} from "../state/controlnetSlice";
 import { selectIsConnected, selectIsGenerating } from "../state/statsSlice";
 import Checkbox from "../components/Checkbox";
 import { selectIsMaskLayerVisible } from "../state/layersSlice";
@@ -215,6 +218,8 @@ const MainForm = () => {
       ...rest
     } = data;
 
+    const controlnetArgs = hasControlnet ? getControlnetArgs() : {};
+
     const image = {
       prompt:
         typeof prompt === "string"
@@ -227,7 +232,13 @@ const MainForm = () => {
       ...rest,
       ...(!isSeedPinned && { seed: -1 }),
       mask: txt2img ? "" : maskDataUrl,
-      init_images: txt2img ? [] : [initImageDataUrl],
+      init_images: txt2img
+        ? controlnetArgs.controlnet?.args.some(
+            ({ overrideBaseLayer }) => !overrideBaseLayer
+          )
+          ? [initImageDataUrl]
+          : []
+        : [initImageDataUrl],
       enable_hr: scale > 1,
       hr_upscaler:
         backend == "auto" && upscaler === "Latent"
@@ -292,7 +303,7 @@ const MainForm = () => {
         }),
       // TODO: consider moving this logic to BE and send raw params
       alwayson_scripts: {
-        ...(hasControlnet && getControlnetArgs()),
+        ...controlnetArgs,
         ...(hasSelfAttentionGuidance && {
           "self attention guidance": {
             args: [
@@ -403,23 +414,32 @@ const MainForm = () => {
       const enabledControlnetArgs = controlnetLayersArgs.filter(
         ({ isEnabled }) => isEnabled
       );
-      const aggregated = enabledControlnetArgs.length > 0 && {
+      const aggregated =
+        enabledControlnetArgs.length > 0
+          ? {
         controlnet: {
-          args: controlnetLayersArgs
-            .map(
-              (item, index) =>
-                item.isEnabled && {
-                  ...item,
-                  // TODO: handle img2txt to send mask and init image or set on BE
-                  input_image: item.overrideBaseLayer
-                    ? controlnetDataUrls[index] || null
-                    : null,
-                  mask: null,
-                }
-            )
-            .filter((item) => item),
+                args: controlnetLayersArgs.reduce(
+                  (acc: ControlnetLayer[], item, index) => {
+                    if (item.isEnabled) {
+                      return [
+                        ...acc,
+                        {
+                          ...item,
+                          // TODO: handle img2txt to send mask and init image or set on BE
+                          input_image: item.overrideBaseLayer
+                            ? controlnetDataUrls[index] || null
+                            : null,
+                          mask: null,
+                        },
+                      ];
+                    }
+                    return acc;
+                  },
+                  []
+                ),
         },
-      };
+            }
+          : {};
 
       return aggregated;
     }
