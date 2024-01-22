@@ -248,6 +248,22 @@ defmodule ExSd.SdSever do
 
   @impl true
   def handle_info(
+        :generation_cached,
+        %{backend: :comfy} = state
+      ) do
+    ExSd.Sd.broadcast_message("Generation cached", "", :warning)
+
+    ExSd.Sd.broadcast_progress(%{
+      progress: 0,
+      etaRelative: 0,
+      isGenerating: false
+    })
+
+    {:noreply, %{state | is_generating: false, generating_session_name: nil}}
+  end
+
+  @impl true
+  def handle_info(
         {:generation_error, error},
         %{generating_session_name: generating_session_name} = state
       ) do
@@ -361,6 +377,13 @@ defmodule ExSd.SdSever do
     })
 
     {:noreply, %{state | is_generating: false}}
+  end
+
+  @impl true
+  def handle_cast(:free_memory, %{backend: backend} = state) do
+    SdService.free_memory(backend)
+
+    {:noreply, state}
   end
 
   @impl true
@@ -852,6 +875,10 @@ defmodule ExSd.SdSever do
 
   def interrupt() do
     GenServer.cast(__MODULE__, :interrupt)
+  end
+
+  def free_memory() do
+    GenServer.cast(__MODULE__, :free_memory)
   end
 
   def get_memory_usage() do

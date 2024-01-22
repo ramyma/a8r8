@@ -34,7 +34,7 @@ defmodule ExSd.MixProject do
     [
       {:phoenix, "~> 1.7.10", override: true},
       {:phoenix_ecto, "~> 4.4"},
-      {:ecto_sql, "~> 3.6"},
+      {:ecto_sql, "~> 3.11"},
       {:postgrex, ">= 0.0.0"},
       {:phoenix_html, "~> 3.3"},
       {:phoenix_live_reload, "~> 1.4", only: :dev},
@@ -63,8 +63,10 @@ defmodule ExSd.MixProject do
       # {:bumblebee, "~> 0.2"},
       # {:exla, "~> 0.6"},
       # {:ortex, "~> 0.1.8"},
-      {:mint_web_socket, "~> 1.0"}
+      {:mint_web_socket, "~> 1.0"},
       # {:evision, "~> 0.1.29"},
+      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
+      {:mix_test_interactive, "~> 1.0", only: :dev, runtime: false}
     ]
   end
 
@@ -79,7 +81,8 @@ defmodule ExSd.MixProject do
       setup: ["deps.get", "ecto.setup"],
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      # test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      test: ["test"],
       "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"]
     ]
   end

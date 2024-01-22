@@ -493,7 +493,6 @@ const LayersControl = () => {
                 />
               </div>
               <Checkbox
-                id={`overrideBaseLayer${activeControlnetLayer?.id}`}
                 checked={activeControlnetLayer?.overrideBaseLayer}
                 onChange={(value) =>
                   handleControlnetAttrsChange(
@@ -846,7 +845,6 @@ const LayersControl = () => {
               {backend === "auto" && (
                 <>
                   <Checkbox
-                    id={`pixel_perfect${activeControlnetLayer?.id}`}
                     checked={activeControlnetLayer?.pixel_perfect}
                     onChange={(value) =>
                       handleControlnetAttrsChange(
@@ -859,7 +857,6 @@ const LayersControl = () => {
                     Pixel Perfect
                   </Checkbox>
                   <Checkbox
-                    id={`lowvram${activeControlnetLayer?.id}`}
                     checked={activeControlnetLayer?.lowvram}
                     onChange={(value) =>
                       handleControlnetAttrsChange(

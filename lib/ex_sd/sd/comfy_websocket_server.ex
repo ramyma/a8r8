@@ -191,6 +191,18 @@ defmodule ExSd.Sd.ComfyWebsocketServer do
               {:error, exception_message}
             )
 
+          "execution_cached" ->
+            cached_nodes = get_in(response, ["data", "nodes"])
+
+            if(Enum.member?(cached_nodes, "output"),
+              do:
+                PubSub.broadcast!(
+                  ExSd.PubSub,
+                  "comfy",
+                  :generation_cached
+                )
+            )
+
           _ ->
             nil
         end

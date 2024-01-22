@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0] - 2024-01-22
+
+### Added
+
+- Comfy inpainting model support
+- Show notification if generation is cached with ComfyUI
+- Add ComfyUI free memory endpoint
+
+### Changed
+
+- Client refactor
+- Update dependencies
+- UI tweaks
+- Optimize image rendering by updating outside of React
+
+### Fixed
+
+- Fix preview image positioning and dimensions in some cases
+
 ## [0.2.4] - 2023-12-31
 
 ### Added

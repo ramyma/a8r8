@@ -1,5 +1,6 @@
 import defaultTheme from "tailwindcss/defaultTheme";
 import colors from "tailwindcss/colors";
+import { amber } from "@radix-ui/colors";
 
 const theme = {
   ...defaultTheme,
@@ -8,6 +9,7 @@ const theme = {
       primary: "#df4b26",
       danger: "#d41818",
       success: colors.green["700"],
+      warning: amber["amber9"],
     },
     textShadow: {
       sm: "0 1px 2px var(--tw-shadow-color)",

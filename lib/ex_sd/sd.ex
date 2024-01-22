@@ -27,6 +27,8 @@ defmodule ExSd.Sd do
 
   defdelegate interrupt(), to: SdSever
 
+  defdelegate free_memory(), to: SdSever
+
   defdelegate get_memory_usage(), to: SdSever
   @spec get_samplers :: {:ok, list(String.t())}
   defdelegate get_samplers(), to: SdSever
@@ -96,6 +98,13 @@ defmodule ExSd.Sd do
 
   def broadcast_generated_image(data) do
     ExSdWeb.Endpoint.broadcast!("sd", "image", data)
+  end
+
+  @spec broadcast_message(binary(), binary(), :error | :warning | :info | :success) :: :ok
+  def broadcast_message(title, body \\ "", type \\ :info) do
+    ExSdWeb.Endpoint.broadcast!("sd", "message", %{
+      message: %{title: title, body: body, type: type}
+    })
   end
 
   def broadcast_model_loading_status(is_model_loading) do

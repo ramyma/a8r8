@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Vector2d } from "konva/lib/types";
 import { Group, Image, Rect, Text } from "react-konva";
 import RefsContext from "../context/RefsContext";
@@ -90,30 +90,38 @@ const SelectionBox = ({
   const rectX = x - selectionOutlineStrokeWidth / 2;
   const rectY = y - selectionOutlineStrokeWidth / 2;
 
-  const previewImgWidth = previewImg
-    ? width < height
-      ? width
-      : roundToClosestMultipleOf8(
-          (height * previewImg?.width) / previewImg?.height
-        )
-    : width;
+  const previewImgWidth = useMemo(
+    () =>
+      previewImg
+        ? width < height
+          ? width
+          : Math.min(
+              width,
+              roundToClosestMultipleOf8(
+                (height * previewImg?.width) / previewImg?.height
+              )
+            )
+        : width,
+    [height, previewImg, width]
+  );
 
-  const previewImgHeight = previewImg
-    ? height < width
-      ? height
-      : roundToClosestMultipleOf8(
-          (width * previewImg?.height) / previewImg?.width
-        )
-    : height;
+  const previewImgHeight = useMemo(
+    () =>
+      previewImg
+        ? height < width
+          ? height
+          : Math.min(
+              height,
+              roundToClosestMultipleOf8(
+                (width * previewImg?.height) / previewImg?.width
+              )
+            )
+        : height,
+    [height, previewImg, width]
+  );
 
-  const previewImgX =
-    width > height
-      ? roundToClosestMultipleOf8(x - (previewImgWidth - width) / 2)
-      : x;
-  const previewImgY =
-    height > width
-      ? roundToClosestMultipleOf8(y - (previewImgHeight - height) / 2)
-      : y;
+  const previewImgX = width > height ? x - (previewImgWidth - width) / 2 : x;
+  const previewImgY = height > width ? y - (previewImgHeight - height) / 2 : y;
 
   return (
     <>

@@ -392,6 +392,9 @@ export const getLayers = async ({
       // imageSmoothingEnabled: false,
       // pixelRatio: 1 / stage.scaleX(),
     })) ?? "";
+
+  tempLayer?.destroy();
+
   maskCompositeRectRef?.current.visible(true);
 
   // } else {

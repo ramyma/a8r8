@@ -50,6 +50,7 @@ defmodule ExSd.Sd.SdService do
       # FIXME: images not saved (try to save in a task?)
       |> save_init_mask_and_init_image()
       |> Map.put(:mask, mask_binary)
+      |> maybe_blend_init_image_with_grey()
       |> scale_generation_dimensions(attrs)
       |> remove_invalid_alwayson_scripts()
       |> maybe_set_controlnet_images()
@@ -438,6 +439,9 @@ defmodule ExSd.Sd.SdService do
   def interrupt(:auto), do: AutoClient.interrupt()
   def interrupt(:comfy), do: ComfyClient.interrupt()
 
+  @spec free_memory(backend()) :: {:ok, any}
+  def free_memory(:comfy), do: ComfyClient.free_memory()
+
   defdelegate controlnet_detect(params), to: AutoClient
 
   @spec get_samplers(backend()) :: {:error, any} | {:ok, list}
@@ -551,5 +555,27 @@ defmodule ExSd.Sd.SdService do
 
     {%{generation_params | prompt: cleaned_prompt, negative_prompt: cleaned_negative_prompt},
      positive_loras, negative_loras}
+  end
+
+  defp maybe_blend_init_image_with_grey(
+         %GenerationParams{init_images: init_images, txt2img: txt2img} = generation_params
+       ) do
+    if txt2img do
+      generation_params
+    else
+      image = List.first(init_images) |> ImageService.image_from_dataurl()
+      {width, height, _} = Image.shape(image)
+
+      flood =
+        Image.new!(width, height)
+        |> Image.Draw.flood!(0, 0, color: "#808080")
+
+      image =
+        Image.compose!(flood, image, blend_mode: :over)
+        |> Image.write!(:memory, suffix: ".png")
+        |> Base.encode64()
+
+      Map.put(generation_params, :init_images, [image])
+    end
   end
 end
