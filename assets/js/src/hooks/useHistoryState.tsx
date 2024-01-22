@@ -7,10 +7,31 @@ import {
 } from "../state/historySlice";
 import { useAppDispatch } from "../hooks";
 
-interface Props {
+export interface Props<T> {
   topic: HistoryTopic;
+  /**
+   *
+   * @param item Removed history item
+   */
+  undoCallback?: (params: { items: T[]; isStateEmpty: boolean }) => void;
+
+  /**
+   *
+   * @param item Added history item
+   */
+  redoCallback?: (item: T[]) => void;
+  /**
+   *
+   * Clear history callback logic
+   */
+  clearCallback?: () => void;
 }
-const useHistoryState = <T,>({ topic }: Props) => {
+const useHistoryState = <T,>({
+  topic,
+  undoCallback,
+  redoCallback,
+  clearCallback,
+}: Props<T>) => {
   const dispatch = useAppDispatch();
   const [undoHistory, setUndoHistory] = useState<T[] | T[][]>([]);
   const [redoHistory, setRedoHistory] = useState<T[] | T[][]>([]);
@@ -43,12 +64,24 @@ const useHistoryState = <T,>({ topic }: Props) => {
     setUndoHistory((undoHistory) => [...undoHistory, state]);
     setState([]);
     setRedoHistory([]);
+    clearCallback();
     dispatchHistoryEvent({ label: eventLabel });
   };
 
   const undo = () => {
     if (undoHistory.length) {
       setRedoHistory((redoHistory) => [...redoHistory, state]);
+      if (undoCallback) {
+        const removedItems =
+          state.length > 0
+            ? [state?.[state.length - 1]]
+            : (undoHistory?.[undoHistory.length - 1] as T[]);
+        undoCallback({
+          items: removedItems,
+          isStateEmpty: state?.length === 0,
+        });
+        // undoCallback(undoHistory[undoHistory.length - 1]);
+      }
       setState(undoHistory[undoHistory.length - 1]);
       setUndoHistory((undoHistory) => undoHistory.slice(0, -1));
     }
@@ -57,6 +90,11 @@ const useHistoryState = <T,>({ topic }: Props) => {
   const redo = () => {
     if (redoHistory.length) {
       setUndoHistory((undoHistory) => [...undoHistory, state]);
+      if (redoCallback) {
+        const items = redoHistory?.[redoHistory.length - 1];
+        redoCallback(items);
+        // redoCallback(redoHistory[redoHistory.length - 1]);
+      }
       setState(redoHistory[redoHistory.length - 1]);
       setRedoHistory((redoHistory) => redoHistory.slice(0, -1));
     }
