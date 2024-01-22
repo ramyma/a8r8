@@ -14,14 +14,14 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
   - [Features](#features)
   - [Getting started](#getting-started)
     - [Installation](#installation)
-      - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken)
       - [Docker](#docker)
+      - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken)
     - [Running](#running)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-1)
       - [Docker](#docker-1)
     - [Updating](#updating)
-      - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-2)
       - [Docker](#docker-2)
+      - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-2)
   - [Key Shortcuts](#key-shortcuts)
   - [Development Environment](#development-environment)
   - [Sample Generations](#sample-generations)
@@ -95,11 +95,6 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 
 **Update:** Added one click installer for Windows `install-docker.ps1`, check [installation steps](#docker) for details.
 
-#### Windows (EXPERIMENTAL / BROKEN)
-
-1. Clone this repo and open a terminal at the root directory
-2. Run `install.ps1` in a powershell window
-
 Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
 
 #### Docker
@@ -116,6 +111,11 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+
+#### Windows (EXPERIMENTAL / BROKEN)
+
+1. Clone this repo and open a terminal at the root directory
+2. Run `install.ps1` in a powershell window
 
 ### Running
 
@@ -138,13 +138,6 @@ Or
 
 ### Updating
 
-#### Windows (EXPERIMENTAL / BROKEN)
-
-1. Run `install.ps1` in a powershell window
-2. Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
-
-Update: one of the dependencies doesn't work with Windows at the moment, so it won't run successfully
-
 #### Docker
 
 On Windows you can run `install-docker.ps1` in a powershell window
@@ -153,6 +146,13 @@ Or
 
 1. Run `git pull`
 2. Run `docker compose build`
+
+#### Windows (EXPERIMENTAL / BROKEN)
+
+1. Run `install.ps1` in a powershell window
+2. Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
+
+Update: one of the dependencies doesn't work with Windows at the moment, so it won't run successfully
 
 ## Key Shortcuts
 
