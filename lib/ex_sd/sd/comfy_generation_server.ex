@@ -124,6 +124,33 @@ defmodule ExSd.ComfyGenerationServer do
 
   @impl true
   def handle_info(
+        :generation_cached,
+        %{
+          current_flow_item: current_flow_item,
+          flow: flow,
+          attrs: _attrs,
+          dimensions: _dimensions
+        } = state
+      ) do
+    if current_flow_item == length(flow) - 1 do
+      Logger.info("Flow cached")
+
+      PubSub.broadcast!(
+        ExSd.PubSub,
+        "generation",
+        :generation_cached
+      )
+
+      {:noreply,
+       %{state | flow: [], current_flow_item: 0, prompt_id: nil, attrs: nil, dimensions: nil}}
+    else
+      Process.send(self(), :generate, [])
+      {:noreply, %{state | current_flow_item: current_flow_item + 1}}
+    end
+  end
+
+  @impl true
+  def handle_info(
         {:error, error_message},
         %{
           current_flow_item: _current_flow_item,

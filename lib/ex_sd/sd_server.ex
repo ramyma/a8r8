@@ -248,6 +248,22 @@ defmodule ExSd.SdSever do
 
   @impl true
   def handle_info(
+        :generation_cached,
+        %{backend: :comfy} = state
+      ) do
+    ExSd.Sd.broadcast_message("Generation cached", "", :warning)
+
+    ExSd.Sd.broadcast_progress(%{
+      progress: 0,
+      etaRelative: 0,
+      isGenerating: false
+    })
+
+    {:noreply, %{state | is_generating: false, generating_session_name: nil}}
+  end
+
+  @impl true
+  def handle_info(
         {:generation_error, error},
         %{generating_session_name: generating_session_name} = state
       ) do

@@ -70,8 +70,22 @@ const Notifications = () => {
           }
         }
       );
+      const messageRef = channel.on(
+        "message",
+        async (data: {
+          message: { title: string; body: string; type: Notification["type"] };
+        }) => {
+          timeout = addNotification({
+            id: uuidv4(),
+            type: data?.message?.type,
+            title: data?.message?.title,
+            body: data.message.body,
+          });
+        }
+      );
       return () => {
         channel?.off("error", ref);
+        channel?.off("message", messageRef);
         timeout && clearTimeout(timeout);
       };
     }
@@ -101,10 +115,20 @@ const NotificationItem = ({
   onClose,
   title,
   body,
+  type,
 }: NotificationItemProps) => {
   return (
-    // TODO: change bg color according to notification type
-    <li className="flex relative bg-danger/70 backdrop-blur-sm p-4 z-10 w-60 rounded flex-col gap-3 shadow-md shadow-black/30 break-words">
+    // TODO: change bg color according to notification type; add warning
+    <li
+      className={
+        "flex relative backdrop-blur-sm p-4 z-10 w-60 rounded flex-col gap-3 shadow-md shadow-black/30 break-words " +
+        (type === "success"
+          ? "bg-success/70"
+          : type === "warning"
+          ? "bg-warning/70"
+          : "bg-danger/70 ")
+      }
+    >
       <span
         className="bg-transparent absolute top-3 right-3 cursor-pointer"
         onClick={() => onClose(id)}
