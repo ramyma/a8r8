@@ -1,22 +1,23 @@
-import React, { forwardRef, Ref } from "react";
+import React, { forwardRef, useId } from "react";
 import * as RadixCheckbox from "@radix-ui/react-checkbox";
 import { CheckIcon } from "@radix-ui/react-icons";
 import Label from "./Label";
 
 interface Props {
-  id?: string;
   value?: boolean;
   onChange?: (value: boolean) => void;
 }
 
-const Checkbox = forwardRef(
-  (
-    { id, children, onChange, ...rest }: Props & RadixCheckbox.CheckboxProps,
-    _ref: Ref<HTMLInputElement>
-  ) => (
+const Checkbox = forwardRef<
+  React.ElementRef<typeof RadixCheckbox.Root>,
+  Props & Omit<RadixCheckbox.CheckboxProps, "id">
+>(({ children, onChange, ...rest }, _ref) => {
+  const id = useId();
+
+  return (
     <div className="flex items-start md:items-center gap-4 justify-between flex-col md:flex-row">
       {children && (
-        <Label className="Label" htmlFor={id}>
+        <Label className="Label select-none" htmlFor={id}>
           {children}
         </Label>
       )}
@@ -32,8 +33,8 @@ const Checkbox = forwardRef(
         </RadixCheckbox.Indicator>
       </RadixCheckbox.Root>
     </div>
-  )
-);
+  );
+});
 
 Checkbox.displayName = "Checkbox";
 export default Checkbox;

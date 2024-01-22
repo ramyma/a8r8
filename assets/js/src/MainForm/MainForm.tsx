@@ -164,10 +164,11 @@ const MainForm = () => {
   const isMaskLayerVisible = useAppSelector(selectIsMaskLayerVisible);
 
   useEffect(() => {
-    const { width, height } = selectionBox;
-    setValue("width", width);
-    setValue("height", height);
-  }, [selectionBox, setValue]);
+    const { width: selectionBoxWidth, height: selectionBoxHeight } =
+      selectionBox;
+    if (width !== selectionBoxWidth) setValue("width", selectionBoxWidth);
+    if (height !== selectionBoxHeight) setValue("height", selectionBoxHeight);
+  }, [height, selectionBox, setValue, width]);
 
   const prevMinDimension = useRef<number>();
   useEffect(() => {
@@ -266,9 +267,9 @@ const MainForm = () => {
             //_
             null,
             //tile_width,
-            512,
+            model?.isSdXl ? 1024 : 512,
             //tile_height
-            512,
+            model?.isSdXl ? 1024 : 512,
             //mask_blur
             8,
             // padding,
@@ -417,7 +418,7 @@ const MainForm = () => {
       const aggregated =
         enabledControlnetArgs.length > 0
           ? {
-        controlnet: {
+              controlnet: {
                 args: controlnetLayersArgs.reduce(
                   (acc: ControlnetLayer[], item, index) => {
                     if (item.isEnabled) {
@@ -437,7 +438,7 @@ const MainForm = () => {
                   },
                   []
                 ),
-        },
+              },
             }
           : {};
 
@@ -447,11 +448,11 @@ const MainForm = () => {
 
   const handleKeydown = useCallback(
     (e: KeyboardEvent) => {
-      if (e.key === "Enter" && e.ctrlKey && !isGenerating) {
+      if (e.key === "Enter" && e.ctrlKey && !isGenerating && isConnected) {
         formRef.current?.requestSubmit();
       }
     },
-    [isGenerating]
+    [isConnected, isGenerating]
   );
 
   useGlobalKeydown({ handleKeydown, override: true });
@@ -490,14 +491,14 @@ const MainForm = () => {
       {!isGenerating || !isConnected ? (
         <button
           type="submit"
-          className="bg-[#302d2d] border border-neutral-700 enabled:hover:bg-[#494949] disabled:cursor-not-allowed mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] stuck::bg-red-200 z-10 shadow-md shadow-black/50"
+          className="bg-[#302d2d] border border-neutral-700 enabled:hover:bg-[#494949] disabled:cursor-not-allowed mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] stuck::bg-red-200 z-[20] shadow-md shadow-black/50"
           disabled={!isConnected}
         >
           Generate
         </button>
       ) : (
         <button
-          className="bg-red-600 mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] z-10"
+          className="bg-red-600 mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] z-[20]"
           onClick={handleInterrupt}
         >
           Interrupt
@@ -716,9 +717,7 @@ const MainForm = () => {
           control={control}
           defaultValue={true}
           render={({ field }) => (
-            <Checkbox id="full_scale_pass" {...field}>
-              Full Scale Pass
-            </Checkbox>
+            <Checkbox {...field}>Full Scale Pass</Checkbox>
           )}
         />
       )}
@@ -746,9 +745,7 @@ const MainForm = () => {
           control={control}
           defaultValue={true}
           render={({ field }) => (
-            <Checkbox id="use_scaled_dimensions" {...field}>
-              Use Scaled Dimensions
-            </Checkbox>
+            <Checkbox {...field}>Use Scaled Dimensions</Checkbox>
           )}
         />
       )}
@@ -766,9 +763,7 @@ const MainForm = () => {
             },
           }}
           render={({ field }) => (
-            <Checkbox id="isTiledDiffusionEnabled" {...field}>
-              Tiled Diffusion
-            </Checkbox>
+            <Checkbox {...field}>Tiled Diffusion</Checkbox>
           )}
         />
       )}
@@ -785,9 +780,7 @@ const MainForm = () => {
             },
           }}
           render={({ field }) => (
-            <Checkbox id="isUltimateUpscaleEnabled" {...field}>
-              Ultimate Upscale
-            </Checkbox>
+            <Checkbox {...field}>Ultimate Upscale</Checkbox>
           )}
         />
       )}
@@ -797,9 +790,7 @@ const MainForm = () => {
           control={control}
           defaultValue={false}
           render={({ field }) => (
-            <Checkbox id="isSelfAttentionGuidanceEnabled" {...field}>
-              Self Attention Guidance
-            </Checkbox>
+            <Checkbox {...field}>Self Attention Guidance</Checkbox>
           )}
         />
       )}

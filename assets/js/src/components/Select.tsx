@@ -236,7 +236,7 @@ const Select = forwardRef(
           toggleOpen();
           break;
         case "Enter": {
-          if (e.ctrlKey) return;
+          if (e.ctrlKey) break;
           e.preventDefault();
           setValue();
           break;
@@ -379,7 +379,7 @@ const Select = forwardRef(
                           index
                         }
                         className={
-                          "p-2 first:rounded-t-none last:rounded-b-md transition-colors duration-100 truncate " +
+                          "p-2 first:rounded-t-none last:rounded-b-md transition-colors duration-75 truncate " +
                           (index === selectedItemIdx && activeItem === index
                             ? "bg-neutral-100"
                             : index === selectedItemIdx
