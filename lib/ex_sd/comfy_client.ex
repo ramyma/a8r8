@@ -711,6 +711,17 @@ defmodule ExSd.ComfyClient do
     end
   end
 
+  def free_memory() do
+    with response <- post("/free"),
+         {:ok, body} <- handle_response(response) do
+      Logger.info(body)
+      {:ok, body}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
   def get_samplers() do
     with response <- get("/object_info/KSampler"),
          {:ok, body} <- handle_response(response) do
@@ -994,7 +1005,7 @@ defmodule ExSd.ComfyClient do
     end
   end
 
-  def post(url, body, base_url \\ "#{get_base_url()}") do
+  def post(url, body \\ %{}, base_url \\ "#{get_base_url()}") do
     case Finch.build(:post, "#{base_url}#{url}", [], Jason.encode!(body))
          |> Finch.request(ExSd.Finch, receive_timeout: 1_000_000_000_000) do
       {:ok, response} ->

@@ -438,6 +438,9 @@ defmodule ExSd.Sd.SdService do
   def interrupt(:auto), do: AutoClient.interrupt()
   def interrupt(:comfy), do: ComfyClient.interrupt()
 
+  @spec free_memory(backend()) :: {:ok, any}
+  def free_memory(:comfy), do: ComfyClient.free_memory()
+
   defdelegate controlnet_detect(params), to: AutoClient
 
   @spec get_samplers(backend()) :: {:error, any} | {:ok, list}

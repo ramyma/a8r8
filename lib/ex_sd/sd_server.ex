@@ -380,6 +380,13 @@ defmodule ExSd.SdSever do
   end
 
   @impl true
+  def handle_cast(:free_memory, %{backend: backend} = state) do
+    SdService.free_memory(backend)
+
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_cast(:memory, %{memory_stats: memory_stats} = state) do
     Sd.broadcast_memory_stats(memory_stats)
     {:noreply, state}
@@ -868,6 +875,10 @@ defmodule ExSd.SdSever do
 
   def interrupt() do
     GenServer.cast(__MODULE__, :interrupt)
+  end
+
+  def free_memory() do
+    GenServer.cast(__MODULE__, :free_memory)
   end
 
   def get_memory_usage() do

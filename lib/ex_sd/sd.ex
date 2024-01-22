@@ -27,6 +27,8 @@ defmodule ExSd.Sd do
 
   defdelegate interrupt(), to: SdSever
 
+  defdelegate free_memory(), to: SdSever
+
   defdelegate get_memory_usage(), to: SdSever
   @spec get_samplers :: {:ok, list(String.t())}
   defdelegate get_samplers(), to: SdSever
