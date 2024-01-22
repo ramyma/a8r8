@@ -41,27 +41,34 @@ if config_env() == :prod do
   # want to use a different value for prod and you most likely don't want
   # to check this value into version control, so we use an environment
   # variable instead.
-  secret_key_base =
-    System.get_env("SECRET_KEY_BASE") ||
-      raise """
-      environment variable SECRET_KEY_BASE is missing.
-      You can generate one by calling: mix phx.gen.secret
-      """
+  # secret_key_base =
+  #   System.get_env("SECRET_KEY_BASE") ||
+  #     raise """
+  #     environment variable SECRET_KEY_BASE is missing.
+  #     You can generate one by calling: mix phx.gen.secret
+  #     """
 
-  host = System.get_env("PHX_HOST") || "example.com"
-  port = String.to_integer(System.get_env("PORT") || "4000")
+  # host = System.get_env("PHX_HOST") || "example.com"
+  # port = String.to_integer(System.get_env("PORT") || "4000")
+
+  # config :ex_sd, ExSdWeb.Endpoint,
+  #   url: [host: host, port: 443, scheme: "https"],
+  #   http: [
+  #     # Enable IPv6 and bind on all interfaces.
+  #     # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
+  #     # See the documentation on https://hexdocs.pm/plug_cowboy/Plug.Cowboy.html
+  #     # for details about using IPv6 vs IPv4 and loopback vs public addresses.
+  #     ip: {0, 0, 0, 0, 0, 0, 0, 0},
+  #     port: port
+  #   ],
+  #   secret_key_base: secret_key_base
 
   config :ex_sd, ExSdWeb.Endpoint,
-    url: [host: host, port: 443, scheme: "https"],
-    http: [
-      # Enable IPv6 and bind on all interfaces.
-      # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
-      # See the documentation on https://hexdocs.pm/plug_cowboy/Plug.Cowboy.html
-      # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0},
-      port: port
-    ],
-    secret_key_base: secret_key_base
+    # Binding to loopback ipv4 address prevents access from other machines.
+    # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
+    http: [ip: {0, 0, 0, 0}, port: 4000],
+    check_origin: false,
+    secret_key_base: "DF/ywuXdpVxNQVPiPlZhoS7kUmRC4Cj/TCz8hAxzv2JSm30emKVV4tTm4mq3yC7r"
 
   config :ex_sd, :auto_client_base_url, System.get_env("AUTO_URL") || "http://localhost:7860"
   config :ex_sd, :comfy_client_base_url, System.get_env("COMFY_URL") || "http://localhost:8188"
