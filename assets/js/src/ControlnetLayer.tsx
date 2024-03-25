@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { Fragment, useContext, useId, useState } from "react";
 import { Layer, Line, Group } from "react-konva";
 import RefsContext from "./context/RefsContext";
 
@@ -16,21 +16,26 @@ import { useAppSelector } from "./hooks";
 import { selectActiveLayer } from "./state/layersSlice";
 import { selectSelectionBox } from "./state/selectionBoxSlice";
 import useDragAndDrop from "./hooks/useDragAndDrop";
+import { selectMaskColor } from "./state/canvasSlice";
+import { CanvasDimensions } from "./Canvas/Canvas.d";
 
 interface ControlnetLayerProps {
+  dimensions: CanvasDimensions;
   lines: { [key: string]: BrushStroke[] };
+  maskLines: { [key: string]: BrushStroke[] };
   // lines: BrushStroke[];
 }
-const ControlnetLayer = ({ lines }: ControlnetLayerProps) => {
+const ControlnetLayer = ({ lines, maskLines }: ControlnetLayerProps) => {
   const { controlnetLayerRef } = useContext(RefsContext);
 
   const controlnetLayers = useSelector(selectControlnetLayers);
 
+  const containerId = useId();
   return (
     <Layer
       imageSmoothingEnabled={false}
       ref={controlnetLayerRef}
-      id="controlnetLayer"
+      id={"controlnetLayer" + containerId}
       listening={false}
     >
       {controlnetLayers
@@ -44,35 +49,59 @@ const ControlnetLayer = ({ lines }: ControlnetLayerProps) => {
             imagePosition,
             isEnabled,
             isVisible,
+            isMaskVisible,
             detectionImage,
+            maskColor,
           }) => (
-            <Group key={id} id={id} visible={isEnabled && isVisible}>
-              {detectionImage && (
-                <CanvasImage
-                  src={detectionImage}
-                  x={imagePosition?.x}
-                  y={imagePosition?.y}
-                  listening={false}
-                  width={imageDimensions?.width}
-                  height={imageDimensions?.height}
-                />
-              )}
-              <ControlnetLayerImages layerId={id as string} image={image} />
-              {lines[id as string]?.map((line, i) => (
-                <Line
-                  key={i}
-                  points={line.points}
-                  stroke={line.brushColor || "#df4b26"}
-                  strokeWidth={line.brushSize}
-                  tension={0.5}
-                  lineCap="round"
-                  lineJoin="round"
-                  globalCompositeOperation={
-                    line.tool === "eraser" ? "destination-out" : "source-over"
-                  }
-                />
-              ))}
-            </Group>
+            <Fragment key={id}>
+              <Group id={id} visible={isEnabled && isVisible}>
+                {detectionImage && (
+                  <CanvasImage
+                    src={detectionImage}
+                    x={imagePosition?.x}
+                    y={imagePosition?.y}
+                    listening={false}
+                    width={imageDimensions?.width}
+                    height={imageDimensions?.height}
+                  />
+                )}
+                <ControlnetLayerImages layerId={id as string} image={image} />
+                {lines[id as string]?.map((line, i) => (
+                  <Line
+                    key={i}
+                    points={line.points}
+                    stroke={line.brushColor || "#df4b26"}
+                    strokeWidth={line.brushSize}
+                    tension={0.5}
+                    lineCap="round"
+                    lineJoin="round"
+                    globalCompositeOperation={
+                      line.tool === "eraser" ? "destination-out" : "source-over"
+                    }
+                  />
+                ))}
+              </Group>
+              <Group
+                // key={`${id}mask`}
+                id={`${id}mask`}
+                visible={isEnabled && isVisible && isMaskVisible}
+              >
+                {maskLines[id as string]?.map((line, i) => (
+                  <Line
+                    key={(id ?? "") + i}
+                    points={line.points}
+                    stroke={maskColor}
+                    strokeWidth={line.brushSize}
+                    tension={0.5}
+                    lineCap="round"
+                    lineJoin="round"
+                    globalCompositeOperation={
+                      line.tool === "eraser" ? "destination-out" : "source-over"
+                    }
+                  />
+                ))}
+              </Group>
+            </Fragment>
           )
         )}
     </Layer>

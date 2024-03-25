@@ -13,6 +13,7 @@ defmodule ExSd.Sd.AlwaysOnScripts do
     embeds_one :"Tiled VAE", AlwaysonScriptArgs
     embeds_one :"Tiled Diffusion", AlwaysonScriptArgs
     embeds_one :"self attention guidance", AlwaysonScriptArgs
+    embeds_one :"soft inpainting", AlwaysonScriptArgs
   end
 
   # defstruct args: [%ControlNet{}]
@@ -37,5 +38,14 @@ defmodule ExSd.Sd.AlwaysOnScripts do
     |> cast_embed(:"Tiled VAE")
     |> cast_embed(:"Tiled Diffusion")
     |> cast_embed(:"self attention guidance")
+    |> cast_embed(:"soft inpainting")
+  end
+
+  def has_tiled_diffusion?(alwayson_script) do
+    Map.has_key?(alwayson_script, :"Tiled Diffusion")
+  end
+
+  def tiled_diffusion_key() do
+    :"Tiled Diffusion"
   end
 end

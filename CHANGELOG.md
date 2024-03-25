@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.4.0] - 2024-03-25
+
+### Added
+
+- Added install.sh and run.sh (could be used with Windows through WSL2 or debian based Linux)
+- Masks for controlnet layers
+- Add/remove controlnet layers dynamically
+- Image preview on controlnet layer item hover
+- Forge support
+- Soft inpainting support
+- Drag/drop of controlnet images to the layer item
+
+### Changed
+
+- Update color picker
+- Update brush size fine control using shift/ctrl modifiers with `[` and `]`
+- UI tweaks and updates
+
 ## [0.3.0] - 2024-01-22
 
 ### Added

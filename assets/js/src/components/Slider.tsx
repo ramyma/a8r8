@@ -1,4 +1,4 @@
-import React, { ChangeEvent, forwardRef } from "react";
+import { ChangeEvent, forwardRef, useId } from "react";
 import * as RadixSlider from "@radix-ui/react-slider";
 import Input from "./Input";
 import Label from "./Label";
@@ -21,12 +21,17 @@ const Slider = forwardRef(
     const handleValueChange = (value: number[]) => onChange(value[0]);
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) =>
       onChange(+e.target.value);
+
+    const inputId = useId();
     return (
       <div className="flex flex-col">
         {showInput && (
           <div className="flex flex-col lg:flex-row gap-2 mb-2 items-start lg:items-center  justify-between">
-            <Label className="w-7/12">{label}</Label>
+            <Label htmlFor={inputId} className="w-7/12">
+              {label}
+            </Label>
             <Input
+              id={inputId}
               className="px-1 min-w-[60px]"
               type="number"
               step={step}
@@ -51,7 +56,7 @@ const Slider = forwardRef(
           <RadixSlider.Track className="relative grow rounded-full h-[3px] bg-neutral-900">
             <RadixSlider.Range className="absolute bg-primary rounded-full h-full" />
           </RadixSlider.Track>
-          <RadixSlider.Thumb className="block w-5 h-5 bg-white shadow-[0_2px_10px] shadow-black rounded-[10px] border-2 focus:border-primary focus:scale-150 outline-none transition-all duration-100 ease-in-out" />
+          <RadixSlider.Thumb className="block w-4 h-4 bg-white shadow-[0_2px_10px] shadow-black rounded-[10px] border-2 focus:border-primary focus:scale-120 outline-none transition-all duration-100 ease-in-out" />
         </RadixSlider.Root>
       </div>
     );

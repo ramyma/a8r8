@@ -1,7 +1,7 @@
-import { useCallback, useEffect } from "react";
+import { KeyboardEventHandler, useCallback, useEffect } from "react";
 
 interface Props {
-  handleKeydown: (e: KeyboardEvent) => void;
+  handleKeydown: KeyboardEventHandler;
   override?: boolean;
 }
 

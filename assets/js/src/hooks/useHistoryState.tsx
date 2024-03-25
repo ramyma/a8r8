@@ -64,7 +64,7 @@ const useHistoryState = <T,>({
     setUndoHistory((undoHistory) => [...undoHistory, state]);
     setState([]);
     setRedoHistory([]);
-    clearCallback();
+    clearCallback?.();
     dispatchHistoryEvent({ label: eventLabel });
   };
 

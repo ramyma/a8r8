@@ -26,7 +26,7 @@ const uFuzzyObj = new uFuzzy({
   intraTrn: 1,
   intraDel: 1,
 });
-interface SelectProps
+export interface SelectProps
   extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChange" | "value"> {
   items: Required<SelectProps>["value"][];
   /**

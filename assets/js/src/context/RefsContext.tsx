@@ -1,11 +1,11 @@
-import React, { RefObject } from "react";
+import { RefObject } from "react";
 import { Stage as StageType } from "konva/lib/Stage";
 import { createContext } from "react";
 import { Node as NodeType } from "konva/lib/Node";
 import { Rect as RectType } from "konva/lib/shapes/Rect";
 import { Layer as LayerType } from "konva/lib/Layer";
 
-const RefsContext = createContext<{
+export type RefsContextProps = {
   selectionBoxRef: RefObject<RectType> | null;
   selectionBoxLayerRef: RefObject<LayerType> | null;
   maskLayerRef: RefObject<LayerType> | null;
@@ -15,7 +15,8 @@ const RefsContext = createContext<{
   sketchLayerRef: RefObject<LayerType> | null;
   overlayLayerRef: RefObject<LayerType> | null;
   controlnetLayerRef: RefObject<LayerType> | null;
-}>({
+};
+const RefsContext = createContext<RefsContextProps>({
   controlnetLayerRef: null,
   imageLayerRef: null,
   maskCompositeRectRef: null,

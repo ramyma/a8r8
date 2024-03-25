@@ -1,4 +1,4 @@
-import React, { MouseEvent, useMemo } from "react";
+import { MouseEvent, useMemo } from "react";
 import "./App.css";
 import Canvas from "./Canvas/Canvas";
 import Stats from "./Stats";
@@ -11,7 +11,7 @@ import useSamplers from "./hooks/useSamplers";
 import Notifications from "./Notifications";
 import useControlnet from "./hooks/useControlnet";
 import useIsConnected from "./hooks/useIsConnected";
-import Select from "./components/Select";
+import Select, { SelectProps } from "./components/Select";
 import { ReloadIcon } from "@radix-ui/react-icons";
 import useMemoryStats from "./hooks/useMemoryStats";
 import useLoras from "./hooks/useLoras";
@@ -27,6 +27,7 @@ import { useAppSelector } from "./hooks";
 import { selectBackend } from "./state/optionsSlice";
 import useBackend from "./hooks/useBackend";
 import useSchedulers from "./hooks/useSchedulers";
+
 function App() {
   const { refetch: refetchOptions } = useOptions({ fetchPolicy: "eager" });
   useSamplers({ fetchPolicy: "eager" });
@@ -210,7 +211,7 @@ const VaeSelect = ({
 }) => {
   const backend = useAppSelector(selectBackend);
 
-  const handleVaeChange = (value: string) => {
+  const handleVaeChange: SelectProps["onChange"] = (value) => {
     if (value && (selectedVae || backend === "comfy")) setVae(value);
   };
 

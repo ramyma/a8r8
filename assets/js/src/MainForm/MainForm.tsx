@@ -1,5 +1,6 @@
 import React, {
   ChangeEvent,
+  KeyboardEventHandler,
   MouseEvent,
   useCallback,
   useContext,
@@ -7,7 +8,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, SubmitHandler, useForm, useWatch } from "react-hook-form";
 // import { DevTool } from "@hookform/devtools";
 
 import useSocket from "../hooks/useSocket";
@@ -57,10 +58,18 @@ import {
   selectSelectedVae,
 } from "../state/optionsSlice";
 import useSchedulers from "../hooks/useSchedulers";
+import SoftInpaintingFields, {
+  SoftInpaintingArgs,
+} from "./SoftInpaintingFields/SoftInpaintingFields";
+
+export type MainFormValues = Record<string, any> & {
+  softInpainting: SoftInpaintingArgs;
+};
+
 const MainForm = () => {
   const { channel, sendMessage } = useSocket();
   const backend = useAppSelector(selectBackend);
-  const { control, handleSubmit, setValue } = useForm();
+  const { control, handleSubmit, setValue } = useForm<MainFormValues>();
   const formRef = useRef<HTMLFormElement>(null);
   const scale = useWatch({ name: "scale", control, defaultValue: 1 });
   const width = useWatch({ name: "width", control });
@@ -97,6 +106,7 @@ const MainForm = () => {
     hasUltimateUpscale,
     hasTiledVae,
     hasControlnet,
+    hasSoftInpainting,
   } = useScripts();
 
   const { upscalers } = useUpscalers();
@@ -132,6 +142,7 @@ const MainForm = () => {
         negativePrompt,
         sampler,
         seed,
+        cfg_scale,
         denoising_strength,
         steps,
         // width,
@@ -142,6 +153,7 @@ const MainForm = () => {
       setValue("sampler_name", sampler);
       setValue("seed", seed);
       setValue("denoising_strength", denoising_strength);
+      setValue("cfg_scale", cfg_scale);
 
       setValue("steps", steps);
       // setValue("width", width);
@@ -196,7 +208,7 @@ const MainForm = () => {
 
   const invertMask = useAppSelector(selectInvertMask);
 
-  const onSubmit = async (data) => {
+  const onSubmit: SubmitHandler<MainFormValues> = async (data) => {
     const { maskDataUrl, initImageDataUrl, controlnetDataUrls } =
       await getLayers({
         refs,
@@ -216,10 +228,13 @@ const MainForm = () => {
       prompt,
       negative_prompt,
       scheduler,
+      softInpainting,
       ...rest
     } = data;
 
-    const controlnetArgs = hasControlnet ? getControlnetArgs() : {};
+    const controlnetArgs: ReturnType<typeof getControlnetArgs> = hasControlnet
+      ? getControlnetArgs()
+      : {};
 
     const image = {
       prompt:
@@ -254,9 +269,9 @@ const MainForm = () => {
             !isUltimateUpscaleEnabled && {
               upscaler_for_img2img: upscaler,
             }),
-          sd_vae: model?.isSdXl
-            ? "sdxl_vae.safetensors"
-            : "vae-ft-mse-840000-ema-pruned.ckpt",
+          // sd_vae: model?.isSdXl
+          //   ? "sdxl_vae.safetensors"
+          //   : "vae-ft-mse-840000-ema-pruned.ckpt",
         },
       }),
       ...(hasUltimateUpscale &&
@@ -299,12 +314,36 @@ const MainForm = () => {
             // custom_height
             Math.ceil((height * scale) / 8) * 8,
             // custom_scale
-            scale,
+            showFullScalePass && fullScalePass ? 1 : scale,
           ],
         }),
+
       // TODO: consider moving this logic to BE and send raw params
       alwayson_scripts: {
         ...controlnetArgs,
+        ...(backend === "auto" &&
+          !txt2img &&
+          hasSoftInpainting &&
+          softInpainting?.isSoftInpaintingEnabled && {
+            "soft inpainting": {
+              args: [
+                // Soft inpainting
+                true,
+                // Schedule bias
+                softInpainting["Schedule bias"],
+                // Preservation strength
+                softInpainting["Preservation strength"],
+                // Transition contrast boost
+                softInpainting["Transition contrast boost"],
+                // Mask influence
+                softInpainting["Mask influence"],
+                // Difference threshold
+                softInpainting["Difference threshold"],
+                // Difference contrast
+                softInpainting["Difference contrast"],
+              ],
+            },
+          }),
         ...(hasSelfAttentionGuidance && {
           "self attention guidance": {
             args: [
@@ -364,7 +403,7 @@ const MainForm = () => {
                 // upscaler_index: str,
                 upscaler, //"4x-UltraSharp",
                 // scale_factor: float,
-                scale, //TODO: override width and height instead to ensure dims divisible by 8
+                showFullScalePass && fullScalePass ? 1 / scale : scale, //TODO: override width and height instead to ensure dims divisible by 8
                 // noise_inverse: bool,
                 false,
                 // noise_inverse_steps: int,
@@ -403,7 +442,7 @@ const MainForm = () => {
       ultimate_upscale: isUltimateUpscaleEnabled,
     };
 
-    console.log(image, { attrs });
+    // console.log(image, { attrs });
 
     sendMessage("generate", {
       image,
@@ -411,7 +450,7 @@ const MainForm = () => {
       session_name: sessionName,
     });
 
-    function getControlnetArgs() {
+    function getControlnetArgs(): { controlnet?: { args: ControlnetLayer[] } } {
       const enabledControlnetArgs = controlnetLayersArgs.filter(
         ({ isEnabled }) => isEnabled
       );
@@ -419,25 +458,23 @@ const MainForm = () => {
         enabledControlnetArgs.length > 0
           ? {
               controlnet: {
-                args: controlnetLayersArgs.reduce(
-                  (acc: ControlnetLayer[], item, index) => {
-                    if (item.isEnabled) {
-                      return [
-                        ...acc,
-                        {
-                          ...item,
-                          // TODO: handle img2txt to send mask and init image or set on BE
-                          input_image: item.overrideBaseLayer
-                            ? controlnetDataUrls[index] || null
-                            : null,
-                          mask: null,
-                        },
-                      ];
-                    }
-                    return acc;
-                  },
-                  []
-                ),
+                args: controlnetLayersArgs.reduce((acc, item, index) => {
+                  if (item.isEnabled) {
+                    return [
+                      ...acc,
+                      {
+                        ...item,
+                        // TODO: handle img2txt to send mask and init image or set on BE
+                        image: item.overrideBaseLayer
+                          ? controlnetDataUrls[index]?.image || null
+                          : null,
+                        mask_image: controlnetDataUrls[index]?.maskImage,
+                        mask: null,
+                      },
+                    ];
+                  }
+                  return acc;
+                }, [] as ControlnetLayer[]),
               },
             }
           : {};
@@ -446,8 +483,8 @@ const MainForm = () => {
     }
   };
 
-  const handleKeydown = useCallback(
-    (e: KeyboardEvent) => {
+  const handleKeydown: KeyboardEventHandler = useCallback(
+    (e) => {
       if (e.key === "Enter" && e.ctrlKey && !isGenerating && isConnected) {
         formRef.current?.requestSubmit();
       }
@@ -482,6 +519,7 @@ const MainForm = () => {
     (txt2img && showFullScalePass && !fullScalePass) ||
     (scale != 1 && !(showFullScalePass && fullScalePass));
   const showUpscaler = (txt2img && showSecondPassStrength) || !txt2img;
+  const showSoftInpainting = backend === "auto" && !txt2img;
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
@@ -558,7 +596,7 @@ const MainForm = () => {
 
       {!txt2img && backend === "auto" && (
         <div className="flex flex-col gap-2">
-          <Label htmlFor="inpainting_fill">Fill Method</Label>
+          <Label /*htmlFor="inpainting_fill"*/>Fill Method</Label>
           <Controller
             name="inpainting_fill"
             control={control}
@@ -588,6 +626,9 @@ const MainForm = () => {
           />
         </div>
       )}
+
+      {showSoftInpainting && <SoftInpaintingFields control={control} />}
+
       <Controller
         name="steps"
         control={control}

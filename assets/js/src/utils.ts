@@ -8,6 +8,7 @@ import {
 import { RemirrorJSON } from "remirror";
 import { Group } from "konva/lib/Group";
 import { layersSlice } from "./state/layersSlice";
+import { RefsContextProps } from "./context/RefsContext";
 
 export type PngInfo = {
   prompt: string;
@@ -316,13 +317,16 @@ export const getLayers = async ({
   isMaskLayerVisible,
   controlnetLayersArgs,
 }: {
-  refs: any;
+  refs: Required<RefsContextProps>;
   isMaskLayerVisible: boolean;
   controlnetLayersArgs?: ControlnetLayer[];
 }): Promise<{
   maskDataUrl: string;
   initImageDataUrl: string | undefined;
-  controlnetDataUrls: string[];
+  controlnetDataUrls: (
+    | { image: string; maskImage: string | null }
+    | undefined
+  )[];
 }> => {
   const {
     stageRef,
@@ -343,7 +347,7 @@ export const getLayers = async ({
   const selectionBoxLayer = selectionBoxLayerRef?.current;
   const overlayLayer = overlayLayerRef?.current;
   const imageLayer = imageLayerRef?.current;
-  maskCompositeRectRef?.current.visible(false);
+  maskCompositeRectRef?.current?.visible(false);
   // maskLayer?.visible(isMaskLayerVisible);
 
   const tempLayer: LayerType | undefined = maskLayer?.clone();
@@ -395,7 +399,7 @@ export const getLayers = async ({
 
   tempLayer?.destroy();
 
-  maskCompositeRectRef?.current.visible(true);
+  maskCompositeRectRef?.current?.visible(true);
 
   // } else {
   //   document.getElementById("maskIn").value = "";
@@ -426,38 +430,69 @@ export const getLayers = async ({
     fill: "white",
     globalCompositeOperation: "source-over",
   });
+
   controlnetLayer?.add(bgRect);
   bgRect.moveToBottom();
 
   const controlnetLayerGroups = controlnetLayer?.children?.slice(1);
 
-  const initialGroupsVisibility: boolean[] = controlnetLayerGroups.map(
-    (group) => {
+  const initialGroupsVisibility: boolean[] =
+    controlnetLayerGroups?.map((group) => {
       const initialGroupVisibility = group.isVisible();
       group.visible(false);
       return initialGroupVisibility;
-    }
-  );
+    }) ?? [];
 
   const controlnetDataUrls =
-    controlnetLayersArgs &&
-    controlnetLayersArgs.map((layer, index) => {
-      if (!layer.isEnabled) return "";
-      const layerGroup: Group = controlnetLayerGroups[index];
-      layerGroup.visible(true);
-      const controlnetDataUrl = layer.overrideBaseLayer
-        ? layer.image ||
-          controlnetLayer.toDataURL({
-            x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
-            y: selectionBox?.getAbsolutePosition().y,
-            width: selectionBox?.width(),
-            height: selectionBox?.height(),
-            // imageSmoothingEnabled: false,
-          })
-        : "";
-      layerGroup.visible(false);
-      return controlnetDataUrl;
-    });
+    (controlnetLayersArgs &&
+      controlnetLayersArgs.map((layer, index) => {
+        if (!layer.isEnabled) return undefined;
+        let layerGroup = controlnetLayerGroups?.[index * 2];
+        layerGroup?.visible(true);
+        const controlnetDataUrl = layer.overrideBaseLayer
+          ? ((layer.image as string) ||
+              controlnetLayer?.toDataURL({
+                x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
+                y: selectionBox?.getAbsolutePosition().y,
+                width: selectionBox?.width(),
+                height: selectionBox?.height(),
+                // imageSmoothingEnabled: false,
+              })) ??
+            ""
+          : "";
+        layerGroup?.visible(false);
+
+        let controlnetMaskDataUrl: string | null = null;
+        if (layer.isMaskEnabled) {
+          bgRect.fill("black");
+          layerGroup = controlnetLayerGroups?.[index * 2 + 1];
+
+          layerGroup?.visible(true);
+          layerGroup?.cache();
+          layerGroup?.filters([Konva.Filters.RGB, Konva.Filters.Invert]);
+
+          // layerGroup?.filters([Konva.Threshold, Konva.Filters.Invert]);
+          // tempLayer?.filters([Konva.Filters.RGB, Konva.Filters.Invert]);
+
+          controlnetMaskDataUrl = layer.isMaskEnabled
+            ? controlnetLayer?.toDataURL({
+                x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
+                y: selectionBox?.getAbsolutePosition().y,
+                width: selectionBox?.width(),
+                height: selectionBox?.height(),
+                // imageSmoothingEnabled: false,
+              }) ?? null
+            : null;
+          layerGroup?.filters([]);
+          layerGroup?.clearCache();
+
+          // debugImage(controlnetMaskDataUrl, { layer, layerGroup });
+
+          layerGroup?.visible(false);
+        }
+        return { image: controlnetDataUrl, maskImage: controlnetMaskDataUrl };
+      })) ??
+    [];
 
   controlnetLayerGroups?.forEach((group, index) =>
     group.visible(initialGroupsVisibility[index])
@@ -584,6 +619,28 @@ function actionsThrottlingFilter(action) {
   }, IGNORE_TIME);
   return true;
 }
+
+const debugImage = function (url, label, height = 100) {
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.onload = function () {
+    // build a data url
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.height = height || image.naturalHeight;
+    canvas.width = (canvas.height * image.naturalWidth) / image.naturalHeight;
+    ctx?.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL();
+    const style = [
+      "font-size: 1px;",
+      `padding: ${canvas.height}px ${canvas.width}px;`,
+      `background: url(${dataUrl}) no-repeat;`,
+      "background-size: contain;",
+    ].join(" ");
+    console.log("%c ", style, label);
+  };
+  image.src = url;
+};
 
 export const isSdXlModel = (modelName: string): boolean =>
   modelName?.toLowerCase()?.includes("xl");

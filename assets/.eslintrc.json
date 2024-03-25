@@ -18,12 +18,12 @@
     "ecmaVersion": 12,
     "sourceType": "module"
   },
-  "plugins": [
-    "react",
-    "@typescript-eslint",
-    "jest-dom"
-  ],
+  "plugins": ["react", "@typescript-eslint", "jest-dom", "react-refresh"],
   "rules": {
+    "react/jsx-uses-react": "off",
+    "react/react-in-jsx-scope": "off",
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "warn",
     "jest-dom/prefer-checked": "error",
     "jest-dom/prefer-enabled-disabled": "error",
     "jest-dom/prefer-required": "error",
@@ -33,6 +33,8 @@
       {
         "argsIgnorePattern": "^_"
       }
-    ]
+    ],
+    "react-refresh/only-export-components": "warn",
+    "no-console": ["warn", { "allow": ["warn", "error"] }]
   }
 }

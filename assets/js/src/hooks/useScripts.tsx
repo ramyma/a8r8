@@ -47,6 +47,11 @@ const useScripts = ({ fetchPolicy }: Props = {}) => {
     [backend, hasScript]
   );
 
+  const hasSoftInpainting = useMemo(
+    () => (backend === "auto" ? hasScript("soft inpainting") : false),
+    [backend, hasScript]
+  );
+
   return {
     scripts,
     fetchData,
@@ -55,6 +60,7 @@ const useScripts = ({ fetchPolicy }: Props = {}) => {
     hasUltimateUpscale,
     hasControlnet,
     hasSelfAttentionGuidance,
+    hasSoftInpainting,
   };
 };
 

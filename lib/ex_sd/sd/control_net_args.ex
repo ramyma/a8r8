@@ -9,8 +9,9 @@ defmodule ExSd.Sd.ControlNetArgs do
   #       }
   @primary_key false
   embedded_schema do
-    field :input_image, :string, default: ""
+    field :image, :string, default: ""
     field :mask, :string, default: ""
+    field :mask_image, :string, default: ""
     # module: "none",
     field :model, :string
     field :module, :string
@@ -32,8 +33,9 @@ defmodule ExSd.Sd.ControlNetArgs do
     |> cast(
       attrs,
       [
-        :input_image,
+        :image,
         :mask,
+        :mask_image,
         :model,
         :module,
         :weight,

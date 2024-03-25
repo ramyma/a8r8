@@ -33,8 +33,13 @@ type ControlnetUi = {
   imageDimensions: { width: number; height: number };
   overrideBaseLayer: boolean;
   lines: BrushStroke[];
+  maskLines: BrushStroke[];
   isVisible: boolean;
-  image?: ImageItem | string;
+  isMaskVisible: boolean;
+  isMaskEnabled: boolean;
+  image?: ImageItem | string | null;
+  mask_image?: string | null;
+  maskColor?: string;
 };
 export type ControlnetLayer = {
   id?: string;
@@ -68,9 +73,13 @@ const controlnetLayerInitialState: ControlnetLayer = {
   isEnabled: false,
   overrideBaseLayer: false,
   lines: [],
+  maskLines: [],
   isVisible: true,
+  isMaskVisible: true,
+  isMaskEnabled: false,
   pixel_perfect: true,
   control_mode: 0,
+  maskColor: "white",
 };
 const initialState: ControlnetState = {
   layers: [
@@ -101,7 +110,8 @@ export const controlnetSlice = createSlice({
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { layerId, resize_mode, ...rest } = action.payload;
       const index = state.layers.findIndex((layer) => layer.id === layerId);
-      state.layers[index] = Object.assign(state.layers[index], rest);
+      if (index !== -1)
+        state.layers[index] = Object.assign(state.layers[index], rest);
     },
     setDetectionImage: (
       state,
@@ -119,6 +129,17 @@ export const controlnetSlice = createSlice({
         imagePosition: position,
         imageDimensions: dimensions,
       });
+    },
+    addControlnetLayer: (state, action: PayloadAction<string>) => {
+      const id = action.payload;
+      state.layers[state.layers.length] = {
+        id,
+        ...controlnetLayerInitialState,
+      };
+    },
+    removeControlnetLayer: (state, action: PayloadAction<string>) => {
+      const id = action.payload;
+      state.layers = state.layers.filter((layer) => layer.id !== id);
     },
     // incrementBrushSize: (state) => {
     //   state.brushSize += 5;
@@ -156,8 +177,12 @@ export const controlnetSlice = createSlice({
   },
 });
 
-export const { updateControlnetLayer, setDetectionImage } =
-  controlnetSlice.actions;
+export const {
+  updateControlnetLayer,
+  setDetectionImage,
+  addControlnetLayer,
+  removeControlnetLayer,
+} = controlnetSlice.actions;
 
 export const selectControlnetLayers = (state: RootState) =>
   state.controlnet.layers;
@@ -168,11 +193,18 @@ export const selectControlnetLayer = (state: RootState) => {
   return null;
 };
 
-export const selectControlnetLayerById = (
+export const selectControlnetLayerIndexById = (
   state: RootState,
   id: ControlnetLayer["id"]
 ) => {
   return state.controlnet.layers.findIndex((layer) => layer.id === id);
+};
+
+export const selectControlnetLayerById = (
+  state: RootState,
+  id: ControlnetLayer["id"]
+) => {
+  return state.controlnet.layers.find((layer) => layer.id === id);
 };
 
 export default controlnetSlice.reducer;

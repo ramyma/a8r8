@@ -1,4 +1,6 @@
 defmodule ExSd.Sd.ImageService do
+  alias ExSd.Sd.ImageService
+
   def save("data:image/png;base64," <> _ = data_url, name) do
     data_url_to_upload(data_url, name)
   end
@@ -27,8 +29,17 @@ defmodule ExSd.Sd.ImageService do
     end
   end
 
+  defp maybe_feather!(image, sigma, true = _condition) do
+    Image.feather!(image, sigma: sigma)
+  end
+
+  defp maybe_feather!(image, _sigma, _condition) do
+    image
+  end
+
   # Creates a mask image that fills the transparent parts with white.
-  defp fill_mask!(mask_data_url, image_average, invert_mask) do
+  # , options \\ []) do
+  def fill_mask!(mask_data_url, image_average, invert_mask) do
     with %{scheme: "data"} = uri <- URI.parse(mask_data_url),
          {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri),
          {:ok, image} <- Image.from_binary(data),
@@ -45,15 +56,27 @@ defmodule ExSd.Sd.ImageService do
         0 ->
           # Fill whole mask with white if the average of all pixels is 0; meaning an empty mask
           mask =
-            if(Enum.sum(image_average) == 0,
-              do:
-                image
-                |> Image.Draw.flood!(0, 0, color: :white),
-              else: image
-            )
+            if Enum.sum(image_average) == 0 do
+              image
+              |> Image.Draw.flood!(0, 0, color: :white)
 
+              # TODO: control using attrs
+              # |> maybe_feather!(20.0, Keyword.get(options, :should_feather_mask, true)),
+              # |> Image.feather!(sigma: 15)
+
+              # Image.compose!(
+              #   image,
+              #   Image.Draw.flood!(image, 0, 0, color: :black),
+              #   blend_mode: :out
+              # )
+            else
+              image
+            end
+
+          # mask
           # |> Image.write!(:memory, suffix: ".png")
           # |> Base.encode64()
+          # |> ImageService.save("MMMMASK")
 
           mask
 
@@ -85,15 +108,17 @@ defmodule ExSd.Sd.ImageService do
     image_from_dataurl("data:image/png;base64,#{binary_image}")
   end
 
+  @spec mask_from_alpha(binary() | URI.t(), any(), any()) ::
+          {:error, {:error, any()} | URI.t()} | {:ok, <<_::64, _::_*8>>, Vix.Vips.Image.t()}
   def mask_from_alpha(image_data_url, mask_data_url, invert_mask) do
     with %{scheme: "data"} = uri <- URI.parse(image_data_url),
          {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri),
          {:ok, image} <- Image.from_binary(data) do
       mask_from_image =
         image
-        |> Image.convert_to_mask!()
-        # TODO:L check it doesn't crash the application with values > 10
-        |> Image.dilate!(30)
+        |> Image.convert_alpha_to_mask!()
+        # TODO: check it doesn't crash the application with values > 10
+        |> Image.dilate!(40)
         |> Image.blur!(sigma: 10.0)
 
       # |> Image.Draw.flood!(0, 0, color: :white)

@@ -1,7 +1,12 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { RootState } from "../store";
 
-export type ActiveLayer = "base" | "mask" | "sketch" | `controlnet${string}`; // | string;
+export type ActiveLayer =
+  | "base"
+  | "mask"
+  | "sketch"
+  | `controlnet${string}`
+  | `controlnet${string}-mask`; // | string;
 
 interface LayersState {
   activeLayer: ActiveLayer;
@@ -61,6 +66,9 @@ export const selectActiveControlnetId = (
   state: RootState
 ): string | undefined => {
   if (state.layers.activeLayer.startsWith("controlnet"))
-    return state.layers.activeLayer.replace("controlnet", "");
+    return state.layers.activeLayer
+      .replace("controlnet", "")
+      .replace("-mask", "");
 };
+
 export default layersSlice.reducer;

@@ -832,7 +832,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         name: :"cn#{index}_image",
         base64_image:
           String.replace(
-            entry.input_image || generation_params.init_images |> List.first(),
+            entry.image || generation_params.init_images |> List.first(),
             "data:image/png;base64,",
             ""
           )
