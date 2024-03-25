@@ -1,4 +1,4 @@
-import { useCallback, useContext } from "react";
+import { KeyboardEventHandler, useCallback, useContext } from "react";
 import useGlobalKeydown from "../../hooks/useGlobalKeydown";
 import {
   selectSelectionBox,
@@ -19,8 +19,8 @@ const useKeyEvents = () => {
   const isGenerating = useAppSelector(selectIsGenerating);
   const { x, y } = useAppSelector(selectSelectionBox);
 
-  const handleKeydown = useCallback(
-    (e: KeyboardEvent) => {
+  const handleKeydown: KeyboardEventHandler = useCallback(
+    (e) => {
       if (selectionBoxRef?.current && !isGenerating) {
         const offset = OFFSET * (e.shiftKey ? SHIFT_FACTOR : 1);
         if (e.key === "ArrowLeft") {

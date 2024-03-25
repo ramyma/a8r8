@@ -2,6 +2,7 @@ import { emitCustomEvent } from "react-custom-events";
 import { useAppDispatch, useAppSelector } from "../hooks";
 import { redo, selectHistory, undo } from "../state/historySlice";
 import useGlobalKeydown from "./useGlobalKeydown";
+import { KeyboardEventHandler } from "react";
 
 function useHistoryManager() {
   const { past, future } = useAppSelector(selectHistory);
@@ -16,7 +17,7 @@ function useHistoryManager() {
     dispatch(redo());
   };
 
-  const handleKeydown = (e: KeyboardEvent) => {
+  const handleKeydown: KeyboardEventHandler = (e) => {
     if (e.key.toLocaleLowerCase() === "z" && e.ctrlKey && !e.shiftKey) {
       e.preventDefault();
       undoHistory();

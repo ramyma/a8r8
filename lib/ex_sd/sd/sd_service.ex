@@ -1,6 +1,7 @@
 defmodule ExSd.Sd.SdService do
   require Logger
 
+  alias ExSd.Sd.AlwaysOnScripts
   alias ExSd.ComfyGenerationServer
   alias ExSd.ComfyClient
   alias ExSd.Sd.ControlNetArgs
@@ -132,11 +133,18 @@ defmodule ExSd.Sd.SdService do
 
     mask_image_average = Image.average!(mask_image) |> Enum.sum() |> div(3)
 
+    first_pass_generation_params =
+      generation_params
+      |> remove_upscale_if_second_pass(has_second_pass)
+
     result =
       generate_and_receive(
-        generation_params,
+        first_pass_generation_params,
         attrs,
-        original_dimensions,
+        if(has_second_pass,
+          do: %{width: generation_params.width, height: generation_params.height},
+          else: original_dimensions
+        ),
         mask_image,
         mask_image_average
       )
@@ -154,6 +162,7 @@ defmodule ExSd.Sd.SdService do
             generation_params
             |> Map.merge(%{
               init_images: [init_image],
+              # TODO: use when no upscaling extension is used
               width: width,
               height: height,
               seed: seed,
@@ -213,7 +222,15 @@ defmodule ExSd.Sd.SdService do
 
             {:ok, change} =
               change
-              |> Image.compose(mask_image, blend_mode: :dest_in)
+              |> Image.compose(
+                mask_image
+                |> Image.thumbnail!(
+                  width,
+                  resize: :force,
+                  height: height
+                ),
+                blend_mode: :dest_in
+              )
 
             change
             |> Image.write!(:memory, suffix: ".png")
@@ -349,15 +366,17 @@ defmodule ExSd.Sd.SdService do
         new_args =
           generation_params.alwayson_scripts.controlnet.args
           |> Enum.map(fn
-            %ControlNetArgs{input_image: input_image} = controlnet_layer
-            when is_nil(input_image) or input_image == "" ->
+            %ControlNetArgs{image: image} = controlnet_layer
+            when is_nil(image) or image == "" ->
               controlnet_layer
-              |> Map.put(:input_image, List.first(init_images))
-              |> Map.put(:mask, mask)
+              |> Map.put(:image, List.first(init_images))
+              |> Map.put(:mask, controlnet_layer.mask || mask)
+
+            # |> Map.put(:mask, mask)
 
             %ControlNetArgs{} = controlnet_layer ->
               controlnet_layer
-              |> Map.put(:mask, mask)
+              |> Map.put(:mask, controlnet_layer.mask || mask)
           end)
 
         Map.merge(generation_params, %{
@@ -384,7 +403,7 @@ defmodule ExSd.Sd.SdService do
         |> Enum.with_index(1)
         |> Enum.each(fn {item, index} ->
           ImageService.save(
-            item.input_image,
+            item.image,
             "controlnet_image#{index}"
           )
         end)
@@ -407,6 +426,36 @@ defmodule ExSd.Sd.SdService do
     )
   end
 
+  defp remove_upscale_if_second_pass(generation_params, true = _has_second_pass) do
+    generation_params =
+      if(generation_params.script_name == "ultimate sd upscale",
+        do: %{generation_params | script_name: "", script_args: []},
+        else: generation_params
+      )
+
+    generation_params =
+      if(
+        generation_params.alwayson_scripts != %{} and
+          AlwaysOnScripts.has_tiled_diffusion?(generation_params.alwayson_scripts),
+        do:
+          generation_params
+          |> Map.replace(
+            :alwayson_scripts,
+            Map.delete(
+              generation_params.alwayson_scripts,
+              AlwaysOnScripts.tiled_diffusion_key()
+            )
+          ),
+        else: generation_params
+      )
+
+    generation_params
+  end
+
+  defp remove_upscale_if_second_pass(generation_params, false = _has_second_pass) do
+    generation_params
+  end
+
   defp generate_seed(%GenerationParams{seed: seed} = generation_params) do
     generation_params
     |> Map.put(
@@ -420,15 +469,27 @@ defmodule ExSd.Sd.SdService do
   end
 
   defp get_second_pass_init_image(
-         %GenerationParams{txt2img: txt2img, init_images: init_images} = _generation_params,
+         %GenerationParams{
+           txt2img: txt2img,
+           init_images: init_images,
+           width: width,
+           height: height
+         } = _generation_params,
          result_images_base64
        ) do
     if(txt2img,
       do: List.first(result_images_base64),
       else:
         Image.compose!(
-          List.first(init_images) |> ImageService.image_from_dataurl(),
-          List.first(result_images_base64) |> ImageService.image_from_dataurl()
+          List.first(init_images)
+          |> ImageService.image_from_dataurl()
+          |> Image.thumbnail!(
+            width,
+            resize: :force,
+            height: height
+          ),
+          List.first(result_images_base64)
+          |> ImageService.image_from_dataurl()
         )
         |> Image.write!(:memory, suffix: ".png")
         |> Base.encode64()

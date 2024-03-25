@@ -1,24 +1,38 @@
 import {
+  EraserIcon,
   EyeNoneIcon,
   EyeOpenIcon,
   MaskOffIcon,
   MaskOnIcon,
+  PlusIcon,
   TrashIcon,
-  ValueNoneIcon,
+  ViewNoneIcon,
 } from "@radix-ui/react-icons";
 import {
   ActionCreatorWithoutPayload,
   ActionCreatorWithPayload,
 } from "@reduxjs/toolkit";
 import debounce from "lodash.debounce";
-import React, { ChangeEvent, MouseEvent, ReactNode, useContext } from "react";
+import React, {
+  ChangeEvent,
+  DragEventHandler,
+  MouseEvent,
+  MouseEventHandler,
+  ReactNode,
+  useRef,
+  useState,
+} from "react";
+import * as Portal from "@radix-ui/react-portal";
+import { v4 as uuid4 } from "uuid";
 import Checkbox from "./components/Checkbox";
 import Toggle from "./components/Toggle";
-import RefsContext from "./context/RefsContext";
 import { useAppDispatch, useAppSelector } from "./hooks";
 import useControlnet from "./hooks/useControlnet";
 import {
   ControlnetLayer,
+  addControlnetLayer,
+  removeControlnetLayer,
+  selectControlnetLayerById,
   selectControlnetLayers,
   updateControlnetLayer,
 } from "./state/controlnetSlice";
@@ -39,7 +53,11 @@ import Slider from "./components/Slider";
 import ScrollArea from "./components/ScrollArea";
 import Select from "./components/Select";
 import Label from "./components/Label";
-import { selectInvertMask, toggleInvertMask } from "./state/canvasSlice";
+import {
+  selectInvertMask,
+  toggleColorPickerVisibility,
+  toggleInvertMask,
+} from "./state/canvasSlice";
 import {
   emitClearBaseImages,
   emitClearLayerLines,
@@ -47,29 +65,36 @@ import {
 import useScripts from "./hooks/useScripts";
 import { selectBackend } from "./state/optionsSlice";
 import ImageUploader from "./components/ImageUploader";
+import useDragAndDrop from "./hooks/useDragAndDrop";
+import ColorPicker, { ColorPickerProps } from "./ColorPicker";
 
 type LayerProps = {
   id: ActiveLayer;
+  subId?: string;
   name: string;
   subtitle?: string;
   isVisible: boolean;
   isEnabled?: boolean;
   isActive?: boolean;
-  visiblitiyActionCreatorPayload?: any;
-  visiblitiyActionCreator?:
+  visibilityActionCreatorPayload?: any;
+  visibilityActionCreator?:
     | ActionCreatorWithoutPayload
-    | ActionCreatorWithPayload<LayerProps["visiblitiyActionCreatorPayload"]>;
+    | ActionCreatorWithPayload<LayerProps["visibilityActionCreatorPayload"]>;
   isEnabledActionCreatorPayload?: any;
   isEnabledActionCreator?:
     | ActionCreatorWithoutPayload
     | ActionCreatorWithPayload<LayerProps["isEnabledActionCreatorPayload"]>;
   actions?: ReactNode[];
+  type: "base" | "mask" | "sketch" | "controlnet";
 };
 
 const LayerItem = ({
   id,
-  visiblitiyActionCreator,
-  visiblitiyActionCreatorPayload,
+  activeLayerId,
+  subId,
+  type,
+  visibilityActionCreator,
+  visibilityActionCreatorPayload,
   isEnabledActionCreator,
   isEnabledActionCreatorPayload,
   name,
@@ -78,12 +103,35 @@ const LayerItem = ({
   isEnabled,
   isActive,
   actions,
-}: LayerProps) => {
+}: LayerProps & { activeLayerId: ActiveLayer }) => {
+  const itemRef = useRef<HTMLLIElement>(null);
+  const maskColorBox = useRef<HTMLButtonElement>(null);
+
+  const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
+  const [colorPickerPosition, setColorPickerPosition] = useState<
+    ColorPickerProps["position"]
+  >({ x: 0, y: 0 });
+
   const dispatch = useAppDispatch();
+  const backend = useAppSelector(selectBackend);
+  const controlnetLayer = useAppSelector((state) =>
+    selectControlnetLayerById(state, subId)
+  );
+
+  //TODO: remove hardcoding for -mask and controlnet to extract and construct layer id
+  const isMaskLayerActive =
+    type === "controlnet" &&
+    activeLayerId.endsWith("mask") &&
+    activeLayerId.replace(/((-mask)|controlnet)/g, "") === controlnetLayer?.id;
+  //TOOD: add animation on update; like drop or any change of the layer data
+
+  const [dragOver, setDragOver] = useState(false);
+  const [isImagePreviewVisible, setIsImagePreviewVisible] = useState(false);
+
   const toggleVisibility = () => {
     // e?.stopPropagation();
-    visiblitiyActionCreator &&
-      dispatch(visiblitiyActionCreator(visiblitiyActionCreatorPayload));
+    visibilityActionCreator &&
+      dispatch(visibilityActionCreator(visibilityActionCreatorPayload));
   };
   const toggleIsEnabled = (e: MouseEvent) => {
     e?.stopPropagation();
@@ -91,47 +139,250 @@ const LayerItem = ({
       dispatch(isEnabledActionCreator(isEnabledActionCreatorPayload));
   };
   const handleClick = () => {
-    !isActive && dispatch(setActiveLayer(id));
+    (!isActive || isMaskLayerActive) && dispatch(setActiveLayer(id));
+  };
+  const handleMaskLayerClick = () => {
+    dispatch(setActiveLayer((id + "-mask") as ActiveLayer));
+  };
+
+  const handleDragOver: DragEventHandler<HTMLLIElement> = () => {
+    setDragOver(true);
+  };
+
+  const handleDragExit = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    setDragOver(false);
+  };
+
+  const handleDrop: DragEventHandler<HTMLLIElement> = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    setDragOver(false);
+
+    if (e.dataTransfer) {
+      const files = e.dataTransfer.files; // Array of all files
+
+      for (let i = 0, file; (file = files[i]); i++) {
+        if (file.type.match(/image.*/)) {
+          const reader = new FileReader();
+
+          reader.onload = async (e) => {
+            // finished reading file data.
+            if (e.target) {
+              const dataUrl = e.target.result;
+              if (typeof dataUrl === "string") {
+                // dataUrl
+                if (type === "controlnet")
+                  dispatch(
+                    updateControlnetLayer({
+                      layerId: subId,
+                      image: dataUrl,
+                    })
+                  );
+              }
+            }
+          };
+
+          reader.readAsDataURL(file); // start reading the file data.
+        }
+      }
+    }
+  };
+
+  const handleMouseOver: MouseEventHandler = () => {
+    setIsImagePreviewVisible(true);
+  };
+
+  const handleMouseOut: MouseEventHandler = () => {
+    setIsImagePreviewVisible(false);
+  };
+
+  const handleColorBoxClick: MouseEventHandler = (e) => {
+    e.stopPropagation();
+
+    if (!isColorPickerVisible) {
+      const bbox = maskColorBox.current?.getBoundingClientRect();
+      setColorPickerPosition({
+        x: (bbox?.right ?? 0) - 255,
+        y: bbox?.bottom ?? 0,
+      });
+    }
+    toggleColorPickerVisibility();
+  };
+
+  const toggleColorPickerVisibility = () => {
+    setIsColorPickerVisible((prevState) => !prevState);
+  };
+
+  const handleMaskColorChange = (color) => {
+    dispatch(
+      updateControlnetLayer({
+        layerId: id.replace(/((-mask)|controlnet)/g, ""),
+        maskColor: color,
+      })
+    );
   };
 
   return (
-    // FIXME: width on smaller window size
-    <li
-      className={
-        "grid grid-cols-2 flex-row p-3 items-center justify-between gap-1 " +
-        `${
-          isActive
-            ? "bg-gray-200/80 text-black"
-            : "odd:bg-[#222222]/80 even:bg-[#2b2b2b]/80 cursor-pointer"
-        }`
-      }
-      onClick={handleClick}
-    >
-      <div className="flex flex-col">
-        <span title={name}>{name}</span>
-        <span className="text-xs truncate" title={subtitle}>
-          {subtitle}
-        </span>
-      </div>
-      <div className="flex justify-end">
-        {actions?.map((Action, _index) => Action)}
+    <>
+      {/* {isColorPickerVisible && ( */}
 
-        {!!visiblitiyActionCreator && (
-          // <div onClick={toggleVisibility}>{`${isVisible}`}</div>
-          <Toggle
-            pressed={isVisible}
-            onChange={toggleVisibility}
-            title="Show/Hide"
-            pressedIconComponent={EyeOpenIcon}
-            unpressedIconComponent={EyeNoneIcon}
+      {isColorPickerVisible && (
+        <Portal.Root>
+          <ColorPicker
+            color={controlnetLayer?.maskColor}
+            onClose={toggleColorPickerVisibility}
+            onColorChange={handleMaskColorChange}
+            position={colorPickerPosition}
+            isVisible={isColorPickerVisible}
           />
-        )}
-        {!!isEnabledActionCreator && (
-          <Checkbox checked={isEnabled} onClick={toggleIsEnabled} title="Use" />
-        )}
-        {/* <div>add</div> */}
-      </div>
-    </li>
+        </Portal.Root>
+      )}
+      {/* )} */}
+      {/* // FIXME: width on smaller window size */}
+      <li
+        ref={itemRef}
+        className={
+          "grid grid-cols-2 flex-row p-1.5 px-2 items-center justify-between gap-1 " +
+          `${
+            dragOver
+              ? "bg-primary/80"
+              : isActive && !isMaskLayerActive
+              ? "bg-neutral-200/80"
+              : "odd:bg-[#222222]/80 even:bg-[#2b2b2b]/80"
+          } ` +
+          `${isActive && !isMaskLayerActive ? "text-black" : "cursor-pointer"}`
+        }
+        onClick={handleClick}
+        // FIXME: drag over event toggles when hovering over child elements
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragExit}
+        onDrop={handleDrop}
+        {...(type === "controlnet" && {
+          onMouseOver: handleMouseOver,
+          onMouseOut: handleMouseOut,
+        })}
+      >
+        <div className="absolute left-0 top-0 pointer-events-none w-full h-full" />
+        <div
+          className={
+            "flex flex-col " +
+            (controlnetLayer?.isEnabled && controlnetLayer?.overrideBaseLayer
+              ? "text-primary"
+              : "")
+          }
+        >
+          <span className="text-sm" title={name}>
+            {name}
+          </span>
+          <span className="text-xs truncate" title={subtitle}>
+            {subtitle}
+          </span>
+        </div>
+        <div className="flex justify-end">
+          {actions?.map((Action, _index) => Action)}
+
+          {!!visibilityActionCreator && (
+            // <div onClick={toggleVisibility}>{`${isVisible}`}</div>
+            <Toggle
+              pressed={isVisible}
+              onChange={toggleVisibility}
+              title="Show/Hide"
+              pressedIconComponent={EyeOpenIcon}
+              unpressedIconComponent={EyeNoneIcon}
+            />
+          )}
+          {!!isEnabledActionCreator && (
+            <Checkbox
+              checked={isEnabled}
+              onClick={toggleIsEnabled}
+              title="Use"
+            />
+          )}
+          {/* <div>add</div> */}
+        </div>
+      </li>
+      {backend === "auto" && isEnabled && (
+        <li
+          className={`flex text-sm px-2 ps-5  justify-between items-center cursor-pointe ${
+            isMaskLayerActive ? "bg-neutral-50/40" : "bg-neutral-950"
+          }`}
+          onClick={handleMaskLayerClick}
+        >
+          <div className="inline-flex gap-2 items-center">
+            <div>Mask</div>
+            <button
+              ref={maskColorBox}
+              className="size-5 p-0 rounded border border-neutral-700 cursor-pointer"
+              style={{ backgroundColor: controlnetLayer?.maskColor }}
+              onClick={handleColorBoxClick}
+            />
+          </div>
+
+          <div className="flex">
+            <LayerActionButton
+              type="clearLines"
+              onClick={() => {
+                emitClearLayerLines((id + "-mask") as ActiveLayer);
+              }}
+            />
+            <Toggle
+              pressed={controlnetLayer?.isMaskVisible ?? false}
+              onChange={(value) =>
+                dispatch(
+                  updateControlnetLayer({
+                    layerId: controlnetLayer?.id,
+                    isMaskVisible: value,
+                  })
+                )
+              }
+              title="Show/Hide"
+              pressedIconComponent={EyeOpenIcon}
+              unpressedIconComponent={EyeNoneIcon}
+            />
+            <Checkbox
+              checked={controlnetLayer?.isMaskEnabled ?? false}
+              onChange={(value) =>
+                dispatch(
+                  updateControlnetLayer({
+                    layerId: controlnetLayer?.id,
+                    isMaskEnabled: value,
+                  })
+                )
+              }
+            />
+          </div>
+        </li>
+      )}
+      {/* FIXME: preview image not showing when image is dragged to canvas */}
+      {controlnetLayer?.image && isImagePreviewVisible && (
+        <Portal.Root
+          className="absolute"
+          style={{
+            right:
+              document.body.getBoundingClientRect().width -
+              (itemRef.current?.getBoundingClientRect()?.left ?? 0) +
+              20,
+            top: itemRef.current?.getBoundingClientRect().top,
+          }}
+        >
+          <div
+            className="rounded-md backdrop-blur-sm bg-black/70 border border-neutral-700/20 shadow-md shadow-black/20"
+            style={{
+              backgroundImage: `url(${controlnetLayer?.image}`,
+              width: 150,
+              height: 150,
+              backgroundSize: "contain",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "center",
+            }}
+          />
+        </Portal.Root>
+      )}
+    </>
   );
 };
 
@@ -171,6 +422,8 @@ const LayersControl = () => {
       id: `controlnet${id as string}`,
       isEnabled,
       name: `Controlnet ${index + 1}`,
+      type: "controlnet",
+      subId: id,
       subtitle: `${
         module?.toLowerCase() != "none"
           ? module
@@ -184,8 +437,8 @@ const LayersControl = () => {
         isEnabled: !controlnetArgs[index].isEnabled,
       },
       isVisible: isVisible as boolean,
-      visiblitiyActionCreator: updateControlnetLayer,
-      visiblitiyActionCreatorPayload: {
+      visibilityActionCreator: updateControlnetLayer,
+      visibilityActionCreatorPayload: {
         layerId: id,
         isVisible: !controlnetArgs[index].isVisible,
       },
@@ -204,7 +457,7 @@ const LayersControl = () => {
           title="Clear Image"
           type="clearImage"
         />,
-        //TODO: Add clear lines button for CN layers
+
         <LayerActionButton
           key="clearLines"
           onClick={() =>
@@ -222,6 +475,7 @@ const LayersControl = () => {
       id: "base",
       name: "Base",
       isVisible: true,
+      type: "base",
       // actionCreator: toggleSketchLayerVisibility,
       actions: [
         <LayerActionButton
@@ -237,8 +491,9 @@ const LayersControl = () => {
     {
       id: "mask",
       name: "Mask",
+      type: "mask",
       isVisible: isMaskLayerVisible,
-      visiblitiyActionCreator: toggleMaskLayerVisibility,
+      visibilityActionCreator: toggleMaskLayerVisibility,
       actions: [
         <Toggle
           key="invertMask"
@@ -264,8 +519,9 @@ const LayersControl = () => {
     {
       id: "sketch",
       name: "Sketch",
+      type: "sketch",
       isVisible: isSketchLayerVisible,
-      visiblitiyActionCreator: toggleSketchLayerVisibility,
+      visibilityActionCreator: toggleSketchLayerVisibility,
       actions: [
         <LayerActionButton
           key="clearSketch"
@@ -395,9 +651,46 @@ const LayersControl = () => {
     }
   }, 0);
 
+  const layerItemsListRef = useRef<HTMLDivElement>(null);
+  const handleAddLayer = () => {
+    dispatch(addControlnetLayer(uuid4()));
+    //TODO: add addition animation
+    // layerItemsListRef?.current?.scrollTo(
+    //   0,
+    //   layerItemsListRef.current.scrollHeight
+    // );
+  };
+
+  // useEffect(() => {
+  //   layerItemsListRef?.current?.scrollTo(
+  //     0,
+  //     layerItemsListRef.current.scrollHeight
+  //   );
+  // }, [controlnetLayers]);
+
+  const handleRemoveLayer = () => {
+    if (activeControlnetLayer?.id) {
+      dispatch(removeControlnetLayer(activeControlnetLayer.id));
+      const activeControlnetLayerIndex = +activeLayerId.replace(
+        "controlnet",
+        ""
+      );
+
+      dispatch(
+        setActiveLayer(
+          activeControlnetLayerIndex === 0
+            ? "base"
+            : `controlnet${activeControlnetLayerIndex - 1}`
+        )
+      );
+    }
+  };
+
   const activeControlnetLayer = activeLayerId.startsWith("controlnet")
     ? controlnetArgs.find(
-        (arg) => arg.id === activeLayerId.replace("controlnet", "")
+        (arg) =>
+          arg.id ===
+          activeLayerId.replace("controlnet", "").replace("-mask", "")
       )
     : null;
 
@@ -406,7 +699,7 @@ const LayersControl = () => {
   )?.sliders;
 
   return (
-    <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[20vw] p-4 rounded backdrop-blur-sm select-none overflow-hidden">
+    <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[20vw] p-4 pe-0 rounded backdrop-blur-sm select-none overflow-hidden">
       {/* <div className="flex flex-row gap-4">
         <div className="flex gap-2">
           <Label htmlFor="mode">Mode</label>
@@ -445,19 +738,40 @@ const LayersControl = () => {
           checked={isControlnetLayerVisible}
         />
       </Label> */}
-
-      <h3 className="font-bold">Layers</h3>
-      <ul className="flex flex-col w-full mt-2 rounded overflow-hidden">
-        {/* TODO: animate layer on undo/redo to signal which layer was affected */}
-        {layers.map(({ id, ...rest }) => (
-          <LayerItem
-            key={id}
-            id={id}
-            isActive={activeLayerId === id}
-            {...rest}
-          />
-        ))}
-      </ul>
+      <div className="flex justify-between pt-2">
+        <h3 className="sm:flex-1 lg:flex-[3] text-sm font-bold">Layers</h3>
+        <div className="flex flex-1 gap-4 sticky top-0 mt-[-8px] pe-1">
+          <button
+            className="p-0.5 rounded-md flex justify-center items-center disabled:bg-neutral-900 disabled:text-neutral-700 border-neutral-700 disabled:border-neutral-800 disabled:cursor-not-allowed size-8"
+            title="Remove layer"
+            onClick={handleRemoveLayer}
+            disabled={!activeControlnetLayer}
+          >
+            <TrashIcon />
+          </button>
+          <button
+            className="flex justify-center items-center p-0.5 rounded-md size-8 disabled:bg-neutral-900 disabled:text-neutral-700 border-neutral-700 disabled:border-neutral-800"
+            title="Add controlnet layer"
+            onClick={handleAddLayer}
+          >
+            <PlusIcon />
+          </button>
+        </div>
+      </div>
+      <ScrollArea classNames="pe-2 mb-2" ref={layerItemsListRef}>
+        <ul className="max-h-[31vh] pe-2 flex flex-col w-full mt-2 rounded">
+          {/* TODO: animate layer on undo/redo to signal which layer was affected */}
+          {layers.map(({ id, ...rest }) => (
+            <LayerItem
+              key={id}
+              id={id}
+              activeLayerId={activeLayerId}
+              isActive={activeLayerId === id}
+              {...rest}
+            />
+          ))}
+        </ul>
+      </ScrollArea>
 
       <div>
         {/* <Label htmlFor={`enabled${controlnetLayer.id}`}>
@@ -471,9 +785,9 @@ const LayersControl = () => {
               onChange={(e) => handleControlnetChange(e, i)}
             />
           </Label> */}
-        {activeControlnetLayer?.isEnabled && (
-          <ScrollArea classNames="px-2">
-            <div className="flex gap-5 flex-col mt-2 h-[40vh]  pt-1 pl-1.5 pr-2.5">
+        {activeControlnetLayer && (
+          <ScrollArea classNames="px-2 mb-2">
+            <div className="flex gap-5 flex-col mt-2 h-[45vh]  pt-1 pl-1.5 pr-2.5">
               <div>
                 <ImageUploader
                   image={
@@ -910,9 +1224,9 @@ const LayerActionButton = ({
       title={title}
     >
       {type === "clearLines" ? (
-        <TrashIcon />
+        <EraserIcon />
       ) : type === "clearImage" ? (
-        <ValueNoneIcon />
+        <ViewNoneIcon />
       ) : null}
     </button>
   );

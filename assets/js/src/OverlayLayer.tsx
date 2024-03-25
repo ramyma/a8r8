@@ -76,7 +76,7 @@ const BrushPreview = forwardRef((_props, ref: LegacyRef<BrushPreviewNode>) => {
       ref={ref}
       {...(tool === "eraser"
         ? { fill: "red", opacity: 0.1 }
-        : activeLayer === "mask"
+        : (activeLayer as string)?.includes("mask")
         ? {
             fillPatternImage: svgImage,
             fillPatternRepeat: "repeat",

@@ -17,6 +17,7 @@ interface CanvasState {
   stageScale: number;
   stagePosition: Vector2d;
   isColorPickerVisible: boolean;
+  colorPickerPosition: Vector2d;
   mode: Mode;
   tool: Tool;
   isControlnetLayerVisible: boolean;
@@ -26,7 +27,7 @@ interface CanvasState {
 const initialState: CanvasState = {
   brushColor: theme.colors.black,
   maskColor: theme.colors.primary,
-  brushSize: 40,
+  brushSize: 100,
   brushPreviewPosition: { x: -100, y: -100 },
   isBrushPreviewVisible: true,
   stageScale: 1.0,
@@ -37,6 +38,7 @@ const initialState: CanvasState = {
   isControlnetLayerVisible: true,
   maskLines: [],
   invertMask: false,
+  colorPickerPosition: { x: -100, y: -100 },
 };
 export const canvasSlice = createSlice({
   name: "canvas",
@@ -45,11 +47,14 @@ export const canvasSlice = createSlice({
     updateBrushSize: (state, action) => {
       state.brushSize = action.payload;
     },
-    incrementBrushSize: (state) => {
-      state.brushSize += 5;
+    incrementBrushSize: (state, action: PayloadAction<number | undefined>) => {
+      state.brushSize += 10 * (action.payload ?? 1);
     },
-    decrementBrushSize: (state) => {
-      state.brushSize -= 5;
+    decrementBrushSize: (state, action: PayloadAction<number | undefined>) => {
+      state.brushSize = Math.max(
+        5,
+        state.brushSize - 10 * (action.payload ?? 1)
+      );
     },
     updateBrushPreviewPosition: (state, action: PayloadAction<Vector2d>) => {
       state.brushPreviewPosition = action.payload;
@@ -66,8 +71,12 @@ export const canvasSlice = createSlice({
     setIsbrushPreviewVisible: (state, action: PayloadAction<boolean>) => {
       state.isBrushPreviewVisible = action.payload;
     },
-    toggleColorPickerVisibility: (state) => {
+    toggleColorPickerVisibility: (
+      state,
+      action: PayloadAction<Vector2d | undefined>
+    ) => {
       state.isColorPickerVisible = !state.isColorPickerVisible;
+      if (action.payload) state.colorPickerPosition = action.payload;
     },
     setMode: (state, action: PayloadAction<Mode>) => {
       state.mode = action.payload;
@@ -114,6 +123,8 @@ export const selectIsBrushPreviewVisible = (state: RootState) =>
   state.canvas.isBrushPreviewVisible;
 export const selectIsColorPickerVisible = (state: RootState) =>
   state.canvas.isColorPickerVisible;
+export const selectIsColorPickerPosition = (state: RootState) =>
+  state.canvas.colorPickerPosition;
 export const selectStageScale = (state: RootState) => state.canvas.stageScale;
 export const selectStagePosition = (state: RootState) =>
   state.canvas.stagePosition;

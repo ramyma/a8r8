@@ -114,14 +114,14 @@ const Toolbar = () => {
         </RadixToolbar.ToggleGroup>
         <RadixToolbar.Separator className="w-[1px] bg-neutral-700 mx-[10px]" />
         <RadixToolbar.Button
-          className="w-[35px] h-[35px] mx-[3px] border border-neutral-600 disabled:text-neutral-500 p-0 basis-auto  rounded inline-flex leading-none items-center justify-center outline-none disabled:!bg-neutral-800 ml-auto"
+          className="w-[35px] h-[35px] mx-[3px] border border-neutral-600 disabled:cursor-not-allowed disabled:text-neutral-500 p-0 basis-auto  rounded inline-flex leading-none items-center justify-center outline-none disabled:!bg-neutral-800 ml-auto"
           style={{
             backgroundColor: activeLayer === "mask" ? maskColor : brushColor,
           }}
           onClick={handleColorClick}
           aria-label="Color picker"
           title="Color Picker (p)"
-          disabled={mode !== "paint"}
+          disabled={mode !== "paint" || activeLayer === "base"}
         ></RadixToolbar.Button>
         <RadixToolbar.ToggleGroup
           type="single"

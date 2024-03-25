@@ -109,6 +109,11 @@ export default function Canvas() {
     {}
   );
 
+  const [controlnetMaskLines, dispatchControlnetMaskLines] = useReducer(
+    controlnetLinesReducer,
+    {}
+  );
+
   const [, setRefresher] = useState<number>(0);
   // const [controlnetLines, setControlnetLines] = useState<{
   //   [key: number]: BrushStroke[];
@@ -131,37 +136,58 @@ export default function Canvas() {
   const getControlnetLayerLines = useCallback(
     () =>
       typeof activeControlnetLayerId === "string"
-        ? controlnetLines[activeControlnetLayerId] ?? []
+        ? (activeLayer.endsWith("mask")
+            ? controlnetMaskLines[activeControlnetLayerId]
+            : controlnetLines[activeControlnetLayerId]) ?? []
         : [],
-    [activeControlnetLayerId, controlnetLines]
+    [activeControlnetLayerId, activeLayer, controlnetLines, controlnetMaskLines]
   );
 
   const setControlnetLayerLines = useCallback(
     (
       arg: BrushStroke[] | ((lines: BrushStroke[]) => BrushStroke[]),
-      layerId?: string
+      layerId?: string,
+      isClear?: boolean
     ) => {
       // hack to rerender on controlnet lines update
-      setRefresher(Math.random() * 1000);
+      setRefresher((prev) => prev + 1);
 
-      layerId ??= activeControlnetLayerId;
+      const layer = isClear && layerId ? layerId : activeLayer;
 
-      if (activeLayer.includes("controlnet") && layerId)
+      layerId = layer.includes("controlnet")
+        ? layer.replace(/(controlnet|(-mask))/g, "")
+        : activeControlnetLayerId;
+
+      if (layer.includes("controlnet") && layerId)
         if (Array.isArray(arg)) {
           const lines = arg;
-          dispatchControlnetLines({
-            type: "UPDATE",
-            payload: { id: layerId, lines },
-          });
+          layer.endsWith("mask")
+            ? dispatchControlnetMaskLines({
+                type: "UPDATE",
+                payload: { id: layerId, lines },
+              })
+            : dispatchControlnetLines({
+                type: "UPDATE",
+                payload: { id: layerId, lines },
+              });
         } else {
-          const lines = arg(controlnetLines[layerId] ?? []);
-          dispatchControlnetLines({
-            type: "UPDATE",
-            payload: { id: layerId, lines },
-          });
+          if (layer.endsWith("mask")) {
+            const lines = arg(controlnetMaskLines[layerId] ?? []);
+
+            dispatchControlnetMaskLines({
+              type: "UPDATE",
+              payload: { id: layerId, lines },
+            });
+          } else {
+            const lines = arg(controlnetLines[layerId] ?? []);
+            dispatchControlnetLines({
+              type: "UPDATE",
+              payload: { id: layerId, lines },
+            });
+          }
         }
     },
-    [activeControlnetLayerId, activeLayer, controlnetLines]
+    [activeControlnetLayerId, activeLayer, controlnetLines, controlnetMaskLines]
   );
 
   const clearLines = useCallback(
@@ -174,7 +200,7 @@ export default function Canvas() {
       }
       if (layer.startsWith("controlnet")) {
         const layerId = layer.replace("controlnet", "");
-        setControlnetLayerLines([], layerId);
+        setControlnetLayerLines([], layer, true);
       }
     },
     [
@@ -316,10 +342,16 @@ export default function Canvas() {
         stage && zoomCanvas(stage, direction);
       }
       if (e.key === "[") {
-        if (brushSize > 5) dispatch(decrementBrushSize());
+        if (brushSize > 5) dispatch(decrementBrushSize(e.ctrlKey ? 0.1 : 1));
+      }
+      if (e.key === "{") {
+        if (brushSize > 5) dispatch(decrementBrushSize(10));
       }
       if (e.key === "]") {
-        dispatch(incrementBrushSize());
+        dispatch(incrementBrushSize(e.ctrlKey ? 0.1 : 1));
+      }
+      if (e.key === "}") {
+        dispatch(incrementBrushSize(10));
       }
       if (e.key.toLocaleLowerCase() === "c" && !e.ctrlKey) {
         clearLines();
@@ -387,8 +419,8 @@ export default function Canvas() {
           activeLayer === "mask"
             ? setMaskLines
             : activeLayer === "sketch"
-            ? setSketchLines
-            : setControlnetLayerLines;
+              ? setSketchLines
+              : setControlnetLayerLines;
 
         setFunc((lines) => [
           ...lines,
@@ -537,8 +569,8 @@ export default function Canvas() {
           activeLayer === "mask"
             ? maskLines
             : activeLayer === "sketch"
-            ? sketchLines
-            : getControlnetLayerLines();
+              ? sketchLines
+              : getControlnetLayerLines();
         const lastLine = linesArr[linesArr.length - 1];
         // console.log(lastLine.points, lastLine.points.length);
 
@@ -584,12 +616,12 @@ export default function Canvas() {
     },
     [
       activeLayer,
+      maskLines,
+      sketchLines,
+      getControlnetLayerLines,
+      setControlnetLayerLines,
       setMaskState,
       setSketchState,
-      getControlnetLayerLines,
-      maskLines,
-      setControlnetLayerLines,
-      sketchLines,
     ]
   );
   const handleMouseLeave = () => {
@@ -617,25 +649,30 @@ export default function Canvas() {
         >
           <ImageLayer />
           <SketchLayer dimensions={dimensions} lines={sketchLines} />
+          <ControlnetLayer
+            dimensions={dimensions}
+            lines={controlnetLines}
+            maskLines={controlnetMaskLines}
+          />
           <MaskLayer dimensions={dimensions} lines={maskLines} />
-          <ControlnetLayer lines={controlnetLines} />
           <SelectionLayer />
           <OverlayLayer
             brushPreviewRef={brushPreviewRef as Ref<BrushPreviewNode>}
           />
         </Stage>
       )}
+      {/* {dimensions && isColorPickerVisible && ( */}
       {dimensions && isColorPickerVisible && (
-        <div
-          className="absolute"
-          style={{
-            top: dimensions?.height / 2 - 110,
-            left: dimensions?.width / 2 - 110,
+        <ColorPicker
+          isVisible={isColorPickerVisible}
+          position={{
+            x: (dimensions?.width ?? 0) / 2 - 110,
+            y: (dimensions?.height ?? 0) / 2 - 110,
           }}
-        >
-          <ColorPicker />
-        </div>
+          onClose={() => dispatch(toggleColorPickerVisibility())}
+        />
       )}
+      {/* )} */}
     </div>
   );
 }

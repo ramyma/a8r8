@@ -16,7 +16,7 @@ const useDragAndDrop = ({ handleAddImage, emit = false }: Props) => {
   const dispatch = useAppDispatch();
 
   useCustomEventListener("custom-dnd", (data) => {
-    handleAddImage && handleAddImage(data);
+    handleAddImage?.(data);
   });
   const activeLayer = useAppSelector(selectActiveLayer);
 

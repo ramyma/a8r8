@@ -9,7 +9,7 @@ interface OptionsState {
     name: string;
     isSdXl: boolean;
   };
-  sd_vae: string;
+  sd_vae?: string;
   backend: Backend;
 }
 

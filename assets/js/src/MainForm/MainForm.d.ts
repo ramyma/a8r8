@@ -1,0 +1,24 @@
+export type TiledDiffusionArgs = {
+  enabled: boolean;
+  method: "Mixture of Diffusers" | "MultiDiffusion";
+  overwrite_image_size: boolean;
+  keep_input_size: boolean;
+  image_width: number;
+  image_height: number;
+  tile_width: number;
+  tile_height: number;
+  overlap: number;
+  tile_batch_size: number;
+  upscaler_index: string;
+  scale_factor: number;
+  noise_inverse: boolean;
+  noise_inverse_steps: number;
+  noise_inverse_retouch: number;
+  noise_inverse_renoise_strength: number;
+  noise_inverse_renoise_kernel: number;
+  control_tensor_cpu: boolean;
+  enable_bbox_control: boolean;
+  draw_background: boolean;
+  causal_layers: boolean;
+  bbox_control_states: null;
+};
