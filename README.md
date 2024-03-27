@@ -14,14 +14,14 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
   - [Features](#features)
   - [Getting started](#getting-started)
     - [Installation](#installation)
-      - [Windows WSL2](#windows-wsl2)
+      - [Windows WSL2 (**RECOMMENDED**)](#windows-wsl2-recommended)
       - [Docker](#docker)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken)
     - [Running](#running)
       - [Docker](#docker-1)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-1)
     - [Updating](#updating)
-      - [Windows WSL2](#windows-wsl2-1)
+      - [Windows WSL2](#windows-wsl2)
       - [Docker](#docker-2)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-2)
   - [Key Shortcuts](#key-shortcuts)
@@ -102,7 +102,7 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 
 Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
 
-#### Windows WSL2
+#### Windows WSL2 (**RECOMMENDED**)
 
 1. Install [Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge) and/or[Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) and/or [ComfyUI](https://github.com/comfyanonymous/ComfyUI)  if you haven't yet
 2. Clone this repo and open a terminal at the root directory
