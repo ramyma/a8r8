@@ -21,7 +21,7 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
       - [Docker](#docker-1)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-1)
     - [Updating](#updating)
-      - [Windows WSL](#windows-wsl)
+      - [Windows WSL2](#windows-wsl2-1)
       - [Docker](#docker-2)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-2)
   - [Key Shortcuts](#key-shortcuts)
@@ -96,7 +96,7 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 
 ### Installation
 
-**Update v0.0.4:**  Added one click installer for Windows (WSL2) and Debian based Linux `install.sh`, check [installation steps](#docker) for details.
+**Update v0.0.4:**  Added one click installer for Windows (WSL2) and Debian based Linux `install.sh`, check [installation steps](#windows-wsl2) for details.
 
 **Update:** Added one click installer for Windows `install-docker.ps1`, check [installation steps](#docker) for details.
 
@@ -162,7 +162,7 @@ Update: one of the dependencies doesn't work with Windows at the moment, so it w
 
 ### Updating
 
-#### Windows WSL
+#### Windows WSL2
 1. Run `wsl`
 2. Run `git pull`
 3. Run `./install.sh`
