@@ -96,7 +96,7 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 
 ### Installation
 
-**Update v0.0.4:**  Added one click installer for Windows (WSL2) and Debian based Linux `install.sh`, check [installation steps](#windows-wsl2) for details.
+**Update v0.4.0:**  Added one click installer for Windows (WSL2) and Debian based Linux `install.sh`, check [installation steps](#windows-wsl2) for details.
 
 **Update:** Added one click installer for Windows `install-docker.ps1`, check [installation steps](#docker) for details.
 
