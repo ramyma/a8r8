@@ -18,7 +18,7 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
       - [Docker](#docker)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken)
     - [Running](#running)
-    - [WSL](#wsl)
+      - [WSL 2](#wsl-2)
       - [Docker](#docker-1)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-1)
     - [Updating](#updating)
@@ -106,13 +106,15 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 #### Windows WSL2 (**RECOMMENDED**)
 
 1. Install [Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge) and/or[Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) and/or [ComfyUI](https://github.com/comfyanonymous/ComfyUI)  if you haven't yet
-2. Clone this repo and open a terminal at the root directory
-3. Install WSL2 by typing `wsl --install` to install the default Ubuntu distro
-4. Run wsl `wsl`
-5. Set the user name and password if it's your first time using it. Make sure you remember the password you entered
-6. Run `./install.sh`
-7. Run `./run.sh` 
-8. Start the SD backend of your choice
+2. Clone this repo
+3. Go to the folder where you cloned the repo
+4. Right click within the folder and choose `Open in Terminal`
+5. Install WSL2 by typing `wsl --install` to install the default Ubuntu distro
+6. Run wsl `wsl`
+7. Set the user name and password if it's your first time using it. Make sure you remember the password you entered
+8. Run `./install.sh`
+9. Run `./run.sh` 
+10. Start the SD backend of your choice
    1. Forge/Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
@@ -146,12 +148,14 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 
 ### Running
 
-### WSL
+#### WSL 2
 
 1. Make sure you followed the [installation steps](#windows-wsl2-recommended)
-2. Run `wsl` in a terminal
-3. Run `./run.sh`
-4. Run your stable diffusion backend (Forge/A1111/Comfy)
+2. Go to the folder where you cloned the repo
+3. Right click within the folder and choose `Open in Terminal`
+4. Run `wsl` in a terminal
+5. Run `./run.sh`
+6. Run your stable diffusion backend (Forge/A1111/Comfy)
 
 &nbsp;
 
