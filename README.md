@@ -18,6 +18,7 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
       - [Docker](#docker)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken)
     - [Running](#running)
+    - [WSL](#wsl)
       - [Docker](#docker-1)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-1)
     - [Updating](#updating)
@@ -123,7 +124,7 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 
 1. Install [Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) and/or [ComfyUI](https://github.com/comfyanonymous/ComfyUI)  if you haven't yet
 2. Clone this repo and open a terminal at the root directory
-3. On Windows you can run `install-docker.ps1` in a powershell window or:
+3. On Windows you can run `install-docker.ps1` in a powershell window (**recommended**) or:
    1. Install [Docker Compose](https://docs.docker.com/compose/gettingstarted/)
    2. Run `docker compose build`
 4. Start the SD backend of your choice
@@ -134,23 +135,41 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
 
+&nbsp;
+
 #### Windows (EXPERIMENTAL / BROKEN)
 
 1. Clone this repo and open a terminal at the root directory
 2. Run `install.ps1` in a powershell window
 
+&nbsp;
+
 ### Running
-1. Run `wsl` in a terminal 
-2. Run `./run.sh`
+
+### WSL
+
+1. Make sure you followed the [installation steps](#windows-wsl2-recommended)
+2. Run `wsl` in a terminal
+3. Run `./run.sh`
+4. Run your stable diffusion backend (Forge/A1111/Comfy)
+
+&nbsp;
 
 #### Docker
 
-On Windows you can run `install-docker.ps1` in a powershell window
+On Windows you can run `run-docker.ps1` in a powershell window
 
-Or
+_Or_
 
-1. Run `docker compose up`
-2. Point your browser to [http://localhost:4000](http://localhost:4000), it's preferred to use a chromium based browser (Brave, Chromium, Chrome)
+Run `docker compose up`
+
+
+&nbsp;
+
+Point your browser to [http://localhost:4000](http://localhost:4000), it's preferred to use a chromium based browser (Brave, Chromium, Chrome)
+
+&nbsp;
+&nbsp;
 
 #### Windows (EXPERIMENTAL / BROKEN)
 
@@ -159,6 +178,9 @@ Or
 Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
 
 Update: one of the dependencies doesn't work with Windows at the moment, so it won't run successfully
+
+&nbsp;
+
 
 ### Updating
 
@@ -182,6 +204,9 @@ Or
 2. Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
 
 Update: one of the dependencies doesn't work with Windows at the moment, so it won't run successfully
+
+&nbsp;
+&nbsp;
 
 ## Key Shortcuts
 
