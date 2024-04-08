@@ -7,6 +7,9 @@ export HOST_IP="localhost"
 if [[ $(grep -i Microsoft /proc/version) ]]; then
     echo "Bash is running on WSL"
     export HOST_IP=$(ip route show | grep -i default | awk '{ print $3}')
+
+    export ASDF_DATA_DIR="$HOME/.asdf"
+    . $ASDF_DATA_DIR/asdf.sh
 fi
 
 export AUTO_URL="http://$HOST_IP:7860"
