@@ -109,7 +109,7 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 2. Download [one-click-installer-wsl.bat](https://github.com/ramyma/a8r8/raw/main/one-click-installer-wsl.bat) and [install.sh](https://github.com/ramyma/a8r8/raw/main/install.sh) in the folder you want to install the application in
 3. Go to the folder where you downloaded the files
 4. Right click within the folder and choose `Open in Terminal`
-5. Run `one-click-installer-wsl.bat`
+5. Run `.\one-click-installer-wsl.bat`
 6. Set the user name and password if it's your first time using it. Make sure you remember the password you entered
 7. Once the installation completes, you can open the generated `a8r8` folder
 8. To start the application open `run-windows.bat` (preferably in a terminal to see the output logs)
