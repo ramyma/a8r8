@@ -14,15 +14,15 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
   - [Features](#features)
   - [Getting started](#getting-started)
     - [Installation](#installation)
-      - [Windows WSL2 (**RECOMMENDED**)](#windows-wsl2-recommended)
+      - [One-Click Windows WSL2 (**RECOMMENDED**)](#one-click-windows-wsl2-recommended)
       - [Docker](#docker)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken)
     - [Running](#running)
-      - [WSL 2](#wsl-2)
+      - [One-Click Windows WSL2](#one-click-windows-wsl2)
       - [Docker](#docker-1)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-1)
     - [Updating](#updating)
-      - [Windows WSL2](#windows-wsl2)
+      - [One-Click Windows WSL2](#one-click-windows-wsl2-1)
       - [Docker](#docker-2)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-2)
   - [Key Shortcuts](#key-shortcuts)
@@ -97,30 +97,36 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 
 ### Installation
 
-**Update v0.4.0:**  Added one click installer for Windows (WSL2) and Debian based Linux `install.sh`, check [installation steps](#windows-wsl2) for details.
+**Update - 2024/04/04: Added one-click installer or Windows (WSL2), check [installation steps](#one-click-windows-wsl2-recommended) for details.**
 
 **Update:** Added one click installer for Windows `install-docker.ps1`, check [installation steps](#docker) for details.
 
 Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
 
-#### Windows WSL2 (**RECOMMENDED**)
+#### One-Click Windows WSL2 (**RECOMMENDED**)
 
 1. Install [Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge) and/or[Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) and/or [ComfyUI](https://github.com/comfyanonymous/ComfyUI)  if you haven't yet
-2. Clone this repo
-3. Go to the folder where you cloned the repo
+2. Download [one-click-installer-wsl.bat](https://github.com/ramyma/a8r8/raw/main/one-click-installer-wsl.bat) and [install.sh](https://github.com/ramyma/a8r8/raw/main/install.sh) in the folder you want to install the application in
+3. Go to the folder where you downloaded the files
 4. Right click within the folder and choose `Open in Terminal`
-5. Install WSL2 by typing `wsl --install` to install the default Ubuntu distro
-6. Run wsl `wsl`
-7. Set the user name and password if it's your first time using it. Make sure you remember the password you entered
-8. Run `./install.sh`
-9. Run `./run.sh` 
-10. Start the SD backend of your choice
+5. Run `one-click-installer-wsl.bat`
+6. Set the user name and password if it's your first time using it. Make sure you remember the password you entered
+7. Once the installation completes, you can open the generated `a8r8` folder
+8. To start the application open `run-windows.bat` (preferably in a terminal to see the output logs)
+9. Start the SD backend of your choice
    1. Forge/Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+
+&nbsp;
+
+>**NOTE**:
+If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a remote machine, make sure to set the remote address in `user.sh` and uncomment the URL entries.
+
+&nbsp;
 
 #### Docker
 
@@ -148,14 +154,13 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 
 ### Running
 
-#### WSL 2
+#### One-Click Windows WSL2
 
 1. Make sure you followed the [installation steps](#windows-wsl2-recommended)
 2. Go to the folder where you cloned the repo
 3. Right click within the folder and choose `Open in Terminal`
-4. Run `wsl` in a terminal
-5. Run `./run.sh`
-6. Run your stable diffusion backend (Forge/A1111/Comfy)
+4. Run `run-windows.bat`
+5. Run your stable diffusion backend (Forge/A1111/Comfy)
 
 &nbsp;
 
@@ -188,10 +193,9 @@ Update: one of the dependencies doesn't work with Windows at the moment, so it w
 
 ### Updating
 
-#### Windows WSL2
-1. Run `wsl`
-2. Run `git pull`
-3. Run `./install.sh`
+#### One-Click Windows WSL2
+
+1. Run `update-windows.bat`
 
 #### Docker
 
