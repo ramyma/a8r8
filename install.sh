@@ -1,7 +1,7 @@
 #!/bin/bash
 
 sudo apt -y update
-sudo apt -y install curl git libvips unzip libstdc++6 openssl libncurses5-dev locales curl libssl-dev build-essential autoconf m4 libncurses-dev libgl1-mesa-dev libglu1-mesa-dev libpng-dev libssh-dev unixodbc-dev xsltproc fop libxml2-utils
+sudo apt -y install curl git libvips unzip libstdc++6 openssl libncurses5-dev locales curl libssl-dev build-essential autoconf m4 libncurses-dev libgl1-mesa-dev libglu1-mesa-dev libpng-dev libssh-dev unixodbc-dev xsltproc fop libxml2-utils #nvidia-cudnn
 
 if ! [ -x "$(command -v asdf)" ]; then
     echo 'Install required dependencies' >&2
