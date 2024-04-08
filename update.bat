@@ -1,0 +1,1 @@
+wsl -e bash -c "./update.sh"
