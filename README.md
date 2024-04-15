@@ -2,10 +2,12 @@
 
 An opinionated interface for SD (Stable Diffusion) image generation, and more.
 
-<sub>Links: [[Discord](https://discord.gg/RzdGa839MK)]</sub>
+Links: [[Discord](https://discord.gg/RzdGa839MK)]
 
 &nbsp;
 ![Interface](readme/screenshots/interface.png)
+
+![Interface2](readme/screenshots/interface2.png)
 *Unified interface*
 
 &nbsp;
@@ -37,6 +39,7 @@ An opinionated interface for SD (Stable Diffusion) image generation, and more.
 - Runs in browser
 - Full [Controlnet](https://github.com/Mikubill/sd-webui-controlnet) support
 - Controlnet mask layers with Forge
+- Attention mask layers with Forge & [Forge Couple](https://github.com/Haoming02/sd-forge-couple)
 - Open canvas with unified interface
 - Inpainting/Outpainting with masking and scaling
 - VRam usage info
@@ -105,8 +108,8 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 
 #### One-Click Windows WSL2 (**RECOMMENDED**)
 
-1. Install [Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge) and/or[Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) and/or [ComfyUI](https://github.com/comfyanonymous/ComfyUI)  if you haven't yet
-2. Download [one-click-installer-wsl.bat](https://github.com/ramyma/a8r8/raw/main/one-click-installer-wsl.bat) and [install.sh](https://github.com/ramyma/a8r8/raw/main/install.sh) in the folder you want to install the application in
+1. Install [Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge?tab=readme-ov-file#installing-forge) and/or[Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) and/or [ComfyUI](https://github.com/comfyanonymous/ComfyUI)  if you haven't yet
+2. Download latest One-Click Installer from [latest release](https://github.com/ramyma/a8r8/releases/latest) or[one-click-installer-wsl.bat](https://github.com/ramyma/a8r8/raw/main/one-click-installer-wsl.bat) and [install.sh](https://github.com/ramyma/a8r8/raw/main/install.sh) in the folder you want to install the application in
 3. Go to the folder where you downloaded the files
 4. Right click within the folder and choose `Open in Terminal`
 5. Run `.\one-click-installer-wsl.bat`
@@ -122,6 +125,10 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
 
 &nbsp;
+
+>**NOTE**:
+To use regional prompting with Forge, make sure to install the [Forge Couple](https://github.com/Haoming02/sd-forge-couple) extension >= v1.3.7 to your Forge installation
+
 
 >**NOTE**:
 If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a remote machine, make sure to set the remote address in `user.sh` and uncomment the URL entries.
@@ -233,8 +240,8 @@ Key/Combo/Action | Fuctionality
  `h` | hide mask layer
  `c` | clear mask, sketch or controlnet brush strokes of the active layer
  `m` | toggle between mask and sketch layers
- `CTRL + z` | undo generation image addition, mask paint, sketch paint
- `CTRL + SHIFT + z`, `CTRL + y`| redo generation image addition, mask paint, sketch paint
+ `CTRL + z` | undo generation image addition, mask paint, sketch paint, or any layer brush stroke
+ `CTRL + SHIFT + z`, `CTRL + y`| redo generation image addition, mask paint, sketch paint, or any layer brush stroke
  `CTRL + c`| copy image to clipboard within selection box bounds from the base layer
  `CTRL + v`| paste image from clipboard at the selection box top left corner position to the base or active controlnet layer. Generation info will be applied if found when pasting to base layer
  `CTRL + s`| save image within selection box bounds to disk
@@ -249,6 +256,15 @@ To be added...
 &nbsp;
 
 ## Sample Generations
+
+![ex0](readme/examples/ex0.png)
+
+&nbsp;
+
+![ex5](readme/examples/ex5.png)
+
+&nbsp;
+
 
 ![ex1](readme/examples/ex1.png)
 

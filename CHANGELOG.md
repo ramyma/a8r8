@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.5.0] - 2024-04-15
+
+### Added
+
+- Added regional prompting and region mask layers - make sure to add the Forge Couple extension >= v1.3.7 to your Forge installation
+- Reworked undo/redo for controlnet layers and region mask layers
+- Added Tiled Diffusion initial support with Forge
+- Added One-Click Installer
+
+### Fixed
+
+- Fixed controlnet with preprocessor set to None
+- A number of other fixes and UI tweaks
+
 ## [0.4.0] - 2024-03-25
 
 ### Added
