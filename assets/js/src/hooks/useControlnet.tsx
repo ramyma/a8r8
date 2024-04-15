@@ -41,7 +41,7 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
   const {
     selectionBoxRef,
     selectionBoxLayerRef,
-    maskLayerRef,
+    maskGroupRef,
     controlnetLayerRef,
     stageRef,
     overlayLayerRef,
@@ -74,7 +74,7 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
     imageDataUrl?: string;
   }) => {
     imageDataUrl ??= await getImageDataUrl();
-    if (module === "none") return;
+    if (module === "None") return;
     sendMessage("controlnet_detect", {
       layer_id: layerId,
       controlnet_module: module,
@@ -117,7 +117,7 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
 
   const getImageDataUrl = async () => {
     const stage = stageRef?.current;
-    const maskLayer = maskLayerRef?.current;
+    const maskLayer = maskGroupRef?.current;
     const controlnetLayer = controlnetLayerRef?.current;
 
     const selectionBox = selectionBoxRef?.current;

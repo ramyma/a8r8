@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import { useContext } from "react";
 import * as RadixToolbar from "@radix-ui/react-toolbar";
 import {
   GroupIcon,
@@ -11,8 +11,6 @@ import {
 } from "@radix-ui/react-icons";
 import { useAppDispatch, useAppSelector } from "../hooks";
 import {
-  selectBrushColor,
-  selectMaskColor,
   selectMode,
   selectStageScale,
   selectTool,
@@ -26,14 +24,13 @@ import useHistoryManager from "../hooks/useHistoryManager";
 import { saveImage } from "../Canvas/Canvas";
 import RefsContext from "../context/RefsContext";
 import { selectActiveLayer } from "../state/layersSlice";
+import useBrushColor from "../hooks/useBrushColor";
 
 const Toolbar = () => {
   const mode = useAppSelector(selectMode);
   const tool = useAppSelector(selectTool);
-
   const stageScale = useAppSelector(selectStageScale);
-  const brushColor = useAppSelector(selectBrushColor);
-  const maskColor = useAppSelector(selectMaskColor);
+  const brushColor = useBrushColor();
   const activeLayer = useAppSelector(selectActiveLayer);
 
   const { stageRef, imageLayerRef, selectionBoxRef } = useContext(RefsContext);
@@ -114,9 +111,9 @@ const Toolbar = () => {
         </RadixToolbar.ToggleGroup>
         <RadixToolbar.Separator className="w-[1px] bg-neutral-700 mx-[10px]" />
         <RadixToolbar.Button
-          className="w-[35px] h-[35px] mx-[3px] border border-neutral-600 disabled:cursor-not-allowed disabled:text-neutral-500 p-0 basis-auto  rounded inline-flex leading-none items-center justify-center outline-none disabled:!bg-neutral-800 ml-auto"
+          className="w-[35px] h-[35px] mx-[3px] border disabled:border-neutral-700 border-neutral-600 disabled:cursor-not-allowed disabled:text-neutral-500 p-0 basis-auto rounded inline-flex leading-none items-center justify-center outline-none disabled:!bg-neutral-900 ml-auto"
           style={{
-            backgroundColor: activeLayer === "mask" ? maskColor : brushColor,
+            backgroundColor: brushColor,
           }}
           onClick={handleColorClick}
           aria-label="Color picker"

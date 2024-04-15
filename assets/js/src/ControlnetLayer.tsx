@@ -1,4 +1,4 @@
-import React, { Fragment, useContext, useId, useState } from "react";
+import { Fragment, useContext, useId } from "react";
 import { Layer, Line, Group } from "react-konva";
 import RefsContext from "./context/RefsContext";
 
@@ -10,27 +10,32 @@ import {
   updateControlnetLayer,
 } from "./state/controlnetSlice";
 import CanvasImage from "./components/CanvasImage";
-import useHistoryState from "./hooks/useHistoryState";
 import useClipboard from "./hooks/useClipboard";
 import { useAppSelector } from "./hooks";
 import { selectActiveLayer } from "./state/layersSlice";
 import { selectSelectionBox } from "./state/selectionBoxSlice";
 import useDragAndDrop from "./hooks/useDragAndDrop";
-import { selectMaskColor } from "./state/canvasSlice";
 import { CanvasDimensions } from "./Canvas/Canvas.d";
 
 interface ControlnetLayerProps {
   dimensions: CanvasDimensions;
   lines: { [key: string]: BrushStroke[] };
+  tempLines: { [key: string]: BrushStroke[] };
   maskLines: { [key: string]: BrushStroke[] };
-  // lines: BrushStroke[];
+  tempMaskLines: { [key: string]: BrushStroke[] };
 }
-const ControlnetLayer = ({ lines, maskLines }: ControlnetLayerProps) => {
+const ControlnetLayer = ({
+  lines,
+  tempLines,
+  maskLines,
+  tempMaskLines,
+}: ControlnetLayerProps) => {
   const { controlnetLayerRef } = useContext(RefsContext);
 
   const controlnetLayers = useSelector(selectControlnetLayers);
 
   const containerId = useId();
+
   return (
     <Layer
       imageSmoothingEnabled={false}
@@ -54,7 +59,7 @@ const ControlnetLayer = ({ lines, maskLines }: ControlnetLayerProps) => {
             maskColor,
           }) => (
             <Fragment key={id}>
-              <Group id={id} visible={isEnabled && isVisible}>
+              <Group id={id} visible={isVisible}>
                 {detectionImage && (
                   <CanvasImage
                     src={detectionImage}
@@ -66,7 +71,21 @@ const ControlnetLayer = ({ lines, maskLines }: ControlnetLayerProps) => {
                   />
                 )}
                 <ControlnetLayerImages layerId={id as string} image={image} />
-                {lines[id as string]?.map((line, i) => (
+                {lines?.[id as string]?.map((line, i) => (
+                  <Line
+                    key={i}
+                    points={line.points}
+                    stroke={line.brushColor || "#df4b26"}
+                    strokeWidth={line.brushSize}
+                    tension={0.5}
+                    lineCap="round"
+                    lineJoin="round"
+                    globalCompositeOperation={
+                      line.tool === "eraser" ? "destination-out" : "source-over"
+                    }
+                  />
+                ))}
+                {tempLines?.[id as string]?.map((line, i) => (
                   <Line
                     key={i}
                     points={line.points}
@@ -86,7 +105,21 @@ const ControlnetLayer = ({ lines, maskLines }: ControlnetLayerProps) => {
                 id={`${id}mask`}
                 visible={isEnabled && isVisible && isMaskVisible}
               >
-                {maskLines[id as string]?.map((line, i) => (
+                {maskLines?.[id as string]?.map((line, i) => (
+                  <Line
+                    key={(id ?? "") + i}
+                    points={line.points}
+                    stroke={maskColor}
+                    strokeWidth={line.brushSize}
+                    tension={0.5}
+                    lineCap="round"
+                    lineJoin="round"
+                    globalCompositeOperation={
+                      line.tool === "eraser" ? "destination-out" : "source-over"
+                    }
+                  />
+                ))}
+                {tempMaskLines?.[id as string]?.map((line, i) => (
                   <Line
                     key={(id ?? "") + i}
                     points={line.points}

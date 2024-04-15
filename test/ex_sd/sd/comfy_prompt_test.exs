@@ -174,7 +174,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
     controlnet_args = [
       %ExSd.Sd.ControlNetArgs{
         model: "test_cn_model1",
-        module: "none",
+        module: "None",
         image: "data:image/png;base64,input_image"
       },
       %ExSd.Sd.ControlNetArgs{

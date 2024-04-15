@@ -5,7 +5,8 @@ export type HistoryTopic =
   | "canvas/image"
   | "canvas/mask"
   | "canvas/sketch"
-  | "controlnet/image";
+  | "controlnet/image"
+  | "canvas/line";
 
 export type HistoryItem = {
   label: string;

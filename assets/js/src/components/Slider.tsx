@@ -32,7 +32,7 @@ const Slider = forwardRef(
             </Label>
             <Input
               id={inputId}
-              className="px-1 min-w-[60px]"
+              className="px-1 min-w-[60px] max-w-[70px]"
               type="number"
               step={step}
               min={min}

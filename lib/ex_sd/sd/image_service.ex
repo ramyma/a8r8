@@ -118,7 +118,7 @@ defmodule ExSd.Sd.ImageService do
         image
         |> Image.convert_alpha_to_mask!()
         # TODO: check it doesn't crash the application with values > 10
-        |> Image.dilate!(40)
+        |> Image.dilate!(30)
         |> Image.blur!(sigma: 10.0)
 
       # |> Image.Draw.flood!(0, 0, color: :white)

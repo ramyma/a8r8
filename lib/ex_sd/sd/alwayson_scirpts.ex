@@ -14,6 +14,9 @@ defmodule ExSd.Sd.AlwaysOnScripts do
     embeds_one :"Tiled Diffusion", AlwaysonScriptArgs
     embeds_one :"self attention guidance", AlwaysonScriptArgs
     embeds_one :"soft inpainting", AlwaysonScriptArgs
+    embeds_one :"never oom integrated", AlwaysonScriptArgs
+    embeds_one :"forge couple", AlwaysonScriptArgs
+    embeds_one :"multidiffusion integrated", AlwaysonScriptArgs
   end
 
   # defstruct args: [%ControlNet{}]
@@ -39,6 +42,9 @@ defmodule ExSd.Sd.AlwaysOnScripts do
     |> cast_embed(:"Tiled Diffusion")
     |> cast_embed(:"self attention guidance")
     |> cast_embed(:"soft inpainting")
+    |> cast_embed(:"never oom integrated")
+    |> cast_embed(:"forge couple")
+    |> cast_embed(:"multidiffusion integrated")
   end
 
   def has_tiled_diffusion?(alwayson_script) do

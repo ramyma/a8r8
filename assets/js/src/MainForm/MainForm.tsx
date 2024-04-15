@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { Controller, SubmitHandler, useForm, useWatch } from "react-hook-form";
 // import { DevTool } from "@hookform/devtools";
+import { FormProvider } from "react-hook-form";
 
 import useSocket from "../hooks/useSocket";
 import RefsContext from "../context/RefsContext";
@@ -61,15 +62,23 @@ import useSchedulers from "../hooks/useSchedulers";
 import SoftInpaintingFields, {
   SoftInpaintingArgs,
 } from "./SoftInpaintingFields/SoftInpaintingFields";
+import RegionalPromptsFields from "./RegionalPromptsFields";
+import { processPrompt } from "./utils";
+import { REGIONAL_PROMPTS_SEPARATOR } from "./constants";
+import { selectPromptRegionLayers } from "../state/promptRegionsSlice";
+import { showNotification } from "../Notifications/utils";
 
 export type MainFormValues = Record<string, any> & {
   softInpainting: SoftInpaintingArgs;
+  regionalPrompts?: Record<string, { prompt: EditorState; weight }>;
+  globalPromptWeight?: number;
 };
 
 const MainForm = () => {
   const { channel, sendMessage } = useSocket();
   const backend = useAppSelector(selectBackend);
-  const { control, handleSubmit, setValue } = useForm<MainFormValues>();
+  const methods = useForm<MainFormValues>();
+  const { control, handleSubmit, setValue } = methods;
   const formRef = useRef<HTMLFormElement>(null);
   const scale = useWatch({ name: "scale", control, defaultValue: 1 });
   const width = useWatch({ name: "width", control });
@@ -94,6 +103,12 @@ const MainForm = () => {
     defaultValue: false,
   });
 
+  const isRegionalPromptingEnabled = useWatch({
+    name: "isRegionalPromptingEnabled",
+    control,
+    defaultValue: false,
+  });
+
   const upscaler = useWatch({
     name: "upscaler",
     control,
@@ -107,6 +122,8 @@ const MainForm = () => {
     hasTiledVae,
     hasControlnet,
     hasSoftInpainting,
+    hasForgeCouple,
+    hasMultidiffusionIntegrated,
   } = useScripts();
 
   const { upscalers } = useUpscalers();
@@ -175,6 +192,8 @@ const MainForm = () => {
 
   const isMaskLayerVisible = useAppSelector(selectIsMaskLayerVisible);
 
+  const promptRegions = useAppSelector(selectPromptRegionLayers);
+
   useEffect(() => {
     const { width: selectionBoxWidth, height: selectionBoxHeight } =
       selectionBox;
@@ -209,12 +228,17 @@ const MainForm = () => {
   const invertMask = useAppSelector(selectInvertMask);
 
   const onSubmit: SubmitHandler<MainFormValues> = async (data) => {
-    const { maskDataUrl, initImageDataUrl, controlnetDataUrls } =
-      await getLayers({
-        refs,
-        isMaskLayerVisible,
-        controlnetLayersArgs,
-      });
+    const {
+      maskDataUrl,
+      initImageDataUrl,
+      controlnetDataUrls,
+      regionMasksDataUrls,
+    } = await getLayers({
+      refs,
+      isMaskLayerVisible,
+      controlnetLayersArgs,
+      promptRegions,
+    });
 
     const {
       scale,
@@ -224,23 +248,41 @@ const MainForm = () => {
       isTiledDiffusionEnabled,
       isUltimateUpscaleEnabled,
       isSelfAttentionGuidanceEnabled,
+      isRegionalPromptingEnabled,
+      isMultidiffusionEnabled,
       upscaler,
       prompt,
+      regionalPrompts,
       negative_prompt,
       scheduler,
       softInpainting,
+      globalPromptWeight,
       ...rest
     } = data;
 
     const controlnetArgs: ReturnType<typeof getControlnetArgs> = hasControlnet
       ? getControlnetArgs()
       : {};
+    const { basePrompt, processedPrompt, regionalPromptsWeights } =
+      processPrompt({
+        prompt,
+        regionalPrompts,
+        isRegionalPromptingEnabled,
+        promptRegions,
+      });
+
+    // Show validation warning if prompt is no set with regional prompts
+    if (!basePrompt && isRegionalPromptingEnabled) {
+      showNotification({
+        body: "Regional prompting requires a base prompt",
+        title: "Missing Prompt",
+        type: "warning",
+      });
+      return;
+    }
 
     const image = {
-      prompt:
-        typeof prompt === "string"
-          ? prompt
-          : editorJsonToText((prompt as EditorState).doc.toJSON()),
+      prompt: processedPrompt,
       negative_prompt:
         typeof negative_prompt === "string"
           ? prompt
@@ -276,7 +318,8 @@ const MainForm = () => {
       }),
       ...(hasUltimateUpscale &&
         !txt2img &&
-        isUltimateUpscaleEnabled && {
+        isUltimateUpscaleEnabled &&
+        (!hasForgeCouple || !isRegionalPromptingEnabled) && {
           script_name: "ultimate sd upscale",
           script_args: [
             //_
@@ -428,6 +471,52 @@ const MainForm = () => {
               ],
             },
           }),
+        ...(hasMultidiffusionIntegrated &&
+          isMultidiffusionEnabled &&
+          (!hasForgeCouple || !isRegionalPromptingEnabled) && {
+            "multidiffusion integrated": {
+              args: [
+                // enable
+                isMultidiffusionEnabled,
+                // method
+                "MultiDiffusion", //"MultiDiffusion", "Mixture of Diffusers"
+                // Tile Width
+                model?.isSdXl ? 1024 : 768,
+                // Tile Height
+                model?.isSdXl ? 1024 : 768,
+                // Tile Overlap
+                32, //16 //64,
+                //  Tile Batch Size
+                2, //4,
+              ],
+            },
+          }),
+        ...(hasForgeCouple &&
+          isRegionalPromptingEnabled && {
+            "forge couple": {
+              args: [
+                // enable
+                isRegionalPromptingEnabled,
+                // direction
+                "Horizontal", //Vertical", //"Horizontal",
+                // background
+                basePrompt && globalPromptWeight ? "First Line" : "None", //"First Line", // "None",
+                // separator
+                REGIONAL_PROMPTS_SEPARATOR,
+                // mode
+                "Mask", //"Basic", "Advanced"
+                // mappings
+                regionMasksDataUrls
+                  ?.map((imageString, index) => ({
+                    mask: imageString?.replace("data:image/png;base64,", ""),
+                    weight: regionalPromptsWeights?.[index],
+                  }))
+                  .filter(({ mask }) => !!mask) ?? [],
+                // bg_weight,
+                globalPromptWeight,
+              ],
+            },
+          }),
       },
     };
     const attrs = {
@@ -521,152 +610,154 @@ const MainForm = () => {
   const showUpscaler = (txt2img && showSecondPassStrength) || !txt2img;
   const showSoftInpainting = backend === "auto" && !txt2img;
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="flex flex-col p-4 px-6 pt-1 pb-10 gap-8  w-full"
-      ref={formRef}
-    >
-      {!isGenerating || !isConnected ? (
-        <button
-          type="submit"
-          className="bg-[#302d2d] border border-neutral-700 enabled:hover:bg-[#494949] disabled:cursor-not-allowed mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] stuck::bg-red-200 z-[20] shadow-md shadow-black/50"
-          disabled={!isConnected}
-        >
-          Generate
-        </button>
-      ) : (
-        <button
-          className="bg-red-600 mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] z-[20]"
-          onClick={handleInterrupt}
-        >
-          Interrupt
-        </button>
-      )}
-      <div className="flex flex-col gap-2">
-        <Label>Prompt</Label>
-
-        <Controller
-          name="prompt"
-          control={control}
-          render={({ field }) => (
-            <Editor autofocus placeholder="Prompt" {...field} />
-          )}
-          defaultValue=""
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label>Negative Prompt</Label>
-
-        <Controller
-          name="negative_prompt"
-          control={control}
-          render={({ field }) => (
-            <Editor placeholder="Negative Prompt" {...field} />
-          )}
-          defaultValue=""
-        />
-      </div>
-
-      <Controller
-        name="txt2img"
-        control={control}
-        defaultValue={true}
-        render={({ field }) => <Txt2ImageButtonGroup {...field} />}
-      />
-      <div className="flex flex-col gap-2">
-        <Label>Sampler</Label>
-        <Controller
-          name="sampler_name"
-          control={control}
-          render={({ field }) => <Select items={samplers} {...field} />}
-        />
-      </div>
-
-      {backend === "comfy" && (
-        <div className="flex flex-col gap-2">
-          <Label>Scheduler</Label>
-          <Controller
-            name="scheduler"
-            control={control}
-            defaultValue="karras"
-            render={({ field }) => <Select items={schedulers} {...field} />}
-          />
-        </div>
-      )}
-
-      {!txt2img && backend === "auto" && (
-        <div className="flex flex-col gap-2">
-          <Label /*htmlFor="inpainting_fill"*/>Fill Method</Label>
-          <Controller
-            name="inpainting_fill"
-            control={control}
-            // rules={{ required: true }}
-            rules={{
-              onChange(e: ChangeEvent<HTMLInputElement>) {
-                const value = e.target.value;
-                // Set desnoising strength to 1 when using "Latent Noise" & "Latent Nothing"
-                if (value === "2" || value === "3") {
-                  setValue("denoising_strength", 1);
-                }
-              },
-            }}
-            defaultValue={"1"}
-            render={({ field }) => (
-              <Select
-                items={[
-                  { value: "0", label: "Fill" },
-                  { value: "1", label: "Original" },
-                  { value: "2", label: "Latent Noise" },
-                  { value: "3", label: "Latent Nothing" },
-                ]}
-                // placeholder="Select Fill Method"
-                {...field}
-              />
-            )}
-          />
-        </div>
-      )}
-
-      {showSoftInpainting && <SoftInpaintingFields control={control} />}
-
-      <Controller
-        name="steps"
-        control={control}
-        // rules={{ required: true }}
-        render={({ field }) => (
-          <Slider min={1} max={150} step={1} label="Steps" {...field} />
+    <FormProvider {...methods}>
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="flex flex-col p-4 px-6 pt-1 pb-10 gap-8  w-full"
+        ref={formRef}
+      >
+        {!isGenerating || !isConnected ? (
+          <button
+            type="submit"
+            className="bg-[#302d2d] border border-neutral-700 enabled:hover:bg-[#494949] disabled:cursor-not-allowed mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] stuck::bg-red-200 z-[20] shadow-md shadow-black/50"
+            disabled={!isConnected}
+          >
+            Generate
+          </button>
+        ) : (
+          <button
+            className="bg-red-600 mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] z-[20]"
+            onClick={handleInterrupt}
+          >
+            Interrupt
+          </button>
         )}
-        defaultValue={20}
-        rules={{ required: true }}
-      />
-      {!txt2img && (
+        <div className="flex flex-col gap-2">
+          <Label>Prompt</Label>
+
+          <Controller
+            name="prompt"
+            control={control}
+            render={({ field }) => (
+              <Editor autofocus placeholder="Prompt" {...field} />
+            )}
+            defaultValue=""
+          />
+        </div>
+        {hasForgeCouple && <RegionalPromptsFields />}
+        <div className="flex flex-col gap-2">
+          <Label>Negative Prompt</Label>
+
+          <Controller
+            name="negative_prompt"
+            control={control}
+            render={({ field }) => (
+              <Editor placeholder="Negative Prompt" {...field} />
+            )}
+            defaultValue=""
+          />
+        </div>
+
         <Controller
-          name="denoising_strength"
+          name="txt2img"
+          control={control}
+          defaultValue={true}
+          render={({ field }) => <Txt2ImageButtonGroup {...field} />}
+        />
+        <div className="flex flex-col gap-2">
+          <Label>Sampler</Label>
+          <Controller
+            name="sampler_name"
+            control={control}
+            render={({ field }) => <Select items={samplers} {...field} />}
+          />
+        </div>
+
+        {backend === "comfy" && (
+          <div className="flex flex-col gap-2">
+            <Label>Scheduler</Label>
+            <Controller
+              name="scheduler"
+              control={control}
+              defaultValue="karras"
+              render={({ field }) => <Select items={schedulers} {...field} />}
+            />
+          </div>
+        )}
+
+        {!txt2img && backend === "auto" && (
+          <div className="flex flex-col gap-2">
+            <Label /*htmlFor="inpainting_fill"*/>Fill Method</Label>
+            <Controller
+              name="inpainting_fill"
+              control={control}
+              // rules={{ required: true }}
+              rules={{
+                onChange(e: ChangeEvent<HTMLInputElement>) {
+                  const value = e.target.value;
+                  // Set desnoising strength to 1 when using "Latent Noise" & "Latent Nothing"
+                  if (value === "2" || value === "3") {
+                    setValue("denoising_strength", 1);
+                  }
+                },
+              }}
+              defaultValue={"1"}
+              render={({ field }) => (
+                <Select
+                  items={[
+                    { value: "0", label: "Fill" },
+                    { value: "1", label: "Original" },
+                    { value: "2", label: "Latent Noise" },
+                    { value: "3", label: "Latent Nothing" },
+                  ]}
+                  // placeholder="Select Fill Method"
+                  {...field}
+                />
+              )}
+            />
+          </div>
+        )}
+
+        {showSoftInpainting && <SoftInpaintingFields control={control} />}
+
+        <Controller
+          name="steps"
           control={control}
           // rules={{ required: true }}
           render={({ field }) => (
-            <Slider
-              min={0}
-              max={1}
-              step={0.01}
-              label="Denoising Strength"
-              {...field}
-            />
+            <Slider min={1} max={150} step={1} label="Steps" {...field} />
           )}
-          defaultValue={0.7}
+          defaultValue={20}
+          rules={{ required: true }}
         />
-      )}
-      <Controller
-        name="cfg_scale"
-        control={control}
-        defaultValue={7}
-        // rules={{ required: true }}
-        render={({ field }) => (
-          <Slider step={0.1} min={1} max={30} label="CFG Scale" {...field} />
+        {!txt2img && (
+          <Controller
+            name="denoising_strength"
+            control={control}
+            // rules={{ required: true }}
+            render={({ field }) => (
+              <Slider
+                min={0}
+                max={1}
+                step={0.01}
+                label="Denoising Strength"
+                {...field}
+              />
+            )}
+            defaultValue={0.7}
+          />
         )}
-      />
-      {/* TODO: Show image_cfg_scale only with ip2p */}
-      {/* {true && (
+        <Controller
+          name="cfg_scale"
+          control={control}
+          defaultValue={7}
+          // rules={{ required: true }}
+          render={({ field }) => (
+            <Slider step={0.1} min={1} max={30} label="CFG Scale" {...field} />
+          )}
+        />
+        {/* TODO: Show image_cfg_scale only with ip2p */}
+        {/* {true && (
         <Controller
           name="image_cfg_scale"
           control={control}
@@ -683,197 +774,230 @@ const MainForm = () => {
         />
       )} */}
 
-      <Controller
-        name="width"
-        control={control}
-        // rules={{ required: true }}
-        render={({ field }) => (
-          <Slider min={0} max={5000} step={8} label="Width" {...field} />
-        )}
-        defaultValue={DEFAULT_WIDTH_VALUE}
-        rules={{
-          required: true,
-          onChange(e: ChangeEvent<HTMLInputElement>) {
-            const value = +e.target.value;
-            dispatch(updateSelectionBox({ width: value }));
-          },
-        }}
-      />
-
-      <Controller
-        name="height"
-        control={control}
-        render={({ field }) => (
-          <Slider min={0} max={5000} step={8} label="Height" {...field} />
-        )}
-        defaultValue={DEFAULT_HEIGHT_VALUE}
-        rules={{
-          required: true,
-          onChange(e: ChangeEvent<HTMLInputElement>) {
-            const value = +e.target.value;
-            dispatch(updateSelectionBox({ height: value }));
-          },
-        }}
-      />
-      <div className="flex flex-col">
-        {/* TODO: Add a button to reset scale to 1 */}
         <Controller
-          name="scale"
+          name="width"
           control={control}
           // rules={{ required: true }}
           render={({ field }) => (
-            <Slider min={0.1} max={10} step={0.01} label="Scale" {...field} />
+            <Slider min={0} max={5000} step={8} label="Width" {...field} />
           )}
-          defaultValue={1}
-          rules={{ required: true }}
+          defaultValue={DEFAULT_WIDTH_VALUE}
+          rules={{
+            required: true,
+            onChange(e: ChangeEvent<HTMLInputElement>) {
+              const value = +e.target.value;
+              dispatch(updateSelectionBox({ width: value }));
+            },
+          }}
         />
-        {scale !== 1 && (
-          <span className="pt-2 text-sm">
-            {roundToClosestMultipleOf8Down(+width * scale)}x
-            {roundToClosestMultipleOf8Down(+height * scale)}
-          </span>
-        )}
-      </div>
-      {showUpscaler && (
-        <div className="flex flex-col gap-2">
-          <Label>Upscaler</Label>
+
+        <Controller
+          name="height"
+          control={control}
+          render={({ field }) => (
+            <Slider min={0} max={5000} step={8} label="Height" {...field} />
+          )}
+          defaultValue={DEFAULT_HEIGHT_VALUE}
+          rules={{
+            required: true,
+            onChange(e: ChangeEvent<HTMLInputElement>) {
+              const value = +e.target.value;
+              dispatch(updateSelectionBox({ height: value }));
+            },
+          }}
+        />
+        <div className="flex flex-col">
+          {/* TODO: Add a button to reset scale to 1 */}
           <Controller
-            name="upscaler"
+            name="scale"
             control={control}
             // rules={{ required: true }}
-            defaultValue="None"
             render={({ field }) => (
-              <Select
-                items={sortedUpscalers && sortedUpscalers}
-                placeholder="Upscaler"
-                {...field}
-              />
+              <Slider min={0.1} max={10} step={0.01} label="Scale" {...field} />
             )}
+            defaultValue={1}
+            rules={{ required: true }}
           />
+          {scale !== 1 && (
+            <span className="pt-2 text-sm">
+              {roundToClosestMultipleOf8Down(+width * scale)}x
+              {roundToClosestMultipleOf8Down(+height * scale)}
+            </span>
+          )}
         </div>
-      )}
-      {showFullScalePass && (
-        <Controller
-          name="full_scale_pass"
-          control={control}
-          defaultValue={true}
-          render={({ field }) => (
-            <Checkbox {...field}>Full Scale Pass</Checkbox>
-          )}
-        />
-      )}
-
-      {showSecondPassStrength && (
-        <Controller
-          name="sp_denoising_strength"
-          control={control}
-          // rules={{ required: true }}
-          render={({ field }) => (
-            <Slider
-              min={0}
-              max={1}
-              step={0.01}
-              label="Second Pass Denoising"
-              {...field}
+        {showUpscaler && (
+          <div className="flex flex-col gap-2">
+            <Label>Upscaler</Label>
+            <Controller
+              name="upscaler"
+              control={control}
+              // rules={{ required: true }}
+              defaultValue="None"
+              render={({ field }) => (
+                <Select
+                  items={sortedUpscalers && sortedUpscalers}
+                  placeholder="Upscaler"
+                  {...field}
+                />
+              )}
             />
-          )}
-          defaultValue={0.5}
-        />
-      )}
-      {showUseScaledDimensions && (
-        <Controller
-          name="use_scaled_dimensions"
-          control={control}
-          defaultValue={true}
-          render={({ field }) => (
-            <Checkbox {...field}>Use Scaled Dimensions</Checkbox>
-          )}
-        />
-      )}
-
-      {hasTiledVae && (
-        <Controller
-          name="isTiledDiffusionEnabled"
-          control={control}
-          defaultValue={false}
-          rules={{
-            onChange: (e: ChangeEvent<HTMLInputElement>) => {
-              const value = e.target.value;
-              value && setValue("isUltimateUpscaleEnabled", false);
-              value && upscaler === "Latent" && setValue("upscaler", "None");
-            },
-          }}
-          render={({ field }) => (
-            <Checkbox {...field}>Tiled Diffusion</Checkbox>
-          )}
-        />
-      )}
-      {!txt2img && hasUltimateUpscale && (
-        <Controller
-          name="isUltimateUpscaleEnabled"
-          control={control}
-          defaultValue={false}
-          rules={{
-            onChange: (e: ChangeEvent<HTMLInputElement>) => {
-              const value = e.target.value;
-              value && setValue("isTiledDiffusionEnabled", false);
-              value && upscaler === "Latent" && setValue("upscaler", "None");
-            },
-          }}
-          render={({ field }) => (
-            <Checkbox {...field}>Ultimate Upscale</Checkbox>
-          )}
-        />
-      )}
-      {hasSelfAttentionGuidance && (
-        <Controller
-          name="isSelfAttentionGuidanceEnabled"
-          control={control}
-          defaultValue={false}
-          render={({ field }) => (
-            <Checkbox {...field}>Self Attention Guidance</Checkbox>
-          )}
-        />
-      )}
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="seed">Seed</Label>
-        <div className="flex">
+          </div>
+        )}
+        {showFullScalePass && (
           <Controller
-            name="seed"
+            name="full_scale_pass"
             control={control}
-            defaultValue={-1}
+            defaultValue={true}
             render={({ field }) => (
-              <Input
-                id="seed"
-                className="p-1.5 rounded-tr-none rounded-br-none h-fit"
-                type="number"
-                step={1}
-                min={-1}
+              <Checkbox {...field}>Full Scale Pass</Checkbox>
+            )}
+          />
+        )}
+
+        {showSecondPassStrength && (
+          <Controller
+            name="sp_denoising_strength"
+            control={control}
+            // rules={{ required: true }}
+            render={({ field }) => (
+              <Slider
+                min={0}
+                max={1}
+                step={0.01}
+                label="Second Pass Denoising"
                 {...field}
               />
             )}
+            defaultValue={0.5}
           />
-
+        )}
+        {showUseScaledDimensions && (
           <Controller
-            name="isSeedPinned"
+            name="use_scaled_dimensions"
             control={control}
-            rules={{ required: false }}
+            defaultValue={true}
+            render={({ field }) => (
+              <Checkbox {...field}>Use Scaled Dimensions</Checkbox>
+            )}
+          />
+        )}
+
+        {hasTiledVae && (
+          <Controller
+            name="isTiledDiffusionEnabled"
+            control={control}
+            defaultValue={false}
+            rules={{
+              onChange: (e: ChangeEvent<HTMLInputElement>) => {
+                const value = e.target.value;
+                value && setValue("isUltimateUpscaleEnabled", false);
+                value && upscaler === "Latent" && setValue("upscaler", "None");
+              },
+            }}
+            render={({ field }) => (
+              <Checkbox {...field}>Tiled Diffusion</Checkbox>
+            )}
+          />
+        )}
+        {hasMultidiffusionIntegrated && (
+          <Controller
+            name="isMultidiffusionEnabled"
+            control={control}
+            defaultValue={false}
+            rules={{
+              onChange: (e: ChangeEvent<HTMLInputElement>) => {
+                const value = e.target.value;
+                value && setValue("isUltimateUpscaleEnabled", false);
+              },
+            }}
+            render={({ field }) => (
+              <Checkbox
+                {...field}
+                title={
+                  isRegionalPromptingEnabled ? "Regional Prompts Enabled" : ""
+                }
+              >
+                Tiled Diffusion
+              </Checkbox>
+            )}
+            disabled={hasForgeCouple && isRegionalPromptingEnabled}
+          />
+        )}
+        {!txt2img && hasUltimateUpscale && (
+          <Controller
+            name="isUltimateUpscaleEnabled"
+            control={control}
+            defaultValue={false}
+            rules={{
+              onChange: (e: ChangeEvent<HTMLInputElement>) => {
+                const value = e.target.value;
+                value && setValue("isTiledDiffusionEnabled", false);
+                value && setValue("isMultidiffusionEnabled", false);
+                value && upscaler === "Latent" && setValue("upscaler", "None");
+              },
+            }}
+            disabled={hasForgeCouple && isRegionalPromptingEnabled}
+            render={({ field }) => (
+              <Checkbox
+                {...field}
+                title={
+                  isRegionalPromptingEnabled ? "Regional Prompts Enabled" : ""
+                }
+              >
+                Ultimate Upscale
+              </Checkbox>
+            )}
+          />
+        )}
+        {hasSelfAttentionGuidance && (
+          <Controller
+            name="isSelfAttentionGuidanceEnabled"
+            control={control}
             defaultValue={false}
             render={({ field }) => (
-              <Toggle
-                pressedIconComponent={LockClosedIcon}
-                unpressedIconComponent={LockOpen2Icon}
-                title="Un/Lock Seed"
-                className="data-[state=on]:text-primary border-neutral-700 rounded-tl-none rounded-bl-none hover:border-inherit"
-                {...field}
-              />
+              <Checkbox {...field}>Self Attention Guidance</Checkbox>
             )}
           />
-        </div>
-      </div>
+        )}
 
-      {/* <div className="flex flex-col">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="seed">Seed</Label>
+          <div className="flex">
+            <Controller
+              name="seed"
+              control={control}
+              defaultValue={-1}
+              render={({ field }) => (
+                <Input
+                  id="seed"
+                  className="p-1.5 rounded-tr-none rounded-br-none h-fit"
+                  type="number"
+                  step={1}
+                  min={-1}
+                  {...field}
+                />
+              )}
+            />
+
+            <Controller
+              name="isSeedPinned"
+              control={control}
+              rules={{ required: false }}
+              defaultValue={false}
+              render={({ field }) => (
+                <Toggle
+                  pressedIconComponent={LockClosedIcon}
+                  unpressedIconComponent={LockOpen2Icon}
+                  title="Un/Lock Seed"
+                  className="data-[state=on]:text-primary border-neutral-700 rounded-tl-none rounded-bl-none hover:border-inherit"
+                  {...field}
+                />
+              )}
+            />
+          </div>
+        </div>
+
+        {/* <div className="flex flex-col">
         <Controller
           name="batch_size"
           control={control}
@@ -884,7 +1008,7 @@ const MainForm = () => {
           defaultValue={1}
         />
       </div> */}
-      {/* <Label htmlFor="inpaintFull">
+        {/* <Label htmlFor="inpaintFull">
           Inpaint full res
           <input
             id="inpaintFull"
@@ -893,8 +1017,9 @@ const MainForm = () => {
             {...register("inpaint_full_res")}
           />
         </Label> */}
-      {/* <DevTool control={control} /> */}
-    </form>
+        {/* <DevTool control={control} /> */}
+      </form>
+    </FormProvider>
   );
 };
 

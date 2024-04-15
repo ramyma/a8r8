@@ -5,6 +5,7 @@ export type ActiveLayer =
   | "base"
   | "mask"
   | "sketch"
+  | `regionMask${string}`
   | `controlnet${string}`
   | `controlnet${string}-mask`; // | string;
 
@@ -71,4 +72,10 @@ export const selectActiveControlnetId = (
       .replace("-mask", "");
 };
 
+export const selectActivePromptRegionId = (
+  state: RootState
+): string | undefined => {
+  if (state.layers.activeLayer.startsWith("regionMask"))
+    return state.layers.activeLayer.replace("regionMask", "");
+};
 export default layersSlice.reducer;

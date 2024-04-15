@@ -10,7 +10,7 @@ type ControlnetResizeMode =
   | "Just Resize"
   | "Scale to Fit (Inner Fit)"
   | "Envelope (Outer Fit)";
-type ControlnetModule = "none" | "canny" | "hed" | "depth" | "scribble";
+type ControlnetModule = "None" | "canny" | "hed" | "depth" | "scribble";
 export type ControlnetDetection = {
   module: ControlnetModule;
   processor_res?: number;
@@ -60,7 +60,7 @@ interface ControlnetState {
 
 const controlnetLayerInitialState: ControlnetLayer = {
   model: "",
-  module: "none",
+  module: "None",
   weight: 1,
   resize_mode: "Crop and Resize", //"Just Resize",
   lowvram: false,
@@ -79,7 +79,7 @@ const controlnetLayerInitialState: ControlnetLayer = {
   isMaskEnabled: false,
   pixel_perfect: true,
   control_mode: 0,
-  maskColor: "white",
+  maskColor: "#FFFFFF",
 };
 const initialState: ControlnetState = {
   layers: [

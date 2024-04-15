@@ -1,4 +1,6 @@
 import {
+  ArrowDownIcon,
+  ArrowUpIcon,
   EraserIcon,
   EyeNoneIcon,
   EyeOpenIcon,
@@ -19,6 +21,7 @@ import React, {
   MouseEvent,
   MouseEventHandler,
   ReactNode,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -43,21 +46,13 @@ import {
   toggleSketchLayerVisibility,
   selectIsMaskLayerVisible,
   toggleMaskLayerVisibility,
-  selectIsMaskLayerEnabled,
-  selectIsSketchLayerEnabled,
-  toggleMaskLayerIsEnabled,
-  toggleSketchLayerIsEnabled,
   ActiveLayer,
 } from "./state/layersSlice";
 import Slider from "./components/Slider";
 import ScrollArea from "./components/ScrollArea";
 import Select from "./components/Select";
 import Label from "./components/Label";
-import {
-  selectInvertMask,
-  toggleColorPickerVisibility,
-  toggleInvertMask,
-} from "./state/canvasSlice";
+import { selectInvertMask, toggleInvertMask } from "./state/canvasSlice";
 import {
   emitClearBaseImages,
   emitClearLayerLines,
@@ -65,12 +60,23 @@ import {
 import useScripts from "./hooks/useScripts";
 import { selectBackend } from "./state/optionsSlice";
 import ImageUploader from "./components/ImageUploader";
-import useDragAndDrop from "./hooks/useDragAndDrop";
 import ColorPicker, { ColorPickerProps } from "./ColorPicker";
+import {
+  decrementOrder,
+  incrementOrder,
+  removePromptRegionLayer,
+  selectIsRegionalPromptsEnabled,
+  selectPromptRegionLayerById,
+  selectPromptRegionLayers,
+  selectPromptRegionLayersCount,
+  setPreviewLayerId,
+  updatePromptRegionLayer,
+} from "./state/promptRegionsSlice";
 
 type LayerProps = {
   id: ActiveLayer;
   subId?: string;
+  index?: number;
   name: string;
   subtitle?: string;
   isVisible: boolean;
@@ -85,13 +91,14 @@ type LayerProps = {
     | ActionCreatorWithoutPayload
     | ActionCreatorWithPayload<LayerProps["isEnabledActionCreatorPayload"]>;
   actions?: ReactNode[];
-  type: "base" | "mask" | "sketch" | "controlnet";
+  type: "base" | "mask" | "sketch" | "controlnet" | "regionMask";
 };
 
 const LayerItem = ({
   id,
   activeLayerId,
   subId,
+  index,
   type,
   visibilityActionCreator,
   visibilityActionCreatorPayload,
@@ -105,18 +112,16 @@ const LayerItem = ({
   actions,
 }: LayerProps & { activeLayerId: ActiveLayer }) => {
   const itemRef = useRef<HTMLLIElement>(null);
-  const maskColorBox = useRef<HTMLButtonElement>(null);
-
-  const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
-  const [colorPickerPosition, setColorPickerPosition] = useState<
-    ColorPickerProps["position"]
-  >({ x: 0, y: 0 });
 
   const dispatch = useAppDispatch();
   const backend = useAppSelector(selectBackend);
   const controlnetLayer = useAppSelector((state) =>
     selectControlnetLayerById(state, subId)
   );
+  const regionMaskLayer = useAppSelector((state) =>
+    selectPromptRegionLayerById(state, subId)
+  );
+  const regionMaskLayersCount = useAppSelector(selectPromptRegionLayersCount);
 
   //TODO: remove hardcoding for -mask and controlnet to extract and construct layer id
   const isMaskLayerActive =
@@ -192,67 +197,59 @@ const LayerItem = ({
     }
   };
 
-  const handleMouseOver: MouseEventHandler = () => {
-    setIsImagePreviewVisible(true);
+  const handleMouseEnter: MouseEventHandler = () => {
+    if (type === "controlnet") setIsImagePreviewVisible(true);
+    if (type === "regionMask") dispatch(setPreviewLayerId(subId));
   };
 
-  const handleMouseOut: MouseEventHandler = () => {
-    setIsImagePreviewVisible(false);
-  };
-
-  const handleColorBoxClick: MouseEventHandler = (e) => {
-    e.stopPropagation();
-
-    if (!isColorPickerVisible) {
-      const bbox = maskColorBox.current?.getBoundingClientRect();
-      setColorPickerPosition({
-        x: (bbox?.right ?? 0) - 255,
-        y: bbox?.bottom ?? 0,
-      });
-    }
-    toggleColorPickerVisibility();
-  };
-
-  const toggleColorPickerVisibility = () => {
-    setIsColorPickerVisible((prevState) => !prevState);
+  const handleMouseLeave: MouseEventHandler = () => {
+    if (type === "controlnet") setIsImagePreviewVisible(false);
+    if (type === "regionMask") dispatch(setPreviewLayerId());
   };
 
   const handleMaskColorChange = (color) => {
-    dispatch(
-      updateControlnetLayer({
-        layerId: id.replace(/((-mask)|controlnet)/g, ""),
-        maskColor: color,
-      })
-    );
+    type === "controlnet" &&
+      dispatch(
+        updateControlnetLayer({
+          layerId: id.replace(/((-mask)|controlnet)/g, ""),
+          maskColor: color,
+        })
+      );
+    type === "regionMask" &&
+      dispatch(
+        updatePromptRegionLayer({
+          layerId: id.replace("regionMask", ""),
+          maskColor: color,
+        })
+      );
+  };
+
+  const handleMoveUpClick: MouseEventHandler = (event) => {
+    event.stopPropagation();
+    dispatch(decrementOrder(subId ?? ""));
+  };
+
+  const moveDownClick: MouseEventHandler = (event) => {
+    event.stopPropagation();
+    dispatch(incrementOrder(subId ?? ""));
   };
 
   return (
     <>
       {/* {isColorPickerVisible && ( */}
 
-      {isColorPickerVisible && (
-        <Portal.Root>
-          <ColorPicker
-            color={controlnetLayer?.maskColor}
-            onClose={toggleColorPickerVisibility}
-            onColorChange={handleMaskColorChange}
-            position={colorPickerPosition}
-            isVisible={isColorPickerVisible}
-          />
-        </Portal.Root>
-      )}
       {/* )} */}
       {/* // FIXME: width on smaller window size */}
       <li
         ref={itemRef}
         className={
-          "grid grid-cols-2 flex-row p-1.5 px-2 items-center justify-between gap-1 " +
+          "grid sm:grid-cols-1 xl:grid-cols-2 xl:items-center flex-row p-1.5 px-2 justify-between gap-1 " +
           `${
             dragOver
               ? "bg-primary/80"
               : isActive && !isMaskLayerActive
-              ? "bg-neutral-200/80"
-              : "odd:bg-[#222222]/80 even:bg-[#2b2b2b]/80"
+                ? "bg-neutral-200/80"
+                : "odd:bg-[#222222]/80 even:bg-[#2b2b2b]/80"
           } ` +
           `${isActive && !isMaskLayerActive ? "text-black" : "cursor-pointer"}`
         }
@@ -261,28 +258,57 @@ const LayerItem = ({
         onDragOver={handleDragOver}
         onDragLeave={handleDragExit}
         onDrop={handleDrop}
-        {...(type === "controlnet" && {
-          onMouseOver: handleMouseOver,
-          onMouseOut: handleMouseOut,
+        {...((type === "controlnet" || type === "regionMask") && {
+          onMouseEnter: handleMouseEnter,
+          onMouseLeave: handleMouseLeave,
         })}
       >
         <div className="absolute left-0 top-0 pointer-events-none w-full h-full" />
-        <div
-          className={
-            "flex flex-col " +
-            (controlnetLayer?.isEnabled && controlnetLayer?.overrideBaseLayer
-              ? "text-primary"
-              : "")
-          }
-        >
-          <span className="text-sm" title={name}>
-            {name}
-          </span>
-          <span className="text-xs truncate" title={subtitle}>
-            {subtitle}
-          </span>
+        <div className="flex gap-2 2xl:items-center sm:flex-col 2xl:flex-row">
+          <div
+            className={
+              "w-full flex flex-col sm:shrink-[0.6] 2xl:shrink " +
+              (type === "controlnet" &&
+              controlnetLayer?.isEnabled &&
+              controlnetLayer?.overrideBaseLayer
+                ? "text-primary"
+                : "")
+            }
+          >
+            <span className="text-sm" title={name}>
+              {name}
+            </span>
+            <span className="text-xs truncate" title={subtitle}>
+              {subtitle}
+            </span>
+          </div>
+
+          {type === "regionMask" && (
+            <div className="flex gap-2">
+              <ColorBox
+                color={regionMaskLayer?.maskColor}
+                onColorChange={handleMaskColorChange}
+              />
+              <button
+                className="s-2 p-1 rounded bg-transparent disabled:text-neutral-500 disabled:cursor-not-allowed"
+                onClick={moveDownClick}
+                title="Move Down"
+                disabled={index === regionMaskLayersCount - 1}
+              >
+                <ArrowDownIcon />
+              </button>
+              <button
+                className="s-2 p-1 rounded bg-transparent disabled:text-neutral-500 disabled:cursor-not-allowed"
+                onClick={handleMoveUpClick}
+                title="Move Up"
+                disabled={index === 0}
+              >
+                <ArrowUpIcon />
+              </button>
+            </div>
+          )}
         </div>
-        <div className="flex justify-end">
+        <div className="flex xl:justify-end sm:gap-1 xl:gap-2">
           {actions?.map((Action, _index) => Action)}
 
           {!!visibilityActionCreator && (
@@ -296,29 +322,29 @@ const LayerItem = ({
             />
           )}
           {!!isEnabledActionCreator && (
-            <Checkbox
-              checked={isEnabled}
-              onClick={toggleIsEnabled}
-              title="Use"
-            />
+            <div className="flex size-[35px] justify-center">
+              <Checkbox
+                checked={isEnabled}
+                onClick={toggleIsEnabled}
+                title="Use"
+              />
+            </div>
           )}
           {/* <div>add</div> */}
         </div>
       </li>
-      {backend === "auto" && isEnabled && (
+      {backend === "auto" && type === "controlnet" && isEnabled && (
         <li
-          className={`flex text-sm px-2 ps-5  justify-between items-center cursor-pointe ${
+          className={`flex text-sm pe-2 ps-5  justify-between items-center cursor-pointe ${
             isMaskLayerActive ? "bg-neutral-50/40" : "bg-neutral-950"
           }`}
           onClick={handleMaskLayerClick}
         >
           <div className="inline-flex gap-2 items-center">
             <div>Mask</div>
-            <button
-              ref={maskColorBox}
-              className="size-5 p-0 rounded border border-neutral-700 cursor-pointer"
-              style={{ backgroundColor: controlnetLayer?.maskColor }}
-              onClick={handleColorBoxClick}
+            <ColorBox
+              color={controlnetLayer?.maskColor}
+              onColorChange={handleMaskColorChange}
             />
           </div>
 
@@ -343,17 +369,19 @@ const LayerItem = ({
               pressedIconComponent={EyeOpenIcon}
               unpressedIconComponent={EyeNoneIcon}
             />
-            <Checkbox
-              checked={controlnetLayer?.isMaskEnabled ?? false}
-              onChange={(value) =>
-                dispatch(
-                  updateControlnetLayer({
-                    layerId: controlnetLayer?.id,
-                    isMaskEnabled: value,
-                  })
-                )
-              }
-            />
+            <div className="flex size-[35px] justify-center">
+              <Checkbox
+                checked={controlnetLayer?.isMaskEnabled ?? false}
+                onChange={(value) =>
+                  dispatch(
+                    updateControlnetLayer({
+                      layerId: controlnetLayer?.id,
+                      isMaskEnabled: value,
+                    })
+                  )
+                }
+              />
+            </div>
           </div>
         </li>
       )}
@@ -393,18 +421,15 @@ const CONTROL_MODES = [
 ];
 
 const LayersControl = () => {
-  // const mode = useAppSelector(selectMode);
-  // const tool = useAppSelector(selectTool);
-
   const dispatch = useAppDispatch();
   const isSketchLayerVisible = useAppSelector(selectIsSketchLayerVisible);
-  const isSketchLayerEnabled = useAppSelector(selectIsSketchLayerEnabled);
+
   const isMaskLayerVisible = useAppSelector(selectIsMaskLayerVisible);
-  const isMaskLayerEnabled = useAppSelector(selectIsMaskLayerEnabled);
+
   const invertMask = useAppSelector(selectInvertMask);
   const backend = useAppSelector(selectBackend);
 
-  const { hasControlnet } = useScripts();
+  const { hasControlnet, hasForgeCouple } = useScripts();
   // const isControlnetLayerVisible = useAppSelector(
   //   selectIsControlnetLayerVisible
   // );
@@ -417,51 +442,94 @@ const LayersControl = () => {
 
   // const { register, handleSubmit, setValue } = useForm();
 
-  const controlnetLayers: LayerProps[] = controlnetArgs.map(
-    ({ isEnabled, isVisible, module, model, id }, index) => ({
-      id: `controlnet${id as string}`,
-      isEnabled,
-      name: `Controlnet ${index + 1}`,
-      type: "controlnet",
+  const controlnetLayers: LayerProps[] = useMemo(
+    () =>
+      controlnetArgs.map(
+        ({ isEnabled, isVisible, module, model, id }, index) => ({
+          id: `controlnet${id as string}`,
+          isEnabled,
+          name: `Controlnet ${index + 1}`,
+          type: "controlnet",
+          subId: id,
+          subtitle: `${
+            module?.toLowerCase() != "none"
+              ? module
+              : model?.toLowerCase() != "none"
+                ? model
+                : ""
+          }`,
+          isEnabledActionCreator: updateControlnetLayer,
+          isEnabledActionCreatorPayload: {
+            layerId: id,
+            isEnabled: !controlnetArgs[index].isEnabled,
+          },
+          isVisible: isVisible as boolean,
+          visibilityActionCreator: updateControlnetLayer,
+          visibilityActionCreatorPayload: {
+            layerId: id,
+            isVisible: !controlnetArgs[index].isVisible,
+          },
+          actions: [
+            <LayerActionButton
+              key="clearImage"
+              onClick={() => {
+                dispatch(
+                  updateControlnetLayer({
+                    layerId: id,
+                    image: undefined,
+                    detectionImage: undefined,
+                  })
+                );
+              }}
+              title="Clear Image"
+              type="clearImage"
+            />,
+
+            <LayerActionButton
+              key="clearLines"
+              onClick={() =>
+                emitClearLayerLines(("controlnet" + id) as ActiveLayer)
+              }
+              title="Clear Lines"
+              type="clearLines"
+            />,
+          ],
+        })
+      ),
+    [controlnetArgs, dispatch]
+  );
+
+  const promptRegions = useAppSelector(selectPromptRegionLayers);
+
+  const isRegionalPromptsEnabled = useAppSelector(
+    selectIsRegionalPromptsEnabled
+  );
+
+  const regionMaskLayers: LayerProps[] = promptRegions.map(
+    ({ id, isVisible, isEnabled, name, maskColor }, index) => ({
+      id: ("regionMask" + id) as ActiveLayer,
       subId: id,
-      subtitle: `${
-        module?.toLowerCase() != "none"
-          ? module
-          : model?.toLowerCase() != "none"
-          ? model
-          : ""
-      }`,
-      isEnabledActionCreator: updateControlnetLayer,
-      isEnabledActionCreatorPayload: {
-        layerId: id,
-        isEnabled: !controlnetArgs[index].isEnabled,
-      },
-      isVisible: isVisible as boolean,
-      visibilityActionCreator: updateControlnetLayer,
+      index,
+      isVisible,
+      isEnabled,
+      visibilityActionCreator: updatePromptRegionLayer,
       visibilityActionCreatorPayload: {
         layerId: id,
-        isVisible: !controlnetArgs[index].isVisible,
+        isVisible: !promptRegions[index].isVisible,
       },
+      isEnabledActionCreator: updatePromptRegionLayer,
+      isEnabledActionCreatorPayload: {
+        layerId: id,
+        isEnabled: !promptRegions[index].isEnabled,
+      },
+      name: name || `Region ${index + 1}`,
+      maskColor,
+      type: "regionMask",
       actions: [
-        <LayerActionButton
-          key="clearImage"
-          onClick={() => {
-            dispatch(
-              updateControlnetLayer({
-                layerId: id,
-                image: undefined,
-                detectionImage: undefined,
-              })
-            );
-          }}
-          title="Clear Image"
-          type="clearImage"
-        />,
-
         <LayerActionButton
           key="clearLines"
           onClick={() =>
-            emitClearLayerLines(("controlnet" + id) as ActiveLayer)
+            emitClearLayerLines(("regionMask" + id) as ActiveLayer)
           }
           title="Clear Lines"
           type="clearLines"
@@ -533,6 +601,7 @@ const LayersControl = () => {
         />,
       ],
     },
+    ...(hasForgeCouple && isRegionalPromptsEnabled ? regionMaskLayers : []),
     ...(hasControlnet ? controlnetLayers : []),
   ];
 
@@ -684,6 +753,9 @@ const LayersControl = () => {
         )
       );
     }
+    if (activeRegionMaskLayer?.id) {
+      dispatch(removePromptRegionLayer(activeRegionMaskLayer.subId ?? ""));
+    }
   };
 
   const activeControlnetLayer = activeLayerId.startsWith("controlnet")
@@ -693,13 +765,16 @@ const LayersControl = () => {
           activeLayerId.replace("controlnet", "").replace("-mask", "")
       )
     : null;
+  const activeRegionMaskLayer = activeLayerId.startsWith("regionMask")
+    ? regionMaskLayers.find((layer) => layer.id === activeLayerId)
+    : null;
 
   const controlnetModuleSliders = controlnet_preprocessors?.find(
     ({ name }) => name === activeControlnetLayer?.module
   )?.sliders;
 
   return (
-    <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[20vw] p-4 pe-0 rounded backdrop-blur-sm select-none overflow-hidden">
+    <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[20vw] p-4 pe-0 rounded backdrop-blur-sm select-none overflow-hidden transition-all">
       {/* <div className="flex flex-row gap-4">
         <div className="flex gap-2">
           <Label htmlFor="mode">Mode</label>
@@ -745,12 +820,15 @@ const LayersControl = () => {
             className="p-0.5 rounded-md flex justify-center items-center disabled:bg-neutral-900 disabled:text-neutral-700 border-neutral-700 disabled:border-neutral-800 disabled:cursor-not-allowed size-8"
             title="Remove layer"
             onClick={handleRemoveLayer}
-            disabled={!activeControlnetLayer}
+            disabled={
+              !activeControlnetLayer &&
+              (!activeRegionMaskLayer || regionMaskLayers.length <= 2)
+            }
           >
             <TrashIcon />
           </button>
           <button
-            className="flex justify-center items-center p-0.5 rounded-md size-8 disabled:bg-neutral-900 disabled:text-neutral-700 border-neutral-700 disabled:border-neutral-800"
+            className="flex justify-center items-center p-0.5 rounded size-8 disabled:bg-neutral-900 disabled:text-neutral-700 border-neutral-700 disabled:border-neutral-800"
             title="Add controlnet layer"
             onClick={handleAddLayer}
           >
@@ -786,8 +864,8 @@ const LayersControl = () => {
             />
           </Label> */}
         {activeControlnetLayer && (
-          <ScrollArea classNames="px-2 mb-2">
-            <div className="flex gap-5 flex-col mt-2 h-[45vh]  pt-1 pl-1.5 pr-2.5">
+          <ScrollArea classNames="pe-2 mb-2">
+            <div className="flex gap-5 flex-col mt-2 h-[45vh]  pt-1 pr-2.5">
               <div>
                 <ImageUploader
                   image={
@@ -885,7 +963,7 @@ const LayersControl = () => {
                 <Select
                   name="model"
                   id={`model${activeControlnetLayer?.id}`}
-                  items={["none", ...(controlnet_models ?? [])]}
+                  items={controlnet_models ?? []}
                   value={activeControlnetLayer?.model}
                   onChange={(value) =>
                     handleControlnetSelectChange({
@@ -993,7 +1071,7 @@ const LayersControl = () => {
                 label="Guidance Start"
                 min={0}
                 max={1}
-                step={0.1}
+                step={0.01}
                 onChange={(value) =>
                   handleControlnetAttrsChange(
                     "guidance_start",
@@ -1025,7 +1103,7 @@ const LayersControl = () => {
                 label="Guidance End"
                 min={0}
                 max={1}
-                step={0.1}
+                step={0.01}
                 onChange={(value) =>
                   handleControlnetAttrsChange(
                     "guidance_end",
@@ -1087,7 +1165,7 @@ const LayersControl = () => {
                 value={activeControlnetLayer?.threshold_a}
               />
             </div> */}
-              {activeControlnetLayer?.module !== "none" &&
+              {activeControlnetLayer?.module !== "None" &&
                 controlnetModuleSliders && (
                   <>
                     {controlnetModuleSliders[1] && (
@@ -1215,7 +1293,7 @@ const LayerActionButton = ({
   return (
     <button
       key="clearMask"
-      className="bg-transparent flex h-[35px] w-[35px] items-center justify-center rounded text-base leading-4 p-0"
+      className="bg-transparent flex size-[32px] items-center justify-center rounded text-base leading-4 p-0"
       onClick={(e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1229,5 +1307,60 @@ const LayerActionButton = ({
         <ViewNoneIcon />
       ) : null}
     </button>
+  );
+};
+const ColorBox = ({
+  color = "white",
+  onColorChange,
+}: {
+  color?: string;
+  onColorChange: ColorPickerProps["onColorChange"];
+}) => {
+  const maskColorBox = useRef<HTMLButtonElement>(null);
+
+  const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
+  const [colorPickerPosition, setColorPickerPosition] = useState<
+    ColorPickerProps["position"]
+  >({ x: 0, y: 0 });
+
+  const toggleColorPickerVisibility = () => {
+    setIsColorPickerVisible((prevState) => !prevState);
+  };
+
+  const handleColorBoxClick: MouseEventHandler = (e) => {
+    e.stopPropagation();
+
+    if (!isColorPickerVisible) {
+      const bbox = maskColorBox.current?.getBoundingClientRect();
+      setColorPickerPosition({
+        x: (bbox?.right ?? 0) - 255,
+        y: bbox?.bottom ?? 0,
+      });
+    }
+    toggleColorPickerVisibility();
+  };
+
+  return (
+    <>
+      <button
+        ref={maskColorBox}
+        className="size-6 p-0 rounded-full shrink-0 border border-neutral-700 cursor-pointer"
+        style={{ backgroundColor: color }}
+        onClick={handleColorBoxClick}
+        title="Pick Mask Color"
+      />
+      {isColorPickerVisible && (
+        <Portal.Root>
+          <ColorPicker
+            color={color}
+            onClose={toggleColorPickerVisibility}
+            onColorChange={onColorChange}
+            position={colorPickerPosition}
+            isVisible={isColorPickerVisible}
+            pickerType="hexOnly"
+          />
+        </Portal.Root>
+      )}
+    </>
   );
 };
