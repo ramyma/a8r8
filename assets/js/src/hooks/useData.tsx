@@ -5,7 +5,7 @@ import { selectIsConnected } from "../state/statsSlice";
 import useSocket from "./useSocket";
 
 export type FetchPolicy = "lazy" | "eager";
-type Props = {
+type UseDataProps = {
   name: string;
   callback?: (data) => void;
   fetchPolicy?: FetchPolicy;
@@ -23,7 +23,7 @@ const useData = <T,>({
   fetchPolicy = "lazy",
   forceRequest = false,
   condition = true,
-}: Props) => {
+}: UseDataProps): { fetchData: () => Promise<T>; data: T } => {
   const { channel, getData } = useSocket();
   const ref = useRef(false);
   const dataState = useAppSelector(selectData);

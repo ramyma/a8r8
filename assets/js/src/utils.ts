@@ -1,14 +1,14 @@
 import { Vector2d } from "konva/lib/types";
 import Konva from "konva";
-import { Layer as LayerType } from "konva/lib/Layer";
 import {
   ControlnetLayer,
   updateControlnetLayer,
 } from "./state/controlnetSlice";
 import { RemirrorJSON } from "remirror";
-import { Group } from "konva/lib/Group";
+import { Group as GroupType } from "konva/lib/Group";
 import { layersSlice } from "./state/layersSlice";
 import { RefsContextProps } from "./context/RefsContext";
+import { PromptRegionLayer } from "./state/promptRegionsSlice";
 
 export type PngInfo = {
   prompt: string;
@@ -128,10 +128,10 @@ export const extractControlnetArgs = (pngInfo: PngInfo): ControlnetLayer[] => {
                   value == "Balanced"
                     ? 0
                     : value == "My prompt is more important"
-                    ? 1
-                    : value == "ControlNet is more important"
-                    ? 2
-                    : parseControlnetValue(value),
+                      ? 1
+                      : value == "ControlNet is more important"
+                        ? 2
+                        : parseControlnetValue(value),
               };
               break;
             }
@@ -316,10 +316,12 @@ export const getLayers = async ({
   refs,
   isMaskLayerVisible,
   controlnetLayersArgs,
+  promptRegions,
 }: {
   refs: Required<RefsContextProps>;
   isMaskLayerVisible: boolean;
   controlnetLayersArgs?: ControlnetLayer[];
+  promptRegions?: PromptRegionLayer[];
 }): Promise<{
   maskDataUrl: string;
   initImageDataUrl: string | undefined;
@@ -327,32 +329,35 @@ export const getLayers = async ({
     | { image: string; maskImage: string | null }
     | undefined
   )[];
+  regionMasksDataUrls?: string[];
 }> => {
   const {
     stageRef,
-    maskLayerRef,
+    maskGroupRef,
+    regionMasksGroupRef,
     controlnetLayerRef,
     selectionBoxRef,
     selectionBoxLayerRef,
     overlayLayerRef,
-    imageLayerRef,
+    // imageLayerRef,
     maskCompositeRectRef,
   } = refs;
   // if (layer.width() !== 0 && layer.height() !== 0) {
   const stage = stageRef?.current;
-  const maskLayer = maskLayerRef?.current;
+  const maskGroup = maskGroupRef?.current;
+  const regionMasksGroup = regionMasksGroupRef?.current;
   const controlnetLayer = controlnetLayerRef?.current;
 
   const selectionBox = selectionBoxRef?.current;
   const selectionBoxLayer = selectionBoxLayerRef?.current;
   const overlayLayer = overlayLayerRef?.current;
-  const imageLayer = imageLayerRef?.current;
+  // const imageLayer = imageLayerRef?.current;
   maskCompositeRectRef?.current?.visible(false);
   // maskLayer?.visible(isMaskLayerVisible);
 
-  const tempLayer: LayerType | undefined = maskLayer?.clone();
-  tempLayer?.scale(maskLayer?.getAbsoluteScale());
-  tempLayer?.position(maskLayer?.getAbsolutePosition() ?? { x: 0, y: 0 });
+  const tempLayer: GroupType | undefined = maskGroup?.clone();
+  tempLayer?.scale(maskGroup?.getAbsoluteScale());
+  tempLayer?.position(maskGroup?.getAbsolutePosition() ?? { x: 0, y: 0 });
   tempLayer?.cache();
   // tempLayer.filters([Konva.Threshold, Konva.Filters.Invert]);
   tempLayer?.filters([Konva.Filters.RGB, Konva.Filters.Invert]);
@@ -396,10 +401,49 @@ export const getLayers = async ({
       // imageSmoothingEnabled: false,
       // pixelRatio: 1 / stage.scaleX(),
     })) ?? "";
-
+  // debugImage(maskDataUrl, {});
   tempLayer?.destroy();
 
   maskCompositeRectRef?.current?.visible(true);
+
+  const regionMasksGroups = regionMasksGroup?.children;
+
+  const initialRegionMasksGroupsVisibility: boolean[] =
+    regionMasksGroups?.map((group) => {
+      const initialGroupVisibility = group.isVisible();
+      group.visible(false);
+      return initialGroupVisibility;
+    }) ?? [];
+
+  const regionMasksDataUrls = promptRegions?.reduce((acc, layer, index) => {
+    if (!layer.isEnabled) return acc;
+    const layerGroup = regionMasksGroups?.[index];
+    layerGroup?.visible(true);
+
+    layerGroup?.cache();
+    layerGroup?.filters([Konva.Filters.RGB, Konva.Filters.Invert]);
+
+    const regionMaskDataUrl =
+      regionMasksGroup?.toDataURL({
+        x: selectionBox?.getAbsolutePosition().x,
+        y: selectionBox?.getAbsolutePosition().y,
+        width: selectionBox?.width(),
+        height: selectionBox?.height(),
+        // imageSmoothingEnabled: false,
+      }) ?? "";
+
+    layerGroup?.filters([]);
+    layerGroup?.clearCache();
+
+    layerGroup?.visible(false);
+    // debugImage(regionMaskDataUrl, { layer, layerGroup });
+
+    return [...acc, regionMaskDataUrl];
+  }, [] as string[]);
+
+  regionMasksGroups?.forEach((group, index) =>
+    group.visible(initialRegionMasksGroupsVisibility[index])
+  );
 
   // } else {
   //   document.getElementById("maskIn").value = "";
@@ -408,7 +452,10 @@ export const getLayers = async ({
   selectionBoxLayer?.visible(false);
   overlayLayer?.visible(false);
   controlnetLayer?.visible(false);
-  maskLayer?.visible(false);
+  maskGroup?.visible(false);
+  const initialRegionMasksGroupVisibility =
+    regionMasksGroup?.visible() ?? false;
+  regionMasksGroup?.visible(false);
   const initImageDataUrl = await stage?.toDataURL({
     x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
     y: selectionBox?.getAbsolutePosition().y,
@@ -421,7 +468,8 @@ export const getLayers = async ({
 
   controlnetLayer?.visible(true);
 
-  maskLayer?.visible(isMaskLayerVisible);
+  maskGroup?.visible(isMaskLayerVisible);
+  regionMasksGroup?.visible(initialRegionMasksGroupVisibility);
   const bgRect = new Konva.Rect({
     x: selectionBox?.getPosition().x,
     y: selectionBox?.getPosition().y,
@@ -518,7 +566,12 @@ export const getLayers = async ({
   // })}`;
   // document.body.append(img);
 
-  return { maskDataUrl, initImageDataUrl, controlnetDataUrls };
+  return {
+    maskDataUrl,
+    initImageDataUrl,
+    controlnetDataUrls,
+    regionMasksDataUrls,
+  };
 };
 
 /**

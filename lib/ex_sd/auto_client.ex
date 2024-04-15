@@ -129,8 +129,8 @@ defmodule ExSd.AutoClient do
       modules =
         body["module_list"]
         |> Enum.sort()
-        |> Enum.filter(&(&1 !== "none"))
-        |> List.insert_at(0, "none")
+        |> Enum.filter(&(&1 !== "None" and &1 !== "none"))
+        |> List.insert_at(0, "None")
 
       {:ok, modules, body["module_detail"]}
     else

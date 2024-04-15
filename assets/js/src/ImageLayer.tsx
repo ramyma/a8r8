@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect } from "react";
-import { FastLayer } from "react-konva";
+import { Layer } from "react-konva";
 import konva from "konva";
 import RefsContext from "./context/RefsContext";
 import SocketContext from "./context/SocketContext";
@@ -165,7 +165,8 @@ const ImageLayer = () => {
   // TODO: stress test with many images; explore caching
 
   return (
-    <FastLayer
+    <Layer
+      listening={false}
       imageSmoothingEnabled={false}
       ref={imageLayerRef}
       id="imageLayer"

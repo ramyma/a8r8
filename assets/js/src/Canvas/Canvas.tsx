@@ -1,10 +1,10 @@
 import React, {
+  KeyboardEvent,
   Ref,
   useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
-  useReducer,
   useRef,
   useState,
 } from "react";
@@ -32,8 +32,15 @@ import {
   updateStagePosition,
   setIsbrushPreviewVisible,
 } from "../state/canvasSlice";
-import OverlayLayer from "../OverlayLayer";
-import { BrushPreviewNode } from "../OverlayLayer-types";
+import {
+  selectControlnetLines,
+  selectControlnetMaskLines,
+  selectRegionMaskLines,
+  setControlnetLines,
+  setControlnetMaskLines,
+  setRegionMaskLines,
+} from "../state/linesSlice";
+import OverlayLayer, { BrushPreviewNode } from "../OverlayLayer";
 import { useAppDispatch, useAppSelector } from "../hooks";
 import RefsContext from "../context/RefsContext";
 import SketchLayer from "../SketchLayer";
@@ -43,6 +50,7 @@ import {
   ActiveLayer,
   selectActiveControlnetId,
   selectActiveLayer,
+  selectActivePromptRegionId,
   setActiveLayer,
   toggleMaskLayerVisibility,
 } from "../state/layersSlice";
@@ -61,23 +69,12 @@ import useSocket from "../hooks/useSocket";
 import useCustomEventsListener from "./hooks/useCustomEventsListener";
 import { CanvasDimensions } from "./Canvas.d";
 import { Rect } from "konva/lib/shapes/Rect";
+import { addHistoryItem } from "../state/historySlice";
+import useLines from "./hooks/useLines";
 
 const SCALE_BY = 1.1;
 // const BRUSH_SIZE = 40;
 const MIN_SCALE = 0.11;
-
-const controlnetLinesReducer = (
-  state: { [key: string]: BrushStroke[] },
-  action: { type: string; payload: { id: string; lines: BrushStroke[] } }
-) => {
-  const { payload } = action;
-  if (action.type === "UPDATE") {
-    return Object.assign(state, {
-      [payload.id]: payload.lines,
-    });
-  }
-  return state;
-};
 
 export default function Canvas() {
   const { broadcastSelectionBoxUpdate } = useSocket();
@@ -99,55 +96,80 @@ export default function Canvas() {
   const {
     setHistoryStateItem: setSketchState,
     clearHistoryStateItem: clearSketchLines,
-    dispatchHistoryEvent: dispatchSketchHistoryEvent,
+    dispatchHistoryEvent: _dispatchSketchHistoryEvent,
     state: sketchLines,
     setState: setSketchLines,
   } = useHistoryState<BrushStroke>({ topic: "canvas/sketch" });
 
-  const [controlnetLines, dispatchControlnetLines] = useReducer(
-    controlnetLinesReducer,
-    {}
+  const dispatch = useAppDispatch();
+
+  const [tempControlnetLines, dispatchTempControlnetLines] = useLines();
+  const controlnetLines = useAppSelector(selectControlnetLines);
+  const dispatchControlnetLines = useCallback(
+    (lines) => {
+      dispatch(setControlnetLines(lines));
+    },
+    [dispatch]
   );
 
-  const [controlnetMaskLines, dispatchControlnetMaskLines] = useReducer(
-    controlnetLinesReducer,
-    {}
+  const [tempControlnetMaskLines, dispatchTempControlnetMaskLines] = useLines();
+  const controlnetMaskLines = useAppSelector(selectControlnetMaskLines);
+  const dispatchControlnetMaskLines = useCallback(
+    (lines) => {
+      dispatch(setControlnetMaskLines(lines));
+    },
+    [dispatch]
+  );
+
+  const regionMaskLines = useAppSelector(selectRegionMaskLines);
+
+  const [tempRegionMaskLines, dispatchTempRegionMaskLines] = useLines();
+
+  const dispatchRegionMaskLines = useCallback(
+    (lines) => {
+      dispatch(setRegionMaskLines(lines));
+    },
+    [dispatch]
   );
 
   const [, setRefresher] = useState<number>(0);
-  // const [controlnetLines, setControlnetLines] = useState<{
-  //   [key: number]: BrushStroke[];
-  // }>({});
-  // const [tool, setTool] = useState<BrushStroke["tool"]>("brush");
+
   const tool = useAppSelector(selectTool);
   const isDrawing = useRef(false);
   const brushPreviewRef = useRef<BrushPreviewNode>();
   const brushSize = useAppSelector(selectBrushSize);
-  const dispatch = useAppDispatch();
   // const [color, setColor] = useState<string>("");
   const brushColor = useAppSelector(selectBrushColor);
   const mode = useAppSelector(selectMode);
   const activeLayer = useAppSelector(selectActiveLayer);
   const isColorPickerVisible = useAppSelector(selectIsColorPickerVisible);
 
-  const generationParams = useAppSelector(selectGenerationParams);
+  // const generationParams = useAppSelector(selectGenerationParams);
 
   const activeControlnetLayerId = useAppSelector(selectActiveControlnetId);
+  const activeRegionMaskLayerId = useAppSelector(selectActivePromptRegionId);
+
   const getControlnetLayerLines = useCallback(
     () =>
       typeof activeControlnetLayerId === "string"
         ? (activeLayer.endsWith("mask")
-            ? controlnetMaskLines[activeControlnetLayerId]
-            : controlnetLines[activeControlnetLayerId]) ?? []
+            ? tempControlnetMaskLines[activeControlnetLayerId]
+            : tempControlnetLines[activeControlnetLayerId]) ?? []
         : [],
-    [activeControlnetLayerId, activeLayer, controlnetLines, controlnetMaskLines]
+    [
+      activeControlnetLayerId,
+      activeLayer,
+      tempControlnetLines,
+      tempControlnetMaskLines,
+    ]
   );
 
   const setControlnetLayerLines = useCallback(
     (
       arg: BrushStroke[] | ((lines: BrushStroke[]) => BrushStroke[]),
       layerId?: string,
-      isClear?: boolean
+      isClear?: boolean,
+      updateGlobalState?: boolean
     ) => {
       // hack to rerender on controlnet lines update
       setRefresher((prev) => prev + 1);
@@ -161,53 +183,156 @@ export default function Canvas() {
       if (layer.includes("controlnet") && layerId)
         if (Array.isArray(arg)) {
           const lines = arg;
-          layer.endsWith("mask")
-            ? dispatchControlnetMaskLines({
-                type: "UPDATE",
-                payload: { id: layerId, lines },
-              })
-            : dispatchControlnetLines({
+          if (layer.endsWith("mask")) {
+            if (updateGlobalState) {
+              dispatchControlnetMaskLines({ id: layerId, lines });
+              dispatchTempControlnetMaskLines({
+                type: "CLEAR",
+              });
+              dispatch(
+                addHistoryItem({
+                  label: "Add contronnet line",
+                  topic: "canvas/line",
+                })
+              );
+            } else {
+              dispatchTempControlnetMaskLines({
                 type: "UPDATE",
                 payload: { id: layerId, lines },
               });
+            }
+          } else {
+            if (updateGlobalState) {
+              dispatchControlnetLines({ id: layerId, lines });
+              dispatchTempControlnetLines({
+                type: "CLEAR",
+              });
+              dispatch(
+                addHistoryItem({
+                  label: "Add contronnet line",
+                  topic: "canvas/line",
+                })
+              );
+            } else {
+              dispatchTempControlnetLines({
+                type: "UPDATE",
+                payload: { id: layerId, lines },
+              });
+            }
+          }
         } else {
           if (layer.endsWith("mask")) {
             const lines = arg(controlnetMaskLines[layerId] ?? []);
 
-            dispatchControlnetMaskLines({
+            dispatchTempControlnetMaskLines({
               type: "UPDATE",
               payload: { id: layerId, lines },
             });
           } else {
             const lines = arg(controlnetLines[layerId] ?? []);
-            dispatchControlnetLines({
+            dispatchTempControlnetLines({
               type: "UPDATE",
               payload: { id: layerId, lines },
             });
           }
         }
     },
-    [activeControlnetLayerId, activeLayer, controlnetLines, controlnetMaskLines]
+    [
+      activeLayer,
+      activeControlnetLayerId,
+      dispatchControlnetMaskLines,
+      dispatchTempControlnetMaskLines,
+      dispatch,
+      dispatchControlnetLines,
+      dispatchTempControlnetLines,
+      controlnetMaskLines,
+      controlnetLines,
+    ]
   );
 
+  const getRegionMaskLayerLines = useCallback(
+    () =>
+      typeof activeRegionMaskLayerId === "string"
+        ? tempRegionMaskLines[activeRegionMaskLayerId] ?? []
+        : [],
+    [activeRegionMaskLayerId, tempRegionMaskLines]
+  );
+  const setRegionMaskLayerLines = useCallback(
+    (
+      arg: BrushStroke[] | ((lines: BrushStroke[]) => BrushStroke[]),
+      layerId?: string,
+      isClear?: boolean,
+      updateGlobalState?: boolean
+    ) => {
+      // hack to rerender on controlnet lines update
+      setRefresher((prev) => prev + 1);
+
+      const layer = isClear && layerId ? layerId : activeLayer;
+
+      layerId = layer.includes("regionMask")
+        ? layer.replace("regionMask", "")
+        : activeControlnetLayerId;
+
+      if (layer.includes("regionMask") && layerId)
+        if (Array.isArray(arg)) {
+          const lines = arg;
+          if (updateGlobalState) {
+            dispatchRegionMaskLines({ id: layerId, lines });
+            dispatchTempRegionMaskLines({
+              type: "CLEAR",
+            });
+            dispatch(
+              addHistoryItem({
+                label: "Add region mask line",
+                topic: "canvas/line",
+              })
+            );
+          } else {
+            dispatchTempRegionMaskLines({
+              type: "UPDATE",
+              payload: { id: layerId, lines },
+            });
+          }
+        } else {
+          const lines = arg(regionMaskLines[layerId] ?? []);
+          dispatchTempRegionMaskLines({
+            type: "UPDATE",
+            payload: { id: layerId, lines },
+          });
+        }
+    },
+    [
+      activeLayer,
+      activeControlnetLayerId,
+      dispatchRegionMaskLines,
+      dispatchTempRegionMaskLines,
+      dispatch,
+      regionMaskLines,
+    ]
+  );
   const clearLines = useCallback(
     (layer: ActiveLayer = activeLayer) => {
       if (layer === "mask" && maskLines.length > 0) {
         clearMaskLines("Clear mask");
       }
+      if (layer.startsWith("regionMask")) {
+        // const layerId = layer.replace("regionMask", "");
+        setRegionMaskLayerLines([], layer, true, true);
+      }
       if (layer === "sketch" && sketchLines.length > 0) {
         clearSketchLines("Clear sketch");
       }
       if (layer.startsWith("controlnet")) {
-        const layerId = layer.replace("controlnet", "");
-        setControlnetLayerLines([], layer, true);
+        // const layerId = layer.replace("controlnet", "");
+        setControlnetLayerLines([], layer, true, true);
       }
     },
     [
       activeLayer,
-      maskLines,
-      sketchLines,
+      maskLines.length,
+      sketchLines.length,
       clearMaskLines,
+      setRegionMaskLayerLines,
       clearSketchLines,
       setControlnetLayerLines,
     ]
@@ -418,9 +543,11 @@ export default function Canvas() {
         const setFunc =
           activeLayer === "mask"
             ? setMaskLines
-            : activeLayer === "sketch"
-              ? setSketchLines
-              : setControlnetLayerLines;
+            : activeLayer.startsWith("regionMask")
+              ? setRegionMaskLayerLines
+              : activeLayer === "sketch"
+                ? setSketchLines
+                : setControlnetLayerLines;
 
         setFunc((lines) => [
           ...lines,
@@ -448,6 +575,7 @@ export default function Canvas() {
       mode,
       activeLayer,
       setMaskLines,
+      setRegionMaskLayerLines,
       setSketchLines,
       setControlnetLayerLines,
       tool,
@@ -496,9 +624,11 @@ export default function Canvas() {
           const linesArr =
             activeLayer === "mask"
               ? maskLines
-              : activeLayer === "sketch"
-              ? sketchLines
-              : getControlnetLayerLines();
+              : activeLayer.startsWith("regionMask")
+                ? getRegionMaskLayerLines()
+                : activeLayer === "sketch"
+                  ? sketchLines
+                  : getControlnetLayerLines();
           const lastLine = linesArr[linesArr.length - 1];
           // add point
           // lastLine.points = lastLine.points.concat([point.x, point.y]);
@@ -517,13 +647,19 @@ export default function Canvas() {
             // dispatch;
             // dispatch(setStateMaskLines(newLinesArr.concat()));
           }
+
+          if (activeLayer.startsWith("regionMask"))
+            setRegionMaskLayerLines(newLinesArr.concat());
+
           if (activeLayer === "sketch") setSketchLines(newLinesArr.concat());
+
           if (activeLayer.startsWith("controlnet"))
             setControlnetLayerLines(newLinesArr.concat());
         }
       }
       if (e.evt.buttons === 4) {
         e.evt.stopPropagation();
+        // imageLayerRef?.current?.cache({ drawBorder: true });
 
         if (stage) {
           e.evt.preventDefault();
@@ -550,8 +686,10 @@ export default function Canvas() {
     [
       activeLayer,
       maskLines,
+      getRegionMaskLayerLines,
       sketchLines,
       getControlnetLayerLines,
+      setRegionMaskLayerLines,
       setSketchLines,
       setControlnetLayerLines,
       setMaskLines,
@@ -568,9 +706,11 @@ export default function Canvas() {
         const linesArr =
           activeLayer === "mask"
             ? maskLines
-            : activeLayer === "sketch"
-              ? sketchLines
-              : getControlnetLayerLines();
+            : activeLayer.startsWith("regionMask")
+              ? getRegionMaskLayerLines()
+              : activeLayer === "sketch"
+                ? sketchLines
+                : getControlnetLayerLines();
         const lastLine = linesArr[linesArr.length - 1];
         // console.log(lastLine.points, lastLine.points.length);
 
@@ -594,31 +734,47 @@ export default function Canvas() {
             setMaskState(newLinesArr, "Add mask", true);
             // dispatch(setStateMaskLines(newLinesArr));
           }
+
+          if (activeLayer.startsWith("regionMask"))
+            setRegionMaskLayerLines(newLinesArr, undefined, undefined, true);
+
           if (activeLayer === "sketch") {
             setSketchState(newLinesArr, "Add sketch", true);
           }
           if (activeLayer.startsWith("controlnet"))
-            setControlnetLayerLines(newLinesArr);
+            setControlnetLayerLines(newLinesArr, undefined, undefined, true);
+          // layerId?: string,
+          // isClear?: boolean,
+          // isFinalStroke?: boolean
         } else {
           if (activeLayer === "mask") {
             // dispatch(setStateMaskLines(linesArr));
             setMaskState(linesArr, "Add mask", true);
           }
+
+          if (activeLayer.startsWith("regionMask"))
+            setRegionMaskLayerLines(linesArr, undefined, undefined, true);
+
           if (activeLayer === "sketch") {
             setSketchState(linesArr, "Add sketch", true);
           }
           // if (activeLayer === "sketch") setSketchLines(newLinesArr.concat());
-          // if (activeLayer.startsWith("controlnet"))
-          //   setControlnetLayerLines(newLinesArr.concat());
+          if (activeLayer.startsWith("controlnet"))
+            setControlnetLayerLines(linesArr, undefined, undefined, true);
         }
       }
+      // else {
+      //   imageLayerRef?.current?.clearCache();
+      // }
       // selectionAnchorId.current = "";
     },
     [
       activeLayer,
       maskLines,
+      getRegionMaskLayerLines,
       sketchLines,
       getControlnetLayerLines,
+      setRegionMaskLayerLines,
       setControlnetLayerLines,
       setMaskState,
       setSketchState,
@@ -653,10 +809,18 @@ export default function Canvas() {
             dimensions={dimensions}
             lines={controlnetLines}
             maskLines={controlnetMaskLines}
+            tempLines={tempControlnetLines}
+            tempMaskLines={tempControlnetMaskLines}
           />
-          <MaskLayer dimensions={dimensions} lines={maskLines} />
+          <MaskLayer
+            dimensions={dimensions}
+            lines={maskLines}
+            regionMaskLines={regionMaskLines}
+            tempRegionMaskLines={tempRegionMaskLines}
+          />
           <SelectionLayer />
           <OverlayLayer
+            dimensions={dimensions}
             brushPreviewRef={brushPreviewRef as Ref<BrushPreviewNode>}
           />
         </Stage>

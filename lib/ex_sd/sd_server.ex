@@ -588,7 +588,7 @@ defmodule ExSd.SdSever do
         mapped_modules =
           controlnet_preprocessors
           |> Enum.sort()
-          |> List.insert_at(0, "none")
+          |> List.insert_at(0, "None")
 
         state
         |> Map.put(:controlnet_preprocessors, mapped_modules)

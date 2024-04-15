@@ -130,7 +130,7 @@ const ImageUploader = ({ image, title, onChange }: Props) => {
     <div>
       <div
         style={{ ...(image && { backgroundImage: `url(${image}` }) }}
-        className={`relative border border-neutral-700 bg-neutral-800/80 hover:border-neutral-100 rounded  bg-clip-content bg-contain bg-no-repeat bg-center h-56 hover:cursor-pointer transition-[border] duration-[250] ${
+        className={`relative border border-neutral-700 bg-neutral-800/80 hover:border-neutral-100 rounded  bg-clip-content bg-contain bg-no-repeat bg-center sm:h-28 2xl:h-56 hover:cursor-pointer transition-all duration-[250] ${
           isDragging
             ? "outline-primary outline-dashed outline-2 outline-offset-2"
             : ""

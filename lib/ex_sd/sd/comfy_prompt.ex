@@ -885,7 +885,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         image:
           node_ref(
             if(
-              entry.module == "none",
+              entry.module == "None",
               do: "cn#{index}_image",
               else: "cn#{index}_preprocessor"
             ),
@@ -894,7 +894,7 @@ defmodule ExSd.Sd.ComfyPrompt do
       )
       |> maybe_add_controlnet_preprocessor(index, entry.module,
         name: :"cn#{index}_preprocessor",
-        add_condition: entry.module != "none"
+        add_condition: entry.module != "None"
       )
     end)
   end

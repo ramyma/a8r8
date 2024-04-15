@@ -26,8 +26,9 @@ const uFuzzyObj = new uFuzzy({
   intraTrn: 1,
   intraDel: 1,
 });
-export interface SelectProps
-  extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChange" | "value"> {
+export interface SelectProps<
+  T = string | number | { value: string | number; label: string },
+> extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChange" | "value"> {
   items: Required<SelectProps>["value"][];
   /**
    * @defaultValue 'value'
@@ -42,7 +43,7 @@ export interface SelectProps
    */
   textAttr?: string;
   placeholder?: string;
-  value?: string | number | { value: string | number; label: string };
+  value?: T;
   onChange: (value: SelectProps["value"]) => void;
 }
 
@@ -326,7 +327,7 @@ const Select = forwardRef(
           >
             <div
               className="absolute top-0 left-0 w-full h-full z-10 bg-black/0"
-              onClick={handleClickOutside}
+              onMouseDown={handleClickOutside}
               ref={modalBodyRef}
             />
             <div
@@ -370,8 +371,8 @@ const Select = forwardRef(
                           selectedItemIdx === index
                             ? activeItemRef
                             : index === activeItem
-                            ? selectedItemRef
-                            : undefined
+                              ? selectedItemRef
+                              : undefined
                         }
                         key={
                           (rest?.name ?? "") +
@@ -383,10 +384,10 @@ const Select = forwardRef(
                           (index === selectedItemIdx && activeItem === index
                             ? "bg-neutral-100"
                             : index === selectedItemIdx
-                            ? "bg-neutral-800/50"
-                            : activeItem === index
-                            ? "bg-neutral-100 text-neutral-900"
-                            : "hover:bg-neutral-900/70") +
+                              ? "bg-neutral-800/50"
+                              : activeItem === index
+                                ? "bg-neutral-100 text-neutral-900"
+                                : "hover:bg-neutral-900/70") +
                           (selectedItemIdx === index ? " text-primary" : "")
                         }
                         title={typeof item === "object" ? item[textAttr] : item}

@@ -136,5 +136,4 @@ export const selectIsControlnetLayerVisible = (state: RootState) =>
 export const selectMaskColor = (state: RootState) => state.canvas.maskColor;
 export const selectMaskLines = (state: RootState) => state.canvas.maskLines;
 export const selectInvertMask = (state: RootState) => state.canvas.invertMask;
-
 export default canvasSlice.reducer;

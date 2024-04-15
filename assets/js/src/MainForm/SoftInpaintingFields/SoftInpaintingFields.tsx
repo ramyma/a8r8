@@ -1,9 +1,8 @@
 import { Control, Controller, useWatch } from "react-hook-form";
-import { useSpring, animated } from "@react-spring/web";
-import { softPaintingFields } from "./contsants";
+import { softPaintingFields } from "./constants";
 import Slider from "../../components/Slider";
-import Checkbox from "../../components/Checkbox";
 import { MainFormValues } from "../MainForm";
+import ExpandCollapseCheckbox from "../../components/ExpandCollapseCheckbox";
 
 export type SoftInpaintingArgs = {
   isSoftInpaintingEnabled?: boolean;
@@ -97,37 +96,29 @@ const SoftInpaintingFields = ({
     name: "softInpainting.isSoftInpaintingEnabled",
   });
 
-  const [style, api] = useSpring(
-    () => ({
-      height: isSoftInpaintingEnabled ? "100%" : "0%",
-    }),
-    [isSoftInpaintingEnabled]
-  );
-
   return (
     <div className="flex flex-col gap-3">
       <Controller
         name={"softInpainting.isSoftInpaintingEnabled"}
         control={control}
-        render={({ field }) => <Checkbox {...field}>Soft Inpainting</Checkbox>}
+        render={({ field }) => (
+          <ExpandCollapseCheckbox {...field} label="Soft Inpainting">
+            <div className="h-auto flex relative flex-col gap-8 bg-neutral-100/5 p-4 rounded-md overflow-hidden">
+              {softPaintingFields?.map(({ value: defaultValue, ...rest }) => (
+                <div key={rest.label}>
+                  <Controller
+                    name={"softInpainting." + rest.label}
+                    control={control}
+                    render={({ field }) => <Slider {...rest} {...field} />}
+                    defaultValue={defaultValue}
+                  />
+                </div>
+              ))}
+            </div>
+          </ExpandCollapseCheckbox>
+        )}
         defaultValue={false}
       />
-      {isSoftInpaintingEnabled && (
-        <animated.div style={style}>
-          <div className="h-auto flex relative flex-col gap-8 bg-neutral-100/5 p-4 rounded-md overflow-hidden">
-            {softPaintingFields?.map(({ value: defaultValue, ...rest }) => (
-              <div key={rest.label}>
-                <Controller
-                  name={"softInpainting." + rest.label}
-                  control={control}
-                  render={({ field }) => <Slider {...rest} {...field} />}
-                  defaultValue={defaultValue}
-                />
-              </div>
-            ))}
-          </div>
-        </animated.div>
-      )}
     </div>
   );
 };

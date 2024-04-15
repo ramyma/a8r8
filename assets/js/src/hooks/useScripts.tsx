@@ -7,8 +7,21 @@ import { selectBackend } from "../state/optionsSlice";
 type Props = {
   fetchPolicy?: FetchPolicy;
 };
+type Return = {
+  scripts: Scripts;
+  fetchData: ReturnType<typeof useData>["fetchData"];
+  hasTiledDiffusion: boolean;
+  hasTiledVae: boolean;
+  hasUltimateUpscale: boolean;
+  hasControlnet: boolean;
+  hasSelfAttentionGuidance: boolean;
+  hasSoftInpainting: boolean;
+  hasForgeCouple: boolean;
+  hasNeverOutOfMemory: boolean;
+  hasMultidiffusionIntegrated: boolean;
+};
 
-const useScripts = ({ fetchPolicy }: Props = {}) => {
+const useScripts = ({ fetchPolicy }: Props = {}): Return => {
   const { fetchData, data: scripts } = useData<Scripts>({
     name: "scripts",
     fetchPolicy,
@@ -51,6 +64,18 @@ const useScripts = ({ fetchPolicy }: Props = {}) => {
     () => (backend === "auto" ? hasScript("soft inpainting") : false),
     [backend, hasScript]
   );
+  const hasForgeCouple = useMemo(
+    () => (backend === "auto" ? hasScript("forge couple") : false),
+    [backend, hasScript]
+  );
+  const hasNeverOutOfMemory = useMemo(
+    () => (backend === "auto" ? hasScript("never oom integrated") : false),
+    [backend, hasScript]
+  );
+  const hasMultidiffusionIntegrated = useMemo(
+    () => (backend === "auto" ? hasScript("multidiffusion integrated") : false),
+    [backend, hasScript]
+  );
 
   return {
     scripts,
@@ -61,6 +86,9 @@ const useScripts = ({ fetchPolicy }: Props = {}) => {
     hasControlnet,
     hasSelfAttentionGuidance,
     hasSoftInpainting,
+    hasForgeCouple,
+    hasNeverOutOfMemory,
+    hasMultidiffusionIntegrated,
   };
 };
 
