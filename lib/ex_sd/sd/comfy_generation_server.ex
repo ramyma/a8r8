@@ -14,7 +14,7 @@ defmodule ExSd.ComfyGenerationServer do
   def init(_args) do
     client_id = Ecto.UUID.generate()
 
-    %{backend: backend, is_connected: is_connected} = :sys.get_state(ExSd.SdSever)
+    %{backend: backend, is_connected: is_connected} = :sys.get_state(ExSd.SdSever, timeout: 5_000)
 
     if(backend == :comfy and is_connected,
       do: connect_to_websocket(client_id)
