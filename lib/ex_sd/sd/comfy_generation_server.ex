@@ -15,7 +15,9 @@ defmodule ExSd.ComfyGenerationServer do
     client_id = Ecto.UUID.generate()
 
     %{backend: backend, is_connected: is_connected} =
-      :sys.get_state(GenServer.whereis(ExSd.SdSever))
+      if Process.alive?(GenServer.whereis(ExSd.SdSever)),
+        do: :sys.get_state(GenServer.whereis(ExSd.SdSever)),
+        else: %{backend: "auto", is_connected: false}
 
     if(backend == :comfy and is_connected,
       do: connect_to_websocket(client_id)
