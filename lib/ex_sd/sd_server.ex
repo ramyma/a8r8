@@ -1,9 +1,8 @@
-defmodule ExSd.SdSever do
+defmodule ExSd.SdServer do
   use GenServer
 
   require Logger
 
-  alias ExSd.ComfyClient
   alias ExSd.Sd.ImageService
   alias ExSd.Sd.SdService
   alias ExSd.Sd.{MemoryStats, GenerationParams}
@@ -47,8 +46,6 @@ defmodule ExSd.SdSever do
 
   @impl true
   def handle_continue(:init_status_loop, state) do
-    initialize_state(state)
-
     Process.send(self(), :status, [])
 
     {:noreply, state}
@@ -425,8 +422,7 @@ defmodule ExSd.SdSever do
 
   @impl true
   def handle_cast({:set_backend, backend}, state) do
-    new_state =
-      initialize_state(%{state | backend: String.to_existing_atom(backend), is_connected: false})
+    new_state = %{state | backend: String.to_existing_atom(backend), is_connected: false}
 
     Phoenix.PubSub.broadcast!(
       ExSd.PubSub,
@@ -970,6 +966,6 @@ defmodule ExSd.SdSever do
   end
 
   def stop() do
-    GenServer.stop(ExSd.SdSever)
+    GenServer.stop(ExSd.SdServer)
   end
 end

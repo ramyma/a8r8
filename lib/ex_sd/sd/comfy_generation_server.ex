@@ -1,6 +1,5 @@
 defmodule ExSd.ComfyGenerationServer do
   require Logger
-  alias Ecto.UUID
   alias Phoenix.PubSub
   alias ExSd.ComfyClient
   alias ExSd.Sd.ComfyWebsocketServer
@@ -30,11 +29,11 @@ defmodule ExSd.ComfyGenerationServer do
 
   @impl true
   def handle_continue(:init, %{client_id: client_id} = state) do
-    sd_server_pid = GenServer.whereis(ExSd.SdSever)
+    sd_server_pid = GenServer.whereis(ExSd.SdServer)
 
     %{backend: backend, is_connected: is_connected} =
       if not is_nil(sd_server_pid) and Process.alive?(sd_server_pid),
-        do: :sys.get_state(GenServer.whereis(ExSd.SdSever)),
+        do: :sys.get_state(GenServer.whereis(ExSd.SdServer)),
         else: %{backend: "auto", is_connected: false}
 
     if(backend == :comfy and is_connected,

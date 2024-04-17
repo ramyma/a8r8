@@ -29,13 +29,13 @@ defmodule ExSd.Sd.ImageService do
     end
   end
 
-  defp maybe_feather!(image, sigma, true = _condition) do
-    Image.feather!(image, sigma: sigma)
-  end
+  # defp maybe_feather!(image, sigma, true = _condition) do
+  #   Image.feather!(image, sigma: sigma)
+  # end
 
-  defp maybe_feather!(image, _sigma, _condition) do
-    image
-  end
+  # defp maybe_feather!(image, _sigma, _condition) do
+  #   image
+  # end
 
   # Creates a mask image that fills the transparent parts with white.
   # , options \\ []) do
