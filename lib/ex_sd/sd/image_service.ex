@@ -1,6 +1,4 @@
 defmodule ExSd.Sd.ImageService do
-  alias ExSd.Sd.ImageService
-
   def save("data:image/png;base64," <> _ = data_url, name) do
     data_url_to_upload(data_url, name)
   end

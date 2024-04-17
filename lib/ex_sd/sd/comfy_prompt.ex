@@ -151,7 +151,7 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     has_ultimate_upscale = attrs["ultimate_upscale"]
 
-    is_sd_xl = attrs["model"] |> String.downcase() |> String.contains?("xl")
+    # is_sd_xl = attrs["model"] |> String.downcase() |> String.contains?("xl")
 
     prompt =
       new()
