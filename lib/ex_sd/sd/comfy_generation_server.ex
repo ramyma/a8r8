@@ -14,15 +14,6 @@ defmodule ExSd.ComfyGenerationServer do
   def init(_args) do
     client_id = Ecto.UUID.generate()
 
-    %{backend: backend, is_connected: is_connected} =
-      if Process.alive?(GenServer.whereis(ExSd.SdSever)),
-        do: :sys.get_state(GenServer.whereis(ExSd.SdSever)),
-        else: %{backend: "auto", is_connected: false}
-
-    if(backend == :comfy and is_connected,
-      do: connect_to_websocket(client_id)
-    )
-
     Phoenix.PubSub.subscribe(ExSd.PubSub, "comfy")
     Phoenix.PubSub.subscribe(ExSd.PubSub, "sd_server")
 
@@ -34,7 +25,23 @@ defmodule ExSd.ComfyGenerationServer do
        client_id: client_id,
        attrs: nil,
        dimensions: nil
-     }}
+     }, {:continue, :init}}
+  end
+
+  @impl true
+  def handle_continue(:init, %{client_id: client_id} = state) do
+    sd_server_pid = GenServer.whereis(ExSd.SdSever)
+
+    %{backend: backend, is_connected: is_connected} =
+      if not is_nil(sd_server_pid) and Process.alive?(sd_server_pid),
+        do: :sys.get_state(GenServer.whereis(ExSd.SdSever)),
+        else: %{backend: "auto", is_connected: false}
+
+    if(backend == :comfy and is_connected,
+      do: connect_to_websocket(client_id)
+    )
+
+    {:noreply, state}
   end
 
   @impl true

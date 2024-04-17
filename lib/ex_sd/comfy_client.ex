@@ -403,10 +403,15 @@ defmodule ExSd.ComfyClient do
     end
   end
 
-  @spec get(binary(), binary() | nil) :: {:ok, Finch.Response.t()}
-  def get(url, base_url \\ "#{get_base_url()}") do
+  @spec get(binary(), [{:base_url, binary()} | {:timeout, non_neg_integer()}]) ::
+          {:error, %{:__exception__ => true, :__struct__ => atom(), optional(atom()) => any()}}
+          | {:ok, Finch.Response.t()}
+  def get(url, options \\ []) do
+    base_url = Keyword.get(options, :base_url, "#{get_base_url()}")
+    timeout = Keyword.get(options, :timeout, 15_000)
+
     case Finch.build(:get, "#{base_url}#{url}")
-         |> Finch.request(ExSd.Finch, receive_timeout: 1_000_000_000_000) do
+         |> Finch.request(ExSd.Finch, receive_timeout: timeout) do
       {:ok, response} -> {:ok, %{response | body: Jason.decode!(response.body)}}
       response -> response
     end
@@ -421,9 +426,15 @@ defmodule ExSd.ComfyClient do
     end
   end
 
-  def post(url, body \\ %{}, base_url \\ "#{get_base_url()}") do
+  @spec post(binary(), map(), [{:base_url, binary()} | {:timeout, non_neg_integer()}]) ::
+          {:error, %{:__exception__ => true, :__struct__ => atom(), optional(atom()) => any()}}
+          | {:ok, Finch.Response.t()}
+  def post(url, body \\ %{}, options \\ []) do
+    base_url = Keyword.get(options, :base_url, "#{get_base_url()}")
+    timeout = Keyword.get(options, :timeout, 15_000)
+
     case Finch.build(:post, "#{base_url}#{url}", [], Jason.encode!(body))
-         |> Finch.request(ExSd.Finch, receive_timeout: 1_000_000_000_000) do
+         |> Finch.request(ExSd.Finch, receive_timeout: timeout) do
       {:ok, response} ->
         response.body |> tap(&Logger.debug(&1))
 
