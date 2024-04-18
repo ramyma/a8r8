@@ -921,9 +921,13 @@ defmodule ExSd.SdServer do
     GenServer.call(__MODULE__, :embeddings)
   end
 
-  @spec get_backend :: {:ok, binary()}
-  def get_backend() do
-    GenServer.call(__MODULE__, :backend)
+  @spec get_backend(pos_integer() | nil) :: {:ok, atom()}
+  def get_backend(timeout \\ 5000) do
+    try do
+      GenServer.call(__MODULE__, :backend, timeout)
+    catch
+      :exit, _ -> {:ok, :auto}
+    end
   end
 
   @spec get_controlnet_models :: {:ok, list(binary)}
@@ -953,8 +957,13 @@ defmodule ExSd.SdServer do
     GenServer.call(__MODULE__, {:get_png_info, png_data_url})
   end
 
-  def get_is_connected() do
-    GenServer.call(__MODULE__, :get_is_connected)
+  @spec get_is_connected(pos_integer() | nil) :: {:ok, boolean()}
+  def get_is_connected(timeout \\ 5000) do
+    try do
+      GenServer.call(__MODULE__, :get_is_connected, timeout)
+    catch
+      :exit, _ -> {:ok, false}
+    end
   end
 
   def set_backend(backend) do
