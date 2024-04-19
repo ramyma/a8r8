@@ -1,6 +1,4 @@
 defmodule ExSd.Sd.ImageService do
-  alias ExSd.Sd.ImageService
-
   def save("data:image/png;base64," <> _ = data_url, name) do
     data_url_to_upload(data_url, name)
   end
@@ -29,13 +27,13 @@ defmodule ExSd.Sd.ImageService do
     end
   end
 
-  defp maybe_feather!(image, sigma, true = _condition) do
-    Image.feather!(image, sigma: sigma)
-  end
+  # defp maybe_feather!(image, sigma, true = _condition) do
+  #   Image.feather!(image, sigma: sigma)
+  # end
 
-  defp maybe_feather!(image, _sigma, _condition) do
-    image
-  end
+  # defp maybe_feather!(image, _sigma, _condition) do
+  #   image
+  # end
 
   # Creates a mask image that fills the transparent parts with white.
   # , options \\ []) do

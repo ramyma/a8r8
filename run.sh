@@ -21,4 +21,7 @@ if [[ -f user.sh ]]; then
     echo Done loading user config!
 fi
 
+echo "Accessing A1111/Forge on $AUTO_URL"
+echo "Accessing ComfyUI on $COMFY_URL"
+
 mix phx.server

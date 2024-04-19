@@ -2,14 +2,14 @@ defmodule ExSd.Sd do
   require Logger
   alias ExSd.Sd.MemoryStats
   alias ExSd.Sd.GenerationParams
-  alias ExSd.SdSever
+  alias ExSd.SdServer
 
   def change_generation_params(%GenerationParams{} = generation_params, attrs \\ %{}) do
     GenerationParams.changeset(generation_params, attrs)
   end
 
   def generate(%{} = generation_params, attrs, session_name) do
-    SdSever.generate(
+    SdServer.generate(
       change_generation_params(
         %GenerationParams{},
         generation_params
@@ -22,62 +22,62 @@ defmodule ExSd.Sd do
 
   # @spec generate(GenerationParams.t(), map()) :: :ok
   # def generate(%GenerationParams{} = generation_params, attrs) do
-  #   SdSever.generate(generation_params, attrs)
+  #   SdServer.generate(generation_params, attrs)
   # end
 
-  defdelegate interrupt(), to: SdSever
+  defdelegate interrupt(), to: SdServer
 
-  defdelegate free_memory(), to: SdSever
+  defdelegate free_memory(), to: SdServer
 
-  defdelegate get_memory_usage(), to: SdSever
+  defdelegate get_memory_usage(), to: SdServer
   @spec get_samplers :: {:ok, list(String.t())}
-  defdelegate get_samplers(), to: SdSever
+  defdelegate get_samplers(), to: SdServer
 
-  defdelegate get_is_connected(), to: SdSever
+  defdelegate get_is_connected(), to: SdServer
 
   @spec get_models :: {:ok, list()}
-  defdelegate get_models(), to: SdSever
+  defdelegate get_models(), to: SdServer
 
   @spec get_vaes :: {:ok, list()}
-  defdelegate get_vaes(), to: SdSever
+  defdelegate get_vaes(), to: SdServer
 
   @spec get_schedulers :: {:ok, list()}
-  defdelegate get_schedulers(), to: SdSever
+  defdelegate get_schedulers(), to: SdServer
 
   @spec get_scripts :: {:ok, map()}
-  defdelegate get_scripts(), to: SdSever
+  defdelegate get_scripts(), to: SdServer
 
   @spec get_upscalers :: {:ok, list()}
-  defdelegate get_upscalers(), to: SdSever
+  defdelegate get_upscalers(), to: SdServer
 
   @spec get_loras :: {:ok, list()}
-  defdelegate get_loras(), to: SdSever
+  defdelegate get_loras(), to: SdServer
 
   @spec get_embeddings :: {:ok, map()}
-  defdelegate get_embeddings, to: SdSever
+  defdelegate get_embeddings, to: SdServer
 
   @spec get_backend :: {:ok, binary()}
-  defdelegate get_backend, to: SdSever
+  defdelegate get_backend, to: SdServer
 
   @spec get_controlnet_models :: {:ok, list(binary)}
-  defdelegate get_controlnet_models(), to: SdSever
+  defdelegate get_controlnet_models(), to: SdServer
 
   @spec get_controlnet_preprocessors :: {:ok, list}
-  defdelegate get_controlnet_preprocessors(), to: SdSever
+  defdelegate get_controlnet_preprocessors(), to: SdServer
 
   @spec get_options :: {:ok, map()}
-  defdelegate get_options(), to: SdSever
+  defdelegate get_options(), to: SdServer
 
-  defdelegate set_model(model_title), to: SdSever
+  defdelegate set_model(model_title), to: SdServer
 
-  defdelegate set_vae(vae), to: SdSever
+  defdelegate set_vae(vae), to: SdServer
 
   @spec set_backend(binary()) :: any
-  defdelegate set_backend(backend), to: SdSever
+  defdelegate set_backend(backend), to: SdServer
 
-  defdelegate get_png_info(png_data_url), to: SdSever
+  defdelegate get_png_info(png_data_url), to: SdServer
 
-  defdelegate controlnet_detect(params), to: SdSever
+  defdelegate controlnet_detect(params), to: SdServer
 
   @spec broadcast_memory_stats(MemoryStats.t()) :: :ok
   def broadcast_memory_stats(memory_stats) do

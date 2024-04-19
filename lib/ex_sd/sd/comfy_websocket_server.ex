@@ -2,7 +2,6 @@ defmodule ExSd.Sd.ComfyWebsocketServer do
   use GenServer
 
   alias Phoenix.PubSub
-  alias ExSd.Sd
 
   require Logger
   require Mint.HTTP

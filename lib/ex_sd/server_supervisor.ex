@@ -8,7 +8,7 @@ defmodule ExSd.ServerSupervisor do
   @impl true
   def init([_args]) do
     children = [
-      ExSd.SdSever,
+      ExSd.SdServer,
       ExSd.ComfyGenerationServer
     ]
 

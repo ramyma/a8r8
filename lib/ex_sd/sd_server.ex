@@ -1,9 +1,8 @@
-defmodule ExSd.SdSever do
+defmodule ExSd.SdServer do
   use GenServer
 
   require Logger
 
-  alias ExSd.ComfyClient
   alias ExSd.Sd.ImageService
   alias ExSd.Sd.SdService
   alias ExSd.Sd.{MemoryStats, GenerationParams}
@@ -47,8 +46,6 @@ defmodule ExSd.SdSever do
 
   @impl true
   def handle_continue(:init_status_loop, state) do
-    initialize_state(state)
-
     Process.send(self(), :status, [])
 
     {:noreply, state}
@@ -425,8 +422,7 @@ defmodule ExSd.SdSever do
 
   @impl true
   def handle_cast({:set_backend, backend}, state) do
-    new_state =
-      initialize_state(%{state | backend: String.to_existing_atom(backend), is_connected: false})
+    new_state = %{state | backend: String.to_existing_atom(backend), is_connected: false}
 
     Phoenix.PubSub.broadcast!(
       ExSd.PubSub,
@@ -925,9 +921,13 @@ defmodule ExSd.SdSever do
     GenServer.call(__MODULE__, :embeddings)
   end
 
-  @spec get_backend :: {:ok, binary()}
-  def get_backend() do
-    GenServer.call(__MODULE__, :backend)
+  @spec get_backend(pos_integer() | nil) :: {:ok, atom()}
+  def get_backend(timeout \\ 5000) do
+    try do
+      GenServer.call(__MODULE__, :backend, timeout)
+    catch
+      :exit, _ -> {:ok, :auto}
+    end
   end
 
   @spec get_controlnet_models :: {:ok, list(binary)}
@@ -957,8 +957,13 @@ defmodule ExSd.SdSever do
     GenServer.call(__MODULE__, {:get_png_info, png_data_url})
   end
 
-  def get_is_connected() do
-    GenServer.call(__MODULE__, :get_is_connected)
+  @spec get_is_connected(pos_integer() | nil) :: {:ok, boolean()}
+  def get_is_connected(timeout \\ 5000) do
+    try do
+      GenServer.call(__MODULE__, :get_is_connected, timeout)
+    catch
+      :exit, _ -> {:ok, false}
+    end
   end
 
   def set_backend(backend) do
@@ -970,6 +975,6 @@ defmodule ExSd.SdSever do
   end
 
   def stop() do
-    GenServer.stop(ExSd.SdSever)
+    GenServer.stop(ExSd.SdServer)
   end
 end

@@ -145,14 +145,14 @@ defmodule ExSdWeb.SdChannel do
     {:noreply, socket}
   end
 
-  @impl true
-  def handle_in("get_selection", image_data_url, socket) do
-    selection_mask = Sd.py(image_data_url["image"])
-    {:reply, {:ok, selection_mask}, socket}
-  end
+  # @impl true
+  # def handle_in("get_selection", image_data_url, socket) do
+  #   selection_mask = Sd.py(image_data_url["image"])
+  #   {:reply, {:ok, selection_mask}, socket}
+  # end
 
-  # Add authorization logic here as required.
-  defp authorized?(_payload) do
-    true
-  end
+  # # Add authorization logic here as required.
+  # defp authorized?(_payload) do
+  #   true
+  # end
 end

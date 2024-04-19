@@ -14,7 +14,8 @@ defmodule ExSd.AutoClient do
     with {:ok, response} <-
            post(
              "/txt2img",
-             generation_params
+             generation_params,
+             timeout: 50_000_000
            ),
          %{status: 200, body: body} <- response do
       seed =
@@ -41,7 +42,8 @@ defmodule ExSd.AutoClient do
     with {:ok, response} <-
            post(
              "/img2img",
-             generation_params
+             generation_params,
+             timeout: 50_000_000
            ),
          %{status: 200, body: body} <- response do
       seed =
@@ -113,7 +115,7 @@ defmodule ExSd.AutoClient do
   end
 
   def get_controlnet_models() do
-    with response <- get("/model_list", "#{get_base_url()}/controlnet"),
+    with response <- get("/model_list", base_url: "#{get_base_url()}/controlnet"),
          {:ok, body} <- handle_response(response) do
       {:ok, body["model_list"]}
     else
@@ -123,7 +125,7 @@ defmodule ExSd.AutoClient do
   end
 
   def get_controlnet_preprocessors() do
-    with response <- get("/module_list", "#{get_base_url()}/controlnet"),
+    with response <- get("/module_list", base_url: "#{get_base_url()}/controlnet"),
          {:ok, body} <- handle_response(response) do
       # TODO: fail gracefully if attribute is not present in body
       modules =
@@ -141,7 +143,11 @@ defmodule ExSd.AutoClient do
 
   @spec controlnet_detect(any) :: {:error, any} | {:ok, list}
   def controlnet_detect(params) do
-    with response <- post("/detect", params, "#{get_base_url()}/controlnet"),
+    with response <-
+           post("/detect", params,
+             base_url: "#{get_base_url()}/controlnet",
+             timeout: 120_000
+           ),
          {:ok, body} <- handle_response(response) do
       {:ok, body["images"] |> Enum.map(&"data:image/png;base64,#{&1}")}
     else
@@ -283,18 +289,29 @@ defmodule ExSd.AutoClient do
     end
   end
 
-  @spec get(binary(), binary() | nil) :: {:ok, Finch.Response.t()}
-  def get(url, base_url \\ "#{get_base_url()}/sdapi/v1") do
+  @spec get(binary(), [{:base_url, binary()} | {:timeout, non_neg_integer()}]) ::
+          {:error, %{:__exception__ => true, :__struct__ => atom(), optional(atom()) => any()}}
+          | {:ok, Finch.Response.t()}
+  def get(url, options \\ []) do
+    base_url = Keyword.get(options, :base_url, "#{get_base_url()}/sdapi/v1")
+    timeout = Keyword.get(options, :timeout, 15_000)
+
     case Finch.build(:get, "#{base_url}#{url}")
-         |> Finch.request(ExSd.Finch, receive_timeout: 1_000_000) do
+         |> Finch.request(ExSd.Finch, receive_timeout: timeout) do
       {:ok, response} -> {:ok, %{response | body: Jason.decode!(response.body)}}
       response -> response
     end
   end
 
-  def post(url, body, base_url \\ "#{get_base_url()}/sdapi/v1") do
+  @spec post(binary(), map(), [{:base_url, binary()} | {:timeout, non_neg_integer()}]) ::
+          {:error, %{:__exception__ => true, :__struct__ => atom(), optional(atom()) => any()}}
+          | {:ok, Finch.Response.t()}
+  def post(url, body, options \\ []) do
+    base_url = Keyword.get(options, :base_url, "#{get_base_url()}/sdapi/v1")
+    timeout = Keyword.get(options, :timeout, 15_000)
+
     case Finch.build(:post, "#{base_url}#{url}", [], Jason.encode!(body))
-         |> Finch.request(ExSd.Finch, receive_timeout: 1_000_000) do
+         |> Finch.request(ExSd.Finch, receive_timeout: timeout) do
       {:ok, response} -> {:ok, %{response | body: Jason.decode!(response.body)}}
       response -> response
     end
