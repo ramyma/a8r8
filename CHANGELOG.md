@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.1] - 2024-04-19
+
+### Fixed
+
+- Fixed startup crash caused by a request timeout (WSL networking issue)
+
 ## [0.5.0] - 2024-04-15
 
 ### Added
