@@ -1,5 +1,11 @@
 # Changelog
 
+## [Version] - 2024-04-23
+
+### Fixed
+
+- Forge Couple (v1.5.0) integration for regional prompting
+
 ## [0.5.1] - 2024-04-19
 
 ### Fixed

@@ -497,23 +497,23 @@ const MainForm = () => {
               args: [
                 // enable
                 isRegionalPromptingEnabled,
+                // mode
+                "Mask", //"Basic", "Advanced"
+                // separator
+                REGIONAL_PROMPTS_SEPARATOR,
                 // direction
                 "Horizontal", //Vertical", //"Horizontal",
                 // background
                 basePrompt && globalPromptWeight ? "First Line" : "None", //"First Line", // "None",
-                // separator
-                REGIONAL_PROMPTS_SEPARATOR,
-                // mode
-                "Mask", //"Basic", "Advanced"
-                // mappings
+                // bg_weight,
+                globalPromptWeight,
+                // mapping
                 regionMasksDataUrls
                   ?.map((imageString, index) => ({
                     mask: imageString?.replace("data:image/png;base64,", ""),
                     weight: regionalPromptsWeights?.[index],
                   }))
                   .filter(({ mask }) => !!mask) ?? [],
-                // bg_weight,
-                globalPromptWeight,
               ],
             },
           }),
