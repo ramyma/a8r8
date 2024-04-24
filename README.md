@@ -19,14 +19,17 @@ Links: [[Discord](https://discord.gg/RzdGa839MK)]
       - [One-Click Windows WSL2 (**RECOMMENDED**)](#one-click-windows-wsl2-recommended)
       - [Docker](#docker)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken)
+      - [Linux (Debian based)](#linux-debian-based)
     - [Running](#running)
       - [One-Click Windows WSL2](#one-click-windows-wsl2)
       - [Docker](#docker-1)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-1)
+      - [Linux (Debian based)](#linux-debian-based-1)
     - [Updating](#updating)
       - [One-Click Windows WSL2](#one-click-windows-wsl2-1)
       - [Docker](#docker-2)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-2)
+      - [Linux (Debian based)](#linux-debian-based-2)
   - [Key Shortcuts](#key-shortcuts)
   - [Development Environment](#development-environment)
   - [Sample Generations](#sample-generations)
@@ -127,7 +130,7 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 &nbsp;
 
 >**NOTE**:
-To use regional prompting with Forge, make sure to install the [Forge Couple](https://github.com/Haoming02/sd-forge-couple) extension >= v1.3.7 to your Forge installation
+To use regional prompting with Forge, make sure to install the [Forge Couple](https://github.com/Haoming02/sd-forge-couple) extension >= v1.5.0 to your Forge installation
 
 
 >**NOTE**:
@@ -159,6 +162,36 @@ If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a re
 
 &nbsp;
 
+#### Linux (Debian based)
+
+1. Download latest One-Click Installer from [latest release](https://github.com/ramyma/a8r8/releases/latest) 
+2. Run `CLONE_REPO=true ./install.sh`
+
+_Or_
+
+1. Clone repo
+2. Run `./install.sh`
+  
+&nbsp;
+  
+Start the SD backend of your choice
+   1. Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
+   2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
+      1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
+      2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
+      3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
+      4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+
+&nbsp;
+
+>**NOTE**:
+To use regional prompting with Forge, make sure to install the [Forge Couple](https://github.com/Haoming02/sd-forge-couple) extension >= v1.5.0 to your Forge installation
+
+>**NOTE**:
+If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a remote machine, make sure to set the remote address in `user.sh` and uncomment the URL entries.
+
+&nbsp;
+
 ### Running
 
 #### One-Click Windows WSL2
@@ -179,7 +212,6 @@ _Or_
 
 Run `docker compose up`
 
-
 &nbsp;
 
 Point your browser to [http://localhost:4000](http://localhost:4000), it's preferred to use a chromium based browser (Brave, Chromium, Chrome)
@@ -197,6 +229,11 @@ Update: one of the dependencies doesn't work with Windows at the moment, so it w
 
 &nbsp;
 
+#### Linux (Debian based)
+
+Run `./run.sh`
+
+&nbsp;
 
 ### Updating
 
@@ -219,6 +256,12 @@ Or
 2. Keep in mind this hasn't been tested, please report any issues [here](https://github.com/ramyma/a8r8/discussions/5)
 
 Update: one of the dependencies doesn't work with Windows at the moment, so it won't run successfully
+
+&nbsp;
+
+#### Linux (Debian based)
+
+Run `./install.sh`
 
 &nbsp;
 &nbsp;
