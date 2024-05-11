@@ -22,6 +22,9 @@ interface CanvasState {
   tool: Tool;
   isControlnetLayerVisible: boolean;
   maskLines: BrushStroke[];
+  batchImageResults: string[];
+  activeBatchImageResultIndex?: number;
+  batchPreviewIsVisible?: boolean;
 }
 
 const initialState: CanvasState = {
@@ -39,6 +42,7 @@ const initialState: CanvasState = {
   maskLines: [],
   invertMask: false,
   colorPickerPosition: { x: -100, y: -100 },
+  batchImageResults: [],
 };
 export const canvasSlice = createSlice({
   name: "canvas",
@@ -96,6 +100,20 @@ export const canvasSlice = createSlice({
     toggleInvertMask: (state) => {
       state.invertMask = !state.invertMask;
     },
+    setBatchImageResults: (
+      state,
+      action: PayloadAction<CanvasState["batchImageResults"]>
+    ) => {
+      state.batchImageResults = action.payload;
+      state.activeBatchImageResultIndex = 0;
+      state.batchPreviewIsVisible = true;
+    },
+    setActiveBatchImageResultIndex: (state, action: PayloadAction<number>) => {
+      state.activeBatchImageResultIndex = action.payload;
+    },
+    setBatchPreviewIsVisible: (state, action: PayloadAction<boolean>) => {
+      state.batchPreviewIsVisible = action.payload;
+    },
   },
 });
 
@@ -115,6 +133,9 @@ export const {
   setMaskColor,
   setMaskLines,
   toggleInvertMask,
+  setBatchImageResults,
+  setActiveBatchImageResultIndex,
+  setBatchPreviewIsVisible,
 } = canvasSlice.actions;
 
 export const selectBrushColor = (state: RootState) => state.canvas.brushColor;
@@ -136,4 +157,10 @@ export const selectIsControlnetLayerVisible = (state: RootState) =>
 export const selectMaskColor = (state: RootState) => state.canvas.maskColor;
 export const selectMaskLines = (state: RootState) => state.canvas.maskLines;
 export const selectInvertMask = (state: RootState) => state.canvas.invertMask;
+export const selectBatchImageResults = (state: RootState) =>
+  state.canvas.batchImageResults;
+export const selectActiveBatchImageResultIndex = (state: RootState) =>
+  state.canvas.activeBatchImageResultIndex;
+export const selectBatchPreviewIsVisible = (state: RootState) =>
+  state.canvas.batchPreviewIsVisible;
 export default canvasSlice.reducer;

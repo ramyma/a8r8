@@ -110,17 +110,16 @@ defmodule ExSd.ComfyGenerationServer do
       # {:ok, image_base64} = ComfyClient.get_image(filename)
 
       # FIXME: handle nils on concecative dwpose runs
-      image_base64 =
+      images_base64 =
         output
         |> Map.get("images")
-        |> List.first()
 
       PubSub.broadcast!(
         ExSd.PubSub,
         "generation",
         {:generation_complete,
          %{
-           image: image_base64,
+           images: images_base64,
            attrs: attrs,
            dimensions: dimensions,
            flow: Enum.at(flow, current_flow_item)

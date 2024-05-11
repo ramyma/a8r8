@@ -25,6 +25,7 @@ import { ArrowDownIcon, ArrowUpIcon, TrashIcon } from "@radix-ui/react-icons";
 import { useFormContext } from "react-hook-form";
 import Checkbox from "../../components/Checkbox";
 import * as Portal from "@radix-ui/react-portal";
+import Button from "../../components/Button";
 
 type PromptRegionProps = PromptRegionLayer & {
   index: number;
@@ -105,12 +106,9 @@ const RegionalPromptsFields = () => {
                     regionsCount={regionsCount}
                   />
                 ))}
-                <button
-                  className="rounded border-neutral-800 hover:bg-neutral-800"
-                  onClick={handleAddRegionPrompt}
-                >
+                <Button fullWidth onClick={handleAddRegionPrompt}>
                   Add
-                </button>
+                </Button>
               </div>
             </>
           </ExpandCollapseCheckbox>
@@ -233,30 +231,33 @@ const PromptRegion = ({
             {name || `Region ${index + 1}`}
           </Label>
           <div className="flex gap-3">
-            <button
-              className="s-2 p-1 rounded disabled:bg-neutral-900 disabled:text-neutral-700 border-neutral-700 disabled:border-neutral-800"
+            <Button
+              variant="clear"
+              className="p-1"
               onClick={handleMoveDownClick}
               title="Move Down"
               disabled={index === regionsCount - 1}
             >
               <ArrowDownIcon />
-            </button>
-            <button
-              className="s-2 p-1 rounded disabled:bg-neutral-900 disabled:text-neutral-700 border-neutral-700 disabled:border-neutral-800"
+            </Button>
+            <Button
+              variant="clear"
+              className="p-1"
               onClick={handleMoveUpClick}
               title="Move Up"
               disabled={index === 0}
             >
               <ArrowUpIcon />
-            </button>
-            <button
-              className="s-2 p-1 rounded disabled:bg-neutral-900 disabled:text-neutral-700 border-neutral-700 disabled:border-neutral-800"
+            </Button>
+            <Button
+              variant="clear"
+              className="p-1"
               onClick={handleRemovePrompt}
               disabled={!canRemove}
               title="Remove Prompt"
             >
               <TrashIcon />
-            </button>
+            </Button>
           </div>
         </div>
         <div className="flex gap-3 place-items-start">
@@ -306,7 +307,7 @@ const PromptRegion = ({
               label="Prompt Weight"
               min={0.1}
               max={1}
-              step={0.1}
+              step={0.01}
               {...field}
             />
           )}

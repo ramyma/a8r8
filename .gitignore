@@ -42,3 +42,6 @@ node_modules
 .pnpm-store
 
 user.sh
+
+/assets/stories
+/assets/.storybook

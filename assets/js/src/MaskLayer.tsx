@@ -39,7 +39,7 @@ const MaskLayer = ({
   // const stageScale = useAppSelector(selectStageScale);
   useAppSelector(selectStagePosition);
 
-  const { hasForgeCouple } = useScripts();
+  const { hasRegionalPrompting } = useScripts();
 
   const isMaskLayerVisible = useAppSelector(selectIsMaskLayerVisible);
   const isRegionalPromptsEnabled = useAppSelector(
@@ -116,7 +116,7 @@ const MaskLayer = ({
         />
       </Group>
 
-      {hasForgeCouple && isRegionalPromptsEnabled && (
+      {hasRegionalPrompting && isRegionalPromptsEnabled && (
         <>
           <Group ref={regionMasksGroupRef}>
             {promptRegionLayers.map(({ id, isVisible, maskColor }) => (

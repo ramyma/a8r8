@@ -28,7 +28,7 @@ const Checkbox = forwardRef<
         </Label>
       )}
       <RadixCheckbox.Root
-        className="group size-6 shrink-0 flex items-center  justify-center bg-neutral-900 p-0 rounded bg-neutral-800/80 enabled:hover:bg-neutral-800 border border-neutral-700 disabled:border-neutral-800 disabled:cursor-not-allowed"
+        className="group size-6 shrink-0 flex items-center  justify-center bg-neutral-900 p-0 rounded bg-neutral-800/80 enabled:hover:bg-neutral-800 border border-neutral-700 disabled:border-neutral-800 disabled:cursor-not-allowed transition-all duration-300"
         onCheckedChange={onChange}
         id={id}
         value={value as RadixCheckbox.CheckboxProps["value"]}

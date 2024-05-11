@@ -13,10 +13,10 @@ const Txt2ImageButtonGroup = forwardRef(
     };
 
     const toggleGroupItemClasses =
-      "data-[state=on]:bg-neutral-700 data-[state=on]:border-primary flex h-[35px] w-[35px] items-center justify-center bg-neutral-800/80 text-base leading-4 first:rounded-l last:rounded-r focus:z-10 focus:shadow-black focus:outline-none text-white text-sm flex-1";
+      "data-[state=on]:bg-neutral-800/90 data-[state=on]:border-primary flex h-[35px] w-[35px] items-center justify-center bg-neutral-900/80 hover:bg-neutral-700/80 hover:border-neutral-500 text-base leading-4 first:rounded-l last:rounded-r focus:z-10 focus:shadow-black focus:outline-none text-white text-sm flex-1 transition-colors duration-300 ease-in-out border-neutral-700 border";
     return (
       <RadixToggleGroup.Root
-        className="inline-flex bg-neutral-800/80 rounded shadow-black/30 space-x-px justify-between "
+        className="inline-flex rounded shadow-black/30 justify-between "
         type="single"
         defaultValue="center"
         aria-label="Text alignment"

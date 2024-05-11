@@ -20,7 +20,7 @@ type Props = { dimensions: CanvasDimensions };
 const RegionMasksPreview = ({ dimensions }: Props) => {
   const { stageRef } = useContext(RefsContext);
 
-  const { hasForgeCouple } = useScripts();
+  const { hasRegionalPrompting } = useScripts();
   const isRegionalPromptsEnabled = useAppSelector(
     selectIsRegionalPromptsEnabled
   );
@@ -63,7 +63,7 @@ const RegionMasksPreview = ({ dimensions }: Props) => {
 
   return (
     <>
-      {hasForgeCouple &&
+      {hasRegionalPrompting &&
         isRegionalPromptsEnabled &&
         promptRegionPreviewLayerId &&
         activePromptRegionPreview &&

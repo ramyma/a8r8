@@ -45,6 +45,7 @@ export interface SelectProps<
   placeholder?: string;
   value?: T;
   onChange: (value: SelectProps["value"]) => void;
+  shouldSetDefaultValue?: boolean;
 }
 
 const Select = forwardRef(
@@ -59,6 +60,7 @@ const Select = forwardRef(
       placeholder = "",
       onChange,
       title,
+      shouldSetDefaultValue = true,
       ...rest
     }: SelectProps,
     _ref
@@ -117,7 +119,7 @@ const Select = forwardRef(
     const [pos, setPos] = useState({ x: 0, y: 0, yDir: "bottom" });
 
     useEffect(() => {
-      if (!value && items?.length) {
+      if (shouldSetDefaultValue && !value && items?.length) {
         const item = items[0];
 
         if (typeof item === "object") {
@@ -126,7 +128,7 @@ const Select = forwardRef(
           onChange && onChange(item);
         }
       }
-    }, [items, onChange, value, valueAttr]);
+    }, [items, onChange, shouldSetDefaultValue, value, valueAttr]);
 
     useLayoutEffect(() => {
       const bodyBoundingBox = document.body.getBoundingClientRect();

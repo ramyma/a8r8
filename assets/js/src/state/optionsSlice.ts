@@ -3,7 +3,7 @@ import { Model } from "../App.d";
 import { RootState } from "../store";
 
 export type Backend = "auto" | "comfy";
-interface OptionsState {
+export type OptionsState = {
   selectedModel: {
     hash?: Model["sha256"];
     name: string;
@@ -11,7 +11,7 @@ interface OptionsState {
   };
   sd_vae?: string;
   backend: Backend;
-}
+};
 
 const initialState: OptionsState = {
   backend: "auto",

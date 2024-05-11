@@ -1,9 +1,10 @@
 defmodule ExSd.Sd.ComfyPrompt do
+  require Logger
   alias ExSd.Sd.ControlNetArgs
   alias ExSd.Sd.GenerationParams
 
   @type ref_node_value :: [node_name: binary(), output_id: non_neg_integer()]
-  @type comfy_node :: %{atom() => %{class_type: binary(), inputs: node_inputs()}}
+  @type comfy_node :: %{binary() => %{class_type: binary(), inputs: node_inputs()}}
   @type node_value :: number() | binary() | ref_node_value()
   @type node_inputs :: %{(atom() | binary()) => node_value}
   @type prompt :: %{prompt: comfy_node()}
@@ -13,8 +14,8 @@ defmodule ExSd.Sd.ComfyPrompt do
     %{prompt: initial_nodes}
   end
 
-  @spec node(atom(), binary(), node_inputs()) :: comfy_node()
-  def node(name = name, class_type = class_type, inputs = inputs \\ %{}) do
+  @spec node(binary(), binary(), node_inputs()) :: comfy_node()
+  def node(name, class_type, inputs \\ %{}) do
     %{}
     |> Map.put(name, %{
       class_type: class_type,
@@ -37,6 +38,10 @@ defmodule ExSd.Sd.ComfyPrompt do
     # negative_loras = Map.get(attrs, "negative_loras")
 
     full_scale_pass = Map.get(attrs, "full_scale_pass", false)
+
+    is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
+
+    regional_prompts = Map.get(attrs, "regional_prompts")
 
     prompt =
       new()
@@ -64,8 +69,9 @@ defmodule ExSd.Sd.ComfyPrompt do
         generation_params.negative_prompt,
         :negative_prompt
       )
+      |> maybe_add_regional_prompts(attrs)
       |> add_empty_latent_image(
-        batch_size: 1,
+        batch_size: generation_params.batch_size,
         width: generation_params.width,
         height: generation_params.height
       )
@@ -86,7 +92,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
             do:
               node_ref(
-                "positive_prompt",
+                get_positive_prompt(attrs),
                 0
               ),
             else:
@@ -134,6 +140,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         controlnet_args: controlnet_args
       )
 
+    # File.write!("./prompt.json", Jason.encode!(prompt, pretty: true))
     prompt
   end
 
@@ -149,9 +156,11 @@ defmodule ExSd.Sd.ComfyPrompt do
       generation_params
       |> get_in([Access.key(:alwayson_scripts), Access.key(:controlnet), Access.key(:args)])
 
-    has_ultimate_upscale = attrs["ultimate_upscale"]
+    has_ultimate_upscale = Map.get(attrs, "ultimate_upscale", false)
 
     # is_sd_xl = attrs["model"] |> String.downcase() |> String.contains?("xl")
+
+    positive_prompt_node_name = get_positive_prompt(attrs)
 
     prompt =
       new()
@@ -165,7 +174,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           1
         ),
         generation_params.prompt,
-        :positive_prompt
+        "positive_prompt"
       )
       |> add_clip_text_encode(
         node_ref(
@@ -225,11 +234,12 @@ defmodule ExSd.Sd.ComfyPrompt do
           0
         ),
         get_vae(attrs),
-        :vae_encode
+        "vae_encode",
+        batch_size: generation_params.batch_size
       )
-      |> add_upscaleModelLoader(generation_params.hr_upscaler, :upscaler)
+      |> add_upscale_model_loader(generation_params.hr_upscaler, :upscaler)
       |> add_image_loader(
-        name: :mask_base64,
+        name: "mask_base64",
         base64_image:
           String.replace(
             generation_params.mask,
@@ -238,7 +248,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           )
       )
       |> add_node(
-        node(:image_to_mask, "ImageToMask", %{
+        node("image_to_mask", "ImageToMask", %{
           channel: "red",
           image:
             node_ref(
@@ -248,10 +258,10 @@ defmodule ExSd.Sd.ComfyPrompt do
         })
       )
       |> add_node(
-        node(:inpaint_model_conditioning, "InpaintModelConditioning", %{
+        node("inpaint_model_conditioning", "InpaintModelConditioning", %{
           positive:
             node_ref(
-              "positive_prompt",
+              positive_prompt_node_name,
               0
             ),
           negative:
@@ -279,7 +289,13 @@ defmodule ExSd.Sd.ComfyPrompt do
         })
       )
       |> add_node(
-        node(:latent_noise_mask, "SetLatentNoiseMask", %{
+        node("inpaint_latent_batch", "RepeatLatentBatch", %{
+          amount: generation_params.batch_size,
+          samples: node_ref("inpaint_model_conditioning", 2)
+        })
+      )
+      |> add_node(
+        node("latent_noise_mask", "SetLatentNoiseMask", %{
           samples:
             node_ref(
               "vae_encode",
@@ -292,13 +308,13 @@ defmodule ExSd.Sd.ComfyPrompt do
             )
         })
       )
-      |> add_latent_scale(generation_params, :latent_upscaler,
+      |> add_latent_scale(generation_params, "latent_upscaler",
         samples:
           if(inpaint_model?(attrs),
             do:
               node_ref(
-                "inpaint_model_conditioning",
-                2
+                "inpaint_latent_batch",
+                0
               ),
             else:
               node_ref(
@@ -307,6 +323,7 @@ defmodule ExSd.Sd.ComfyPrompt do
               )
           )
       )
+      |> maybe_add_regional_prompts(attrs)
       |> add_k_sampler(:sampler,
         cfg: generation_params.cfg_scale,
         denoise: generation_params.denoising_strength,
@@ -318,8 +335,8 @@ defmodule ExSd.Sd.ComfyPrompt do
             else:
               if(inpaint_model?(attrs),
                 do: [
-                  "inpaint_model_conditioning",
-                  2
+                  "inpaint_latent_batch",
+                  0
                 ],
                 else: [
                   "latent_noise_mask",
@@ -338,14 +355,16 @@ defmodule ExSd.Sd.ComfyPrompt do
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
             do:
               if(inpaint_model?(attrs),
-                do: [
-                  "inpaint_model_conditioning",
-                  0
-                ],
-                else: [
-                  "positive_prompt",
-                  0
-                ]
+                do:
+                  node_ref(
+                    "inpaint_model_conditioning",
+                    0
+                  ),
+                else:
+                  node_ref(
+                    positive_prompt_node_name,
+                    0
+                  )
               ),
             else: [
               "cn#{length(controlnet_args) - 1}_apply_controlnet",
@@ -356,14 +375,16 @@ defmodule ExSd.Sd.ComfyPrompt do
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
             do:
               if(inpaint_model?(attrs),
-                do: [
-                  "inpaint_model_conditioning",
-                  1
-                ],
-                else: [
-                  "negative_prompt",
-                  0
-                ]
+                do:
+                  node_ref(
+                    "inpaint_model_conditioning",
+                    1
+                  ),
+                else:
+                  node_ref(
+                    "negative_prompt",
+                    0
+                  )
               ),
             else: [
               "cn#{length(controlnet_args) - 1}_apply_controlnet",
@@ -388,7 +409,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           0
         ),
         get_vae(attrs),
-        :first_pass_vae_decode
+        "first_pass_vae_decode"
       )
       |> add_image_upscale_with_model(:fullscale_upscale_with_model,
         upscale_model:
@@ -418,13 +439,13 @@ defmodule ExSd.Sd.ComfyPrompt do
           0
         ),
         get_vae(attrs),
-        :second_pass_vae_encode
+        "second_pass_vae_encode"
       )
       |> add_node(
         node(:second_pass_inpaint_model_conditioning, "InpaintModelConditioning", %{
           positive:
             node_ref(
-              "positive_prompt",
+              positive_prompt_node_name,
               0
             ),
           negative:
@@ -454,14 +475,16 @@ defmodule ExSd.Sd.ComfyPrompt do
             do: "second_pass_latent_upscaler",
             else:
               if(inpaint_model?(attrs),
-                do: [
-                  "second_pass_inpaint_model_conditioning",
-                  2
-                ],
-                else: [
-                  "second_pass_vae_encode",
-                  0
-                ]
+                do:
+                  node_ref(
+                    "second_pass_inpaint_model_conditioning",
+                    2
+                  ),
+                else:
+                  node_ref(
+                    "second_pass_vae_encode",
+                    0
+                  )
               )
           ),
         model: [
@@ -475,14 +498,16 @@ defmodule ExSd.Sd.ComfyPrompt do
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
             do:
               if(inpaint_model?(attrs),
-                do: [
-                  "second_pass_inpaint_model_conditioning",
-                  0
-                ],
-                else: [
-                  "positive_prompt",
-                  0
-                ]
+                do:
+                  node_ref(
+                    "second_pass_inpaint_model_conditioning",
+                    0
+                  ),
+                else:
+                  node_ref(
+                    positive_prompt_node_name,
+                    0
+                  )
               ),
             else: [
               "cn#{length(controlnet_args) - 1}_apply_controlnet",
@@ -493,14 +518,16 @@ defmodule ExSd.Sd.ComfyPrompt do
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
             do:
               if(inpaint_model?(attrs),
-                do: [
-                  "second_pass_inpaint_model_conditioning",
-                  1
-                ],
-                else: [
-                  "negative_prompt",
-                  0
-                ]
+                do:
+                  node_ref(
+                    "second_pass_inpaint_model_conditioning",
+                    1
+                  ),
+                else:
+                  node_ref(
+                    "negative_prompt",
+                    0
+                  )
               ),
             else: [
               "cn#{length(controlnet_args) - 1}_apply_controlnet",
@@ -523,7 +550,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           0
         ),
         get_vae(attrs),
-        :vae_decode
+        "vae_decode"
       )
       |> add_output(
         node_ref(
@@ -543,10 +570,11 @@ defmodule ExSd.Sd.ComfyPrompt do
         add_condition: has_ultimate_upscale
       )
 
+    # File.write!("./prompt.json", Jason.encode!(prompt, pretty: true))
     prompt
   end
 
-  @spec add_node_input(map(), atom(), node_value()) :: map()
+  @spec add_node_input(map(), binary(), node_value()) :: map()
   def add_node_input(node, input_name, value) do
     node_name = node_name(node)
 
@@ -560,54 +588,64 @@ defmodule ExSd.Sd.ComfyPrompt do
   @spec add_node(prompt(), comfy_node(), boolean()) :: prompt()
   def add_node(prompt, node, add \\ true)
 
-  def add_node(prompt, node, _add = true) do
+  def add_node(prompt, node, true = _add) do
     prompt
     |> put_in([:prompt], Map.merge(prompt.prompt, node))
   end
 
-  def add_node(prompt, _node, _add = false) do
+  def add_node(prompt, _node, false = _add) do
     prompt
   end
 
-  @spec node_name(map()) :: atom()
+  @spec node_name(map()) :: binary()
   def node_name(node) do
     List.first(Map.keys(node))
   end
 
-  @spec add_vae_loader(prompt(), binary(), atom()) :: prompt()
-  def add_vae_loader(prompt, vae_name, name \\ :vae) do
+  @spec add_vae_loader(prompt(), binary(), binary()) :: prompt()
+  def add_vae_loader(prompt, vae_name, name \\ "vae") do
     node =
       node(name, "VAELoader")
-      |> add_node_input(:vae_name, vae_name)
+      |> add_node_input("vae_name", vae_name)
 
     prompt
     |> add_node(node)
   end
 
-  @spec add_vae_decode(prompt(), ref_node_value(), ref_node_value(), atom()) :: prompt()
-  def add_vae_decode(prompt, samples, vae, name \\ :vae_decode) do
+  @spec add_vae_decode(prompt(), ref_node_value(), ref_node_value(), binary()) :: prompt()
+  def add_vae_decode(prompt, samples, vae, name \\ "vae_decode") do
     node =
       node(name, "VAEDecode")
-      |> add_node_input(:samples, samples)
-      |> add_node_input(:vae, vae)
+      |> add_node_input("samples", samples)
+      |> add_node_input("vae", vae)
 
     prompt
     |> add_node(node)
   end
 
-  @spec add_vae_encode(prompt(), ref_node_value(), ref_node_value(), atom()) :: prompt()
-  def add_vae_encode(prompt, pixels, vae, name \\ :vae_encode) do
+  @spec add_vae_encode(prompt(), ref_node_value(), ref_node_value(), binary(), [
+          {:batch_size, non_neg_integer()}
+        ]) :: prompt()
+  def add_vae_encode(prompt, pixels, vae, name \\ "vae_encode", options \\ []) do
+    node_name = "#{name}_node"
+
     node =
-      node(name, "VAEEncode")
-      |> add_node_input(:pixels, pixels)
-      |> add_node_input(:vae, vae)
+      node(node_name, "VAEEncode")
+      |> add_node_input("pixels", pixels)
+      |> add_node_input("vae", vae)
+
+    latent_batch_node =
+      node(name, "RepeatLatentBatch")
+      |> add_node_input("amount", Keyword.get(options, :batch_size, 1))
+      |> add_node_input("samples", node_ref(node_name, 0))
 
     prompt
     |> add_node(node)
+    |> add_node(latent_batch_node)
   end
 
-  @spec add_model_loader(prompt(), binary(), atom()) :: prompt()
-  def add_model_loader(prompt, model_name, name \\ :model) do
+  @spec add_model_loader(prompt(), binary(), binary()) :: prompt()
+  def add_model_loader(prompt, model_name, name \\ "model") do
     node =
       node(name, "CheckpointLoaderSimple", %{
         ckpt_name: model_name
@@ -617,8 +655,8 @@ defmodule ExSd.Sd.ComfyPrompt do
     |> add_node(node)
   end
 
-  @spec add_clip_text_encode(prompt(), ref_node_value(), binary(), atom()) :: prompt()
-  def add_clip_text_encode(prompt, clip, text, name \\ :prompt) do
+  @spec add_clip_text_encode(prompt(), ref_node_value(), binary(), binary()) :: prompt()
+  def add_clip_text_encode(prompt, clip, text, name \\ "prompt") do
     node = node(name, "CLIPTextEncode", %{clip: clip, text: text})
 
     prompt
@@ -629,7 +667,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           {:batch_size, non_neg_integer()}
           | {:height, non_neg_integer()}
           | {:width, non_neg_integer()}
-          | {:name, atom()}
+          | {:name, binary()}
         ]) :: prompt()
   def add_empty_latent_image(
         prompt,
@@ -646,7 +684,7 @@ defmodule ExSd.Sd.ComfyPrompt do
     |> add_node(node)
   end
 
-  @spec add_k_sampler(prompt(), atom(), [
+  @spec add_k_sampler(prompt(), binary(), [
           {:batch_size, non_neg_integer()}
           | {:cfg, float()}
           | {:denoise, float()}
@@ -658,7 +696,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           | {:scheduler, binary()}
           | {:seed, non_neg_integer()}
           | {:step, non_neg_integer()}
-          | {:name, atom()}
+          | {:name, binary()}
         ]) :: prompt()
   def add_k_sampler(prompt, name, options \\ []) do
     node =
@@ -672,7 +710,8 @@ defmodule ExSd.Sd.ComfyPrompt do
         sampler_name: Keyword.get(options, :sampler_name),
         scheduler: Keyword.get(options, :scheduler),
         seed: Keyword.get(options, :seed),
-        steps: Keyword.get(options, :steps)
+        steps: Keyword.get(options, :steps),
+        control_after_generate: "increment"
       })
 
     prompt
@@ -685,7 +724,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           | {:lora_name, binary()}
           | {:strength_model, float()}
           | {:strength_clip, float()}
-          | {:name, atom()}
+          | {:name, binary()}
         ]) :: prompt()
   def add_lora(prompt, options \\ []) do
     node =
@@ -704,7 +743,7 @@ defmodule ExSd.Sd.ComfyPrompt do
   @spec add_loras(prompt(), map()) :: prompt()
   def add_loras(
         prompt,
-        _attrs = %{"positive_loras" => positive_loras}
+        %{"positive_loras" => positive_loras} = _attrs
       ) do
     positive_loras
     |> Enum.with_index()
@@ -737,7 +776,7 @@ defmodule ExSd.Sd.ComfyPrompt do
 
   @spec add_controlnet_loader(
           prompt(),
-          atom(),
+          binary(),
           [
             {:control_net_name, binary()}
           ]
@@ -754,7 +793,7 @@ defmodule ExSd.Sd.ComfyPrompt do
   @spec add_image_loader(
           prompt(),
           [
-            {:name, atom()}
+            {:name, binary()}
             | {:base64_image, binary()}
           ]
         ) :: prompt()
@@ -769,7 +808,7 @@ defmodule ExSd.Sd.ComfyPrompt do
   end
 
   @spec add_controlnet_apply_advanced(prompt(), [
-          {:name, atom()}
+          {:name, binary()}
           | {:strength, float()}
           | {:start_percent, float()}
           | {:guidance_end, float()}
@@ -809,7 +848,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         _controlnet_args,
         _generation_params,
         _attrs,
-        _add_condition = false
+        false = _add_condition
       ) do
     prompt
   end
@@ -819,7 +858,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         controlnet_args,
         generation_params,
         attrs,
-        _add_condition = true
+        true = _add_condition
       ) do
     active_layers = length(controlnet_args)
 
@@ -829,7 +868,7 @@ defmodule ExSd.Sd.ComfyPrompt do
       acc_prompt
       # TODO: reuse image loader if not overriden
       |> add_image_loader(
-        name: :"cn#{index}_image",
+        name: "cn#{index}_image",
         base64_image:
           String.replace(
             entry.image || generation_params.init_images |> List.first(),
@@ -837,9 +876,9 @@ defmodule ExSd.Sd.ComfyPrompt do
             ""
           )
       )
-      |> add_controlnet_loader(:"cn#{index}_controlnet_loader", control_net_name: entry.model)
+      |> add_controlnet_loader("cn#{index}_controlnet_loader", control_net_name: entry.model)
       |> add_controlnet_apply_advanced(
-        name: :"cn#{index}_apply_controlnet",
+        name: "cn#{index}_apply_controlnet",
         strength: entry.weight,
         start_percent: entry.guidance_start,
         end_percent: entry.guidance_end,
@@ -855,7 +894,7 @@ defmodule ExSd.Sd.ComfyPrompt do
                 do: node_ref("inpaint_model_conditioning", 0),
                 else:
                   node_ref(
-                    "positive_prompt",
+                    get_positive_prompt(attrs),
                     0
                   )
               )
@@ -893,17 +932,154 @@ defmodule ExSd.Sd.ComfyPrompt do
           )
       )
       |> maybe_add_controlnet_preprocessor(index, entry.module,
-        name: :"cn#{index}_preprocessor",
+        name: "cn#{index}_preprocessor",
         add_condition: entry.module != "None"
       )
     end)
   end
 
-  @spec add_output(prompt(), ref_node_value(), atom()) :: prompt()
-  def add_output(prompt, images, name \\ :output) do
+  @spec maybe_add_regional_prompts(prompt(), map()) :: prompt()
+  def maybe_add_regional_prompts(prompt, attrs) do
+    is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
+    regional_prompts = Map.get(attrs, "regional_prompts")
+    global_prompt_weight = Map.get(attrs, "global_prompt_weight", 0.3)
+
+    if is_regional_prompting_enabled && regional_prompts && not Enum.empty?(regional_prompts) do
+      regional_prompts_count = length(regional_prompts)
+      positive_loras = Map.get(attrs, "positive_loras")
+      # TODO: add regional conditioning and combine
+
+      {new_prompt, last_node_name} =
+        Enum.reduce(
+          Enum.with_index(regional_prompts),
+          {prompt, ""},
+          fn {regional_prompt, index}, {acc_prompt, last_node_name} ->
+            id = Map.get(regional_prompt, "id")
+            prompt = Map.get(regional_prompt, "prompt")
+            weight = Map.get(regional_prompt, "weight")
+            mask = Map.get(regional_prompt, "mask")
+
+            new_prompt =
+              acc_prompt
+              |> add_clip_text_encode(
+                node_ref(
+                  if(Enum.empty?(positive_loras),
+                    do: "model",
+                    else: "positive_lora#{length(positive_loras) - 1}"
+                  ),
+                  1
+                ),
+                prompt,
+                "prompt_region_#{id}_text"
+              )
+              |> add_conditioning_mask(
+                node_ref("prompt_region_#{id}_text", 0),
+                mask,
+                weight,
+                "prompt_region_#{id}"
+              )
+
+            {new_prompt, last_node_name} =
+              if regional_prompts_count > 1 and index > 0 do
+                node_1_name = last_node_name
+                node_2_name = "prompt_region_#{id}"
+
+                last_node_name = "regional_prompt_combine_#{id}_#{node_1_name}"
+
+                # FIXME: a system limit has been reached, binary_to_atom(
+                {new_prompt
+                 |> add_conditioning_combine(
+                   node_ref(node_1_name, 0),
+                   node_ref(node_2_name, 0),
+                   "#{last_node_name}"
+                 ), last_node_name}
+              else
+                {new_prompt, "prompt_region_#{id}"}
+              end
+
+            {new_prompt, last_node_name}
+          end
+        )
+
+      new_prompt
+      |> add_conditioning_area_strength(
+        node_ref("positive_prompt", 0),
+        global_prompt_weight,
+        :regional_prompt_global_effect
+      )
+      |> add_conditioning_combine(
+        node_ref("regional_prompt_global_effect", 0),
+        node_ref(last_node_name, 0),
+        :regional_prompt
+      )
+    else
+      prompt
+    end
+  end
+
+  @spec add_output(prompt(), ref_node_value(), binary()) :: prompt()
+  def add_output(prompt, images, name \\ "output") do
     node =
       node(name, "Base64ImageOutput")
-      |> add_node_input(:images, images)
+      |> add_node_input("images", images)
+
+    prompt
+    |> add_node(node)
+  end
+
+  @spec add_conditioning_area_strength(
+          prompt(),
+          ref_node_value(),
+          non_neg_integer(),
+          binary()
+        ) :: prompt()
+  def add_conditioning_area_strength(prompt, conditioning_prompt, weight, name) do
+    node =
+      node(name, "ConditioningSetAreaStrength")
+      |> add_node_input("conditioning", conditioning_prompt)
+      |> add_node_input("strength", weight)
+
+    prompt
+    |> add_node(node)
+  end
+
+  @spec add_conditioning_mask(
+          prompt(),
+          ref_node_value(),
+          binary(),
+          non_neg_integer(),
+          binary()
+        ) :: prompt()
+  def add_conditioning_mask(prompt, conditioning_prompt, mask, weight, name) do
+    convert_image_to_mask_node =
+      image_to_mask_node("#{name}_convert_image_mask", node_ref("#{name}_mask", 0))
+
+    node =
+      node(name, "ConditioningSetMask")
+      |> add_node_input("conditioning", conditioning_prompt)
+      |> add_node_input("mask", node_ref("#{name}_convert_image_mask", 0))
+      |> add_node_input("strength", weight)
+      |> add_node_input("set_cond_area", "default")
+
+    prompt
+    |> add_node(convert_image_to_mask_node)
+    |> add_image_loader(base64_image: mask, name: "#{name}_mask")
+    |> add_node(node)
+  end
+
+  @spec image_to_mask_node(binary(), ref_node_value()) :: comfy_node()
+  def image_to_mask_node(name, image) do
+    node(name, "ImageToMask", %{channel: "red", image: image})
+  end
+
+  @spec add_conditioning_combine(prompt(), ref_node_value(), ref_node_value(), binary()) ::
+          prompt()
+  def add_conditioning_combine(prompt, conditioning_1, conditioning_2, name) do
+    node =
+      node(name, "ConditioningCombine", %{
+        conditioning_1: conditioning_1,
+        conditioning_2: conditioning_2
+      })
 
     prompt
     |> add_node(node)
@@ -927,7 +1103,7 @@ defmodule ExSd.Sd.ComfyPrompt do
     end
   end
 
-  @spec controlnet_preprocessor(non_neg_integer(), binary(), [{:name, atom()}]) :: comfy_node()
+  @spec controlnet_preprocessor(non_neg_integer(), binary(), [{:name, binary()}]) :: comfy_node()
   def controlnet_preprocessor(index, class_type, options \\ [])
 
   def controlnet_preprocessor(index, "CannyEdgePreprocessor", options) do
@@ -1004,12 +1180,17 @@ defmodule ExSd.Sd.ComfyPrompt do
     })
   end
 
-  @spec maybe_add_scale(prompt(), GenerationParams.t(), boolean(), [
+  @spec maybe_add_scale(prompt(), GenerationParams.t(), nil | boolean(), [
           {:positive_loras, list()}
           | {:controlnet_args, list()}
           | {:attrs, map()}
         ]) ::
           prompt()
+  @spec maybe_add_scale(
+          %{prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}},
+          ExSd.Sd.GenerationParams.t(),
+          false | nil
+        ) :: %{prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}}
   def maybe_add_scale(
         prompt,
         %GenerationParams{} = generation_params,
@@ -1052,7 +1233,7 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           )
       )
-      |> add_upscaleModelLoader(generation_params.hr_upscaler, :upscaler)
+      |> add_upscale_model_loader(generation_params.hr_upscaler, :upscaler)
       |> add_vae_encode(node_ref("scaler", 0), get_vae(attrs), :second_pass_vae_encode)
       |> add_k_sampler(
         :hires_sampler,
@@ -1078,7 +1259,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
             do:
               node_ref(
-                "positive_prompt",
+                get_positive_prompt(attrs),
                 0
               ),
             else:
@@ -1110,7 +1291,7 @@ defmodule ExSd.Sd.ComfyPrompt do
     end
   end
 
-  @spec add_latent_scale(prompt(), GenerationParams.t(), atom(), [
+  @spec add_latent_scale(prompt(), GenerationParams.t(), binary(), [
           {:samples, ref_node_value()},
           {:width, non_neg_integer()},
           {:height, non_neg_integer()}
@@ -1150,7 +1331,7 @@ defmodule ExSd.Sd.ComfyPrompt do
     |> add_node(node)
   end
 
-  @spec add_image_scale(prompt(), GenerationParams.t(), atom(), [
+  @spec add_image_scale(prompt(), GenerationParams.t(), binary(), [
           {:image, ref_node_value()},
           {:width, non_neg_integer()},
           {:height, non_neg_integer()}
@@ -1191,7 +1372,7 @@ defmodule ExSd.Sd.ComfyPrompt do
     |> add_node(node)
   end
 
-  @spec add_image_upscale_with_model(prompt(), atom(), [
+  @spec add_image_upscale_with_model(prompt(), binary(), [
           {:upscale_model, ref_node_value()} | {:image, ref_node_value()}
         ]) :: prompt()
   def add_image_upscale_with_model(prompt, name, options \\ []) do
@@ -1205,8 +1386,8 @@ defmodule ExSd.Sd.ComfyPrompt do
     |> add_node(node)
   end
 
-  @spec add_upscaleModelLoader(prompt(), binary(), atom()) :: none()
-  def add_upscaleModelLoader(prompt, model_name, name) do
+  @spec add_upscale_model_loader(prompt(), binary(), binary()) :: none()
+  def add_upscale_model_loader(prompt, model_name, name) do
     node =
       node(name, "UpscaleModelLoader", %{
         model_name: model_name
@@ -1217,7 +1398,7 @@ defmodule ExSd.Sd.ComfyPrompt do
   end
 
   @spec maybe_add_ultimate_upscale(prompt(), GenerationParams.t(), map(), list(), [
-          {:name, atom()},
+          {:name, binary()},
           {:add_condition, boolean()}
         ]) :: prompt()
   def maybe_add_ultimate_upscale(
@@ -1243,9 +1424,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           scheduler: attrs["scheduler"] || "karras",
           denoise: generation_params.denoising_strength,
           mode_type: "Linear",
-          # TODO: use 1024 with XL
           tile_width: if(is_sd_xl, do: 1024, else: 512),
-          # TODO: use 1024 with XL
           tile_height: if(is_sd_xl, do: 1024, else: 512),
           mask_blur: 8,
           tile_padding: 32,
@@ -1273,7 +1452,7 @@ defmodule ExSd.Sd.ComfyPrompt do
             if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
               do:
                 node_ref(
-                  "positive_prompt",
+                  get_positive_prompt(attrs),
                   0
                 ),
               else:
@@ -1303,6 +1482,19 @@ defmodule ExSd.Sd.ComfyPrompt do
     else
       prompt
     end
+  end
+
+  defp get_positive_prompt(attrs) do
+    is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
+
+    regional_prompts = Map.get(attrs, "regional_prompts")
+
+    if(
+      is_regional_prompting_enabled && regional_prompts &&
+        not Enum.empty?(regional_prompts),
+      do: "regional_prompt",
+      else: "positive_prompt"
+    )
   end
 
   defp get_vae(attrs) do

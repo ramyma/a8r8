@@ -1,6 +1,7 @@
 import { emitCustomEvent, useCustomEventListener } from "react-custom-events";
 import { ActiveLayer } from "../../state/layersSlice";
 import { PngInfo } from "../../utils";
+import { Vector2d } from "konva/lib/types";
 
 type Props = {
   clearLines?: (layer: ActiveLayer) => void;
@@ -43,4 +44,19 @@ export const emitImageDropEvent = ({
 export const emitClearBaseImages = () => {
   emitCustomEvent("customClearBaseImages");
 };
+
+export const emitUpdateSeed = (seed: number) => {
+  emitCustomEvent("updateSeed", seed);
+};
+
+export const emitBatchGenerationProps = (batchGenerationProps: {
+  image: HTMLImageElement;
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+}) => {
+  emitCustomEvent("batchGenerationProps", batchGenerationProps);
+};
+
 export default useCustomEventsListener;

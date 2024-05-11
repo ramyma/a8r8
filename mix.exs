@@ -65,8 +65,8 @@ defmodule ExSd.MixProject do
       # {:ortex, "~> 0.1.8"},
       {:mint_web_socket, "~> 1.0"},
       # {:evision, "~> 0.1.29"},
-      {:mix_test_watch, "~> 1.0", only: [:dev, :test], runtime: false},
-      {:mix_test_interactive, "~> 1.0", only: :dev, runtime: false}
+      {:mix_test_watch, "~> 1.2", only: [:dev, :test], runtime: false},
+      {:mix_test_interactive, "~> 2.0", only: :dev, runtime: false}
     ]
   end
 

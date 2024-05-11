@@ -1,6 +1,7 @@
 import { useCallback, useContext } from "react";
 import SocketContext from "../context/SocketContext";
 import throttle from "lodash.throttle";
+import { showNotification } from "../Notifications/utils";
 
 const useSocket = () => {
   const { channel, presenceChannel } = useContext(SocketContext);

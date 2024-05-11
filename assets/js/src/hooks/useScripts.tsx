@@ -16,7 +16,7 @@ type Return = {
   hasControlnet: boolean;
   hasSelfAttentionGuidance: boolean;
   hasSoftInpainting: boolean;
-  hasForgeCouple: boolean;
+  hasRegionalPrompting: boolean;
   hasNeverOutOfMemory: boolean;
   hasMultidiffusionIntegrated: boolean;
 };
@@ -86,7 +86,7 @@ const useScripts = ({ fetchPolicy }: Props = {}): Return => {
     hasControlnet,
     hasSelfAttentionGuidance,
     hasSoftInpainting,
-    hasForgeCouple,
+    hasRegionalPrompting: hasForgeCouple || backend === "comfy",
     hasNeverOutOfMemory,
     hasMultidiffusionIntegrated,
   };

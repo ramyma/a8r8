@@ -155,7 +155,7 @@ defmodule ExSd.Sd.SdService do
         {:error, _} ->
           result
 
-        {seed, result_images_base64, _, _} ->
+        {seed, result_images_base64, _, _, _} ->
           init_image = get_second_pass_init_image(generation_params, result_images_base64)
 
           generate_and_receive(
@@ -181,6 +181,16 @@ defmodule ExSd.Sd.SdService do
     end
   end
 
+  @spec generate_and_receive(
+          ExSd.Sd.GenerationParams.t(),
+          map(),
+          %{:height => pos_integer(), :width => pos_integer()},
+          any(),
+          any(),
+          boolean() | nil
+        ) ::
+          {number(), list(), map(), map(), non_neg_integer()}
+          | {:error, binary() | map()}
   def generate_and_receive(
         %GenerationParams{} = generation_params,
         attrs,
@@ -197,48 +207,51 @@ defmodule ExSd.Sd.SdService do
     case AutoClient.generate_image(generation_params) do
       %{images: images, seed: seed} ->
         images_base64 = images
+        Logger.info(length(images_base64))
 
-        # TODO: handle batch generation
-        change =
-          if mask_image_average === 255 and
-               attrs["use_scaled_dimensions"] == true do
-            Logger.info("Returning raw image for overriding scale")
+        # TODO: handle batch generation with tiled and ultimate upscale?
+        processed_images =
+          images_base64
+          |> Enum.slice(0..generation_params.batch_size)
+          |> Enum.map(fn image_base64 ->
+            if mask_image_average === 255 and
+                 attrs["use_scaled_dimensions"] == true do
+              Logger.info("Returning raw image for overriding scale")
 
-            images_base64
-            |> List.first()
-            |> ImageService.image_from_dataurl()
-            |> Image.write!(:memory, suffix: ".png")
-            |> Base.encode64()
-          else
-            change =
-              images_base64
-              |> List.first()
+              image_base64
               |> ImageService.image_from_dataurl()
-              |> Image.thumbnail!(
-                width,
-                resize: :force,
-                height: height
-              )
-
-            {:ok, change} =
-              change
-              |> Image.compose(
-                mask_image
+              |> Image.write!(:memory, suffix: ".png")
+              |> Base.encode64()
+            else
+              change =
+                image_base64
+                |> ImageService.image_from_dataurl()
                 |> Image.thumbnail!(
                   width,
                   resize: :force,
                   height: height
-                ),
-                blend_mode: :dest_in
-              )
+                )
 
-            change
-            |> Image.write!(:memory, suffix: ".png")
-            |> Base.encode64()
-          end
+              {:ok, change} =
+                change
+                |> Image.compose(
+                  mask_image
+                  |> Image.thumbnail!(
+                    width,
+                    resize: :force,
+                    height: height
+                  ),
+                  blend_mode: :dest_in
+                )
 
-        {seed, images_base64 |> List.replace_at(0, change), position,
-         %{width: width, height: height}}
+              change
+              |> Image.write!(:memory, suffix: ".png")
+              |> Base.encode64()
+            end
+          end)
+
+        {seed, processed_images, position, %{width: width, height: height},
+         generation_params.batch_size}
 
       {:error, err} = error ->
         Logger.error("Client task error! Second Pass:#{inspect(second_pass)}")
@@ -248,7 +261,7 @@ defmodule ExSd.Sd.SdService do
   end
 
   def handle_generation_completion(result, :comfy = _backend) do
-    %{image: images_base64, attrs: attrs, dimensions: dimensions, flow: flow} = result
+    %{images: images_base64, attrs: attrs, dimensions: dimensions, flow: flow} = result
 
     mask_image = ImageService.image_from_dataurl(flow.generation_params.mask)
 
@@ -258,35 +271,39 @@ defmodule ExSd.Sd.SdService do
       |> Enum.sum()
       |> div(3)
 
-    result_image =
-      if mask_image_average === 255 and
-           attrs["use_scaled_dimensions"] == true do
-        Logger.info("Returning raw image for overriding scale")
+    result_images =
+      images_base64
+      |> Enum.slice(0..flow.generation_params.batch_size)
+      |> Enum.map(fn image_base64 ->
+        if mask_image_average === 255 and
+             attrs["use_scaled_dimensions"] == true do
+          Logger.info("Returning raw image for overriding scale")
 
-        images_base64
-        |> ImageService.image_from_dataurl()
-        |> Image.write!(:memory, suffix: ".png")
-        |> Base.encode64()
-      else
-        result_image =
-          images_base64
+          image_base64
           |> ImageService.image_from_dataurl()
-          |> Image.thumbnail!(
-            dimensions.width,
-            resize: :force,
-            height: dimensions.height
-          )
+          |> Image.write!(:memory, suffix: ".png")
+          |> Base.encode64()
+        else
+          result_image =
+            image_base64
+            |> ImageService.image_from_dataurl()
+            |> Image.thumbnail!(
+              dimensions.width,
+              resize: :force,
+              height: dimensions.height
+            )
 
-        {:ok, result_image} =
+          {:ok, result_image} =
+            result_image
+            |> Image.compose(mask_image, blend_mode: :dest_in)
+
           result_image
-          |> Image.compose(mask_image, blend_mode: :dest_in)
+          |> Image.write!(:memory, suffix: ".png")
+          |> Base.encode64()
+        end
+      end)
 
-        result_image
-        |> Image.write!(:memory, suffix: ".png")
-        |> Base.encode64()
-      end
-
-    result_image
+    result_images
   end
 
   defp put_denoising_strength(
@@ -531,6 +548,9 @@ defmodule ExSd.Sd.SdService do
 
   @spec refresh_models() :: {:error, any} | {:ok, any}
   defdelegate refresh_models(), to: AutoClient
+
+  @spec refresh_loras() :: {:error, any} | {:ok, any}
+  defdelegate refresh_loras(), to: AutoClient
 
   @spec get_upscalers(backend()) :: {:error, any} | {:ok, any}
   def get_upscalers(:auto), do: AutoClient.get_upscalers()

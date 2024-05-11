@@ -11,7 +11,7 @@ import {
 import useData, { FetchPolicy } from "./useData";
 import useSocket from "./useSocket";
 import { selectIsConnected } from "../state/statsSlice";
-import { isSdXlModel } from "../utils";
+import { checkIsSdXlModel } from "../utils";
 
 type Props = {
   fetchPolicy?: FetchPolicy;
@@ -41,7 +41,7 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
   const setModel = async (model: Model["sha256"] | Model["model_name"]) => {
     if (isConnected) {
       if (backend === "auto") {
-        const modelObj = models?.find(({ sha256 }) => model === sha256);
+        const modelObj = models?.find(({ model_name }) => model === model_name);
         if (modelObj) {
           selectedModel?.hash &&
             selectedModel.hash !== model &&
@@ -51,7 +51,7 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
             setSelectedModel({
               hash: modelObj.sha256,
               name: modelObj.model_name,
-              isSdXl: isSdXlModel(modelObj.model_name),
+              isSdXl: checkIsSdXlModel(modelObj.model_name),
             })
           );
         } else {
@@ -63,7 +63,7 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
         dispatch(
           setSelectedModel({
             name: model,
-            isSdXl: isSdXlModel(model),
+            isSdXl: checkIsSdXlModel(model),
           })
         );
       }

@@ -196,6 +196,16 @@ defmodule ExSd.AutoClient do
     end
   end
 
+  def refresh_loras() do
+    with response <- post("/refresh-loras", %{}),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
   def get_upscalers() do
     with response <- get("/upscalers"),
          {:ok, body} <- handle_response(response) do

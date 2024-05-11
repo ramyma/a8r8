@@ -1,4 +1,4 @@
-import { MouseEvent, useMemo } from "react";
+import { MouseEvent, useCallback, useMemo } from "react";
 import "./App.css";
 import Canvas from "./Canvas/Canvas";
 import Stats from "./Stats";
@@ -24,12 +24,14 @@ import ScrollArea from "./components/ScrollArea";
 import useHistoryManager from "./hooks/useHistoryManager";
 import useScripts from "./hooks/useScripts";
 import { useAppDispatch, useAppSelector } from "./hooks";
-import { selectBackend } from "./state/optionsSlice";
+import { OptionsState, selectBackend } from "./state/optionsSlice";
 import useBackend from "./hooks/useBackend";
 import useSchedulers from "./hooks/useSchedulers";
 import { ActionCreators as UndoActionCreators } from "redux-undo";
 import { useCustomEventListener } from "react-custom-events";
 import { HistoryItem } from "./state/historySlice";
+import Button from "./components/Button";
+import BatchImageResults from "./BatchImageResults";
 
 function App() {
   const { refetch: refetchOptions } = useOptions({ fetchPolicy: "eager" });
@@ -120,7 +122,9 @@ function App() {
                 models={models}
                 refetchModels={refetchModels}
                 setModel={setModel}
-                selectedModel={selectedModel}
+                selectedModel={
+                  selectedModel && { model_name: selectedModel.name }
+                }
               />
               <VaeSelect
                 refetchOptions={refetchOptions}
@@ -135,10 +139,11 @@ function App() {
             <MainForm />
           </ScrollArea>
         </div>
-        <div className="flex-[9] relative w-full">
+        <div className="relative flex-[9] w-full">
           <Stats />
           <Canvas />
           <Toolbar />
+          <BatchImageResults />
         </div>
         <LayersControl />
         <Notifications />
@@ -158,20 +163,22 @@ const ModelSelect = ({
   isVaeLoading,
 }: {
   refetchOptions: () => void;
-  models;
+  models: Model[];
   setModel;
   refetchModels;
-  selectedModel;
+  selectedModel: OptionsState["selectedModel"];
   isModelLoading: boolean;
   isVaeLoading: boolean;
 }) => {
   const backend = useAppSelector(selectBackend);
 
-  const handleModelChange: SelectProps<Model["sha256"] | string>["onChange"] = (
-    value
-  ) => {
-    if (value) setModel(value);
-  };
+  const handleModelChange: SelectProps<Model["sha256"] | string>["onChange"] =
+    useCallback(
+      (value) => {
+        if (value) setModel(value);
+      },
+      [setModel]
+    );
 
   const handleModelRefreshClick = (e: MouseEvent) => {
     e.preventDefault();
@@ -181,7 +188,7 @@ const ModelSelect = ({
 
   const title = "Select Checkpoint";
   const name = "checkpoint";
-
+  //TODO: fix types
   return (
     <>
       {backend === "auto" ? (
@@ -190,28 +197,30 @@ const ModelSelect = ({
             id="auto_model"
             items={models}
             textAttr="model_name"
-            valueAttr="sha256"
+            valueAttr="model_name"
             idAttr="model_name"
             name={name}
-            value={selectedModel?.hash}
+            value={selectedModel?.model_name || selectedModel?.name}
             onChange={handleModelChange}
             title={title}
             disabled={isModelLoading || isVaeLoading}
+            shouldSetDefaultValue={false}
           />
-          <button
+          <Button
+            variant="clear"
             onClick={handleModelRefreshClick}
-            className="rounded rounded-tl-none rounded-bl-none p-2"
+            className="rounded-tl-none rounded-bl-none !p-2"
             title="Refresh"
           >
             <ReloadIcon />
-          </button>
+          </Button>
         </div>
       ) : (
         <Select
           id="comfy_model"
           items={models}
           name={name}
-          value={selectedModel?.name}
+          value={selectedModel?.model_name || selectedModel?.name}
           onChange={handleModelChange}
           title={title}
         />
@@ -238,9 +247,12 @@ const VaeSelect = ({
 }) => {
   const backend = useAppSelector(selectBackend);
 
-  const handleVaeChange: SelectProps["onChange"] = (value) => {
-    if (value && (selectedVae || backend === "comfy")) setVae(value);
-  };
+  const handleVaeChange: SelectProps["onChange"] = useCallback(
+    (value) => {
+      if (value && (selectedVae || backend === "comfy")) setVae(value);
+    },
+    [backend, selectedVae, setVae]
+  );
 
   const handleModelRefreshClick = (e: MouseEvent) => {
     e.preventDefault();
@@ -265,19 +277,21 @@ const VaeSelect = ({
             onChange={handleVaeChange}
             title={title}
             disabled={isVaeLoading || isModelLoading}
+            shouldSetDefaultValue={false}
           />
 
-          <button
+          <Button
+            variant="clear"
             onClick={handleModelRefreshClick}
-            className="rounded rounded-tl-none rounded-bl-none p-2"
+            className="rounded-tl-none rounded-bl-none !p-2"
             title="Refresh"
           >
             <ReloadIcon />
-          </button>
+          </Button>
         </div>
       ) : (
         <Select
-          id="comfy_model"
+          id="comfy_vae"
           items={vaeList}
           name={name}
           value={selectedVae}

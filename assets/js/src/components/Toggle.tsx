@@ -1,5 +1,6 @@
 import React, { JSXElementConstructor, MouseEvent, forwardRef } from "react";
 import * as RadixToggle from "@radix-ui/react-toggle";
+import { twMerge } from "tailwind-merge";
 
 type Props = {
   pressed?: boolean;
@@ -27,10 +28,10 @@ const Toggle = forwardRef(
   ) => (
     <RadixToggle.Root
       aria-label="Toggle italic"
-      className={
-        "flex h-[35px] w-[35px] items-center justify-center rounded text-base leading-4 p-0 data-[state=on]:text-primary  data-[state=on]:hover:border-inherit" +
+      className={twMerge(
+        "flex size-[35px] items-center justify-center rounded text-base leading-4 p-0 data-[state=on]:text-primary border-none bg-transparent transition-colors",
         className
-      }
+      )}
       pressed={pressed ?? value}
       onPressedChange={onChange}
       title={title}
