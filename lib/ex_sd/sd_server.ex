@@ -130,14 +130,18 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_info(
-        {ref, {seed, images_base64, position, dimensions}},
+        {ref, {seed, images_base64, position, dimensions, batch_size}},
         state
       )
       when state.task.ref == ref do
     Logger.info("Broadcasting generated image")
 
     ExSd.Sd.broadcast_generated_image(%{
-      image: "data:image/png;base64,#{List.first(images_base64)}",
+      # image: "data:image/png;base64,#{List.first(images_base64)}",
+      images:
+        images_base64
+        |> Enum.slice(0..(batch_size - 1))
+        |> Enum.map(fn image_base64 -> "data:image/png;base64,#{image_base64}" end),
       position: position,
       dimensions: dimensions,
       seed: seed
@@ -218,17 +222,24 @@ defmodule ExSd.SdServer do
   @impl true
   def handle_info(
         {:generation_complete,
-         %{attrs: attrs, dimensions: dimensions, flow: %{generation_params: %{seed: seed}}} =
+         %{
+           attrs: attrs,
+           dimensions: dimensions,
+           flow: %{generation_params: %{seed: seed, batch_size: batch_size}}
+         } =
            result},
         %{backend: :comfy} = state
       ) do
     # {seed, images_base64, position, dimensions} = result
-    image = Sd.SdService.handle_generation_completion(result, :comfy)
+    images_base64 = Sd.SdService.handle_generation_completion(result, :comfy)
 
     # {seed, images_base64 |> List.replace_at(0, change), position, %{width: width, height: height}}
 
     ExSd.Sd.broadcast_generated_image(%{
-      image: "data:image/png;base64,#{image}",
+      images:
+        images_base64
+        |> Enum.slice(0..(batch_size - 1))
+        |> Enum.map(fn image_base64 -> "data:image/png;base64,#{image_base64}" end),
       position: attrs["position"],
       dimensions: dimensions,
       seed: seed
@@ -437,6 +448,13 @@ defmodule ExSd.SdServer do
   end
 
   @impl true
+  def handle_cast(:loras, state) do
+    new_state = state |> refresh_and_put_loras()
+    Sd.broadcast_data("loras", new_state.loras)
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_call(:samplers, _, %{samplers: samplers} = state) do
     {:reply, {:ok, samplers}, state}
   end
@@ -472,12 +490,6 @@ defmodule ExSd.SdServer do
   def handle_call(:upscalers, _, state) do
     new_state = state |> put_upscalers()
     {:reply, {:ok, new_state.upscalers}, state}
-  end
-
-  @impl true
-  def handle_call(:loras, _, state) do
-    new_state = state |> put_loras()
-    {:reply, {:ok, new_state.loras}, state}
   end
 
   @impl true
@@ -716,6 +728,16 @@ defmodule ExSd.SdServer do
     end
   end
 
+  defp refresh_and_put_loras(state) do
+    case SdService.refresh_loras() do
+      {:ok, _} ->
+        state |> put_loras()
+
+      {:error, _} ->
+        state
+    end
+  end
+
   defp put_embeddings(%{backend: backend} = state) do
     case SdService.get_embeddings(backend) do
       {:ok, embeddings} ->
@@ -913,7 +935,7 @@ defmodule ExSd.SdServer do
 
   @spec get_loras :: {:ok, list()}
   def get_loras() do
-    GenServer.call(__MODULE__, :loras)
+    GenServer.cast(__MODULE__, :loras)
   end
 
   @spec get_embeddings :: {:ok, map()}

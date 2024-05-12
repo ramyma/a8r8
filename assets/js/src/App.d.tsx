@@ -16,8 +16,18 @@ export type Lora = {
   alias: string;
   name: string;
   metadata: {
-    ss_v2: "True" | "False";
-    ss_tag_frequency: any;
+    ss_v2?: "True" | "False";
+    ss_tag_frequency?: any;
+    ss_sd_scripts_commit_hash: string;
+    sshs_model_hash: string;
+    ss_resolution: string;
+    sshs_legacy_hash: string;
+    ss_base_model_version: string;
+    ss_clip_skip: number;
+    ss_new_sd_model_hash: string;
+    ss_output_name: string;
+    ss_network_module: "networks.lora" | "networks.loha";
+    ss_sd_model_name: string;
   };
 };
 

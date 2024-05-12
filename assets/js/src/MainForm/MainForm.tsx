@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { Controller, SubmitHandler, useForm, useWatch } from "react-hook-form";
 // import { DevTool } from "@hookform/devtools";
@@ -37,7 +38,7 @@ import useDragAndDrop from "../hooks/useDragAndDrop";
 import {
   editorJsonToText,
   getLayers,
-  isSdXlModel,
+  checkIsSdXlModel,
   roundToClosestMultipleOf8Down,
 } from "../utils";
 import Editor from "../components/Editor";
@@ -51,7 +52,11 @@ import Txt2ImageButtonGroup from "./Txt2ImgButtonGroup";
 import { sessionName } from "../context/SocketProvider";
 import Toggle from "../components/Toggle";
 import { LockClosedIcon, LockOpen2Icon } from "@radix-ui/react-icons";
-import { selectInvertMask } from "../state/canvasSlice";
+import {
+  selectBatchImageResults,
+  selectInvertMask,
+  setBatchImageResults,
+} from "../state/canvasSlice";
 import useScripts from "../hooks/useScripts";
 import {
   selectBackend,
@@ -67,6 +72,9 @@ import { processPrompt } from "./utils";
 import { REGIONAL_PROMPTS_SEPARATOR } from "./constants";
 import { selectPromptRegionLayers } from "../state/promptRegionsSlice";
 import { showNotification } from "../Notifications/utils";
+import Button from "../components/Button";
+import Modal from "../components/Modal";
+import { useCustomEventListener } from "react-custom-events";
 
 export type MainFormValues = Record<string, any> & {
   softInpainting: SoftInpaintingArgs;
@@ -77,6 +85,7 @@ export type MainFormValues = Record<string, any> & {
 const MainForm = () => {
   const { channel, sendMessage } = useSocket();
   const backend = useAppSelector(selectBackend);
+  const batchImageResults = useAppSelector(selectBatchImageResults);
   const methods = useForm<MainFormValues>();
   const { control, handleSubmit, setValue } = methods;
   const formRef = useRef<HTMLFormElement>(null);
@@ -85,6 +94,7 @@ const MainForm = () => {
   const height = useWatch({ name: "height", control });
   const txt2img = useWatch({ name: "txt2img", control, defaultValue: true });
   const isSeedPinned = useWatch({ name: "isSeedPinned", control });
+  const batchSize = useWatch({ name: "batch_size", control, defaultValue: 1 });
 
   const fullScalePass = useWatch({
     name: "full_scale_pass",
@@ -99,6 +109,12 @@ const MainForm = () => {
 
   const isTiledDiffusionEnabled = useWatch({
     name: "isTiledDiffusionEnabled",
+    control,
+    defaultValue: false,
+  });
+
+  const isMultidiffusionEnabled = useWatch({
+    name: "isMultidiffusionEnabled",
     control,
     defaultValue: false,
   });
@@ -122,7 +138,7 @@ const MainForm = () => {
     hasTiledVae,
     hasControlnet,
     hasSoftInpainting,
-    hasForgeCouple,
+    hasRegionalPrompting,
     hasMultidiffusionIntegrated,
   } = useScripts();
 
@@ -151,6 +167,11 @@ const MainForm = () => {
   const vae = useAppSelector(selectSelectedVae);
 
   const isConnected = useAppSelector(selectIsConnected);
+
+  const isBatchDisabled =
+    (hasTiledDiffusion && isTiledDiffusionEnabled) ||
+    (!txt2img && hasUltimateUpscale && isUltimateUpscaleEnabled) ||
+    (hasMultidiffusionIntegrated && isMultidiffusionEnabled);
 
   const handleAddImage = ({ pngInfo }) => {
     if (pngInfo) {
@@ -241,6 +262,7 @@ const MainForm = () => {
     });
 
     const {
+      batch_size: batchSize,
       scale,
       isSeedPinned,
       use_scaled_dimensions,
@@ -263,16 +285,26 @@ const MainForm = () => {
     const controlnetArgs: ReturnType<typeof getControlnetArgs> = hasControlnet
       ? getControlnetArgs()
       : {};
-    const { basePrompt, processedPrompt, regionalPromptsWeights } =
-      processPrompt({
-        prompt,
-        regionalPrompts,
-        isRegionalPromptingEnabled,
-        promptRegions,
-      });
+    const {
+      basePrompt,
+      processedPrompt,
+      regionalPromptsWeights,
+      regionalPromptsValues,
+      regionalPromptsIds,
+    } = processPrompt({
+      prompt,
+      regionalPrompts,
+      isRegionalPromptingEnabled,
+      promptRegions,
+    });
 
     // Show validation warning if prompt is no set with regional prompts
-    if (!basePrompt && isRegionalPromptingEnabled) {
+    if (
+      backend === "auto" &&
+      hasRegionalPrompting &&
+      !basePrompt &&
+      isRegionalPromptingEnabled
+    ) {
       showNotification({
         body: "Regional prompting requires a base prompt",
         title: "Missing Prompt",
@@ -282,7 +314,10 @@ const MainForm = () => {
     }
 
     const image = {
-      prompt: processedPrompt,
+      prompt:
+        hasRegionalPrompting && isRegionalPromptingEnabled && backend === "auto"
+          ? processedPrompt
+          : basePrompt,
       negative_prompt:
         typeof negative_prompt === "string"
           ? prompt
@@ -305,12 +340,16 @@ const MainForm = () => {
       hr_scale: scale,
       // seed_resize_from_w: rest.width,
       // seed_resize_from_h: rest.height,
+      batch_size: isBatchDisabled ? 1 : batchSize,
       ...(backend === "auto" && {
         override_settings: {
           ...(!isTiledDiffusionEnabled &&
             !isUltimateUpscaleEnabled && {
               upscaler_for_img2img: upscaler,
             }),
+          //TODO: expose clip stop on UI
+          // CLIP_stop_at_last_layers: 1,
+          // control_net_no_detectmap: true,
           // sd_vae: model?.isSdXl
           //   ? "sdxl_vae.safetensors"
           //   : "vae-ft-mse-840000-ema-pruned.ckpt",
@@ -319,7 +358,7 @@ const MainForm = () => {
       ...(hasUltimateUpscale &&
         !txt2img &&
         isUltimateUpscaleEnabled &&
-        (!hasForgeCouple || !isRegionalPromptingEnabled) && {
+        (!hasRegionalPrompting || !isRegionalPromptingEnabled) && {
           script_name: "ultimate sd upscale",
           script_args: [
             //_
@@ -473,7 +512,7 @@ const MainForm = () => {
           }),
         ...(hasMultidiffusionIntegrated &&
           isMultidiffusionEnabled &&
-          (!hasForgeCouple || !isRegionalPromptingEnabled) && {
+          (!hasRegionalPrompting || !isRegionalPromptingEnabled) && {
             "multidiffusion integrated": {
               args: [
                 // enable
@@ -491,7 +530,8 @@ const MainForm = () => {
               ],
             },
           }),
-        ...(hasForgeCouple &&
+        ...(backend === "auto" &&
+          hasRegionalPrompting &&
           isRegionalPromptingEnabled && {
             "forge couple": {
               args: [
@@ -511,6 +551,7 @@ const MainForm = () => {
                 regionMasksDataUrls
                   ?.map((imageString, index) => ({
                     mask: imageString?.replace("data:image/png;base64,", ""),
+                    //TODO: make sure weights are mapped correctly with disabled in between layers
                     weight: regionalPromptsWeights?.[index],
                   }))
                   .filter(({ mask }) => !!mask) ?? [],
@@ -527,11 +568,28 @@ const MainForm = () => {
       invert_mask: invertMask,
       model: model?.name,
       vae,
-      ...(backend === "comfy" && { scheduler }),
+      ...(backend === "comfy" && {
+        scheduler,
+      }),
+      ...(backend === "comfy" &&
+        isRegionalPromptingEnabled && {
+          is_regional_prompting_enabled: isRegionalPromptingEnabled,
+          regional_prompts: regionMasksDataUrls
+            ?.map((imageString, index) => ({
+              prompt: regionalPromptsValues?.[index],
+              mask: imageString?.replace("data:image/png;base64,", ""),
+              weight: regionalPromptsWeights?.[index],
+              id: regionalPromptsIds?.[index],
+            }))
+            .filter(({ mask }) => !!mask),
+          global_prompt_weight: globalPromptWeight,
+        }),
       ultimate_upscale: isUltimateUpscaleEnabled,
     };
 
     // console.log(image, { attrs });
+
+    batchImageResults?.length && dispatch(setBatchImageResults([]));
 
     sendMessage("generate", {
       image,
@@ -589,19 +647,26 @@ const MainForm = () => {
   useEffect(() => {
     const ref = channel?.on("image", (data) => {
       const { seed } = data;
-      !isSeedPinned && setValue("seed", seed);
+      !isSeedPinned &&
+        (batchSize === 1 || isBatchDisabled) &&
+        setValue("seed", seed);
     });
     return () => {
       ref && channel?.off("image", ref);
     };
-  }, [channel, dispatch, isSeedPinned, setValue]);
+  }, [channel, dispatch, isSeedPinned, setValue, batchSize, isBatchDisabled]);
+
+  useCustomEventListener("updateSeed", (seed) => {
+    !isSeedPinned && setValue("seed", seed);
+  });
 
   const handleInterrupt = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     sendMessage("interrupt");
   };
 
-  const showFullScalePass = scale < 1;
+  const showFullScalePass =
+    (batchSize === 1 || isBatchDisabled || backend === "comfy") && scale < 1;
   const showSecondPassStrength =
     (showFullScalePass && fullScalePass) || (txt2img && scale > 1);
   const showUseScaledDimensions =
@@ -617,20 +682,22 @@ const MainForm = () => {
         ref={formRef}
       >
         {!isGenerating || !isConnected ? (
-          <button
+          <Button
+            fullWidth
             type="submit"
-            className="bg-[#302d2d] border border-neutral-700 enabled:hover:bg-[#494949] disabled:cursor-not-allowed mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] stuck::bg-red-200 z-[20] shadow-md shadow-black/50"
+            className="mb-2 sticky top-2 w-[100%] z-[20] shadow-md shadow-black/50 enabled:bg-neutral-700 enabled:hover:bg-neutral-600 enabled:hover:text-white"
             disabled={!isConnected}
           >
             Generate
-          </button>
+          </Button>
         ) : (
-          <button
-            className="bg-red-600 mb-2 p-2 rounded cursor-pointer sticky top-2 w-[100%] z-[20]"
+          <Button
+            className="mb-2 bg-red-600 enabled:hover:bg-red-700 hover:text-white sticky top-2 z-[20]"
+            fullWidth
             onClick={handleInterrupt}
           >
             Interrupt
-          </button>
+          </Button>
         )}
         <div className="flex flex-col gap-2">
           <Label>Prompt</Label>
@@ -644,7 +711,7 @@ const MainForm = () => {
             defaultValue=""
           />
         </div>
-        {hasForgeCouple && <RegionalPromptsFields />}
+        {hasRegionalPrompting && <RegionalPromptsFields />}
         <div className="flex flex-col gap-2">
           <Label>Negative Prompt</Label>
 
@@ -920,7 +987,7 @@ const MainForm = () => {
                 Tiled Diffusion
               </Checkbox>
             )}
-            disabled={hasForgeCouple && isRegionalPromptingEnabled}
+            disabled={hasRegionalPrompting && isRegionalPromptingEnabled}
           />
         )}
         {!txt2img && hasUltimateUpscale && (
@@ -936,7 +1003,7 @@ const MainForm = () => {
                 value && upscaler === "Latent" && setValue("upscaler", "None");
               },
             }}
-            disabled={hasForgeCouple && isRegionalPromptingEnabled}
+            disabled={hasRegionalPrompting && isRegionalPromptingEnabled}
             render={({ field }) => (
               <Checkbox
                 {...field}
@@ -972,6 +1039,7 @@ const MainForm = () => {
                   id="seed"
                   className="p-1.5 rounded-tr-none rounded-br-none h-fit"
                   type="number"
+                  fullWidth
                   step={1}
                   min={-1}
                   {...field}
@@ -997,17 +1065,25 @@ const MainForm = () => {
           </div>
         </div>
 
-        {/* <div className="flex flex-col">
-        <Controller
-          name="batch_size"
-          control={control}
-          // rules={{ required: true }}
-          render={({ field }) => (
-            <Slider min={1} max={10} step={1} label="Batch Size" {...field} />
-          )}
-          defaultValue={1}
-        />
-      </div> */}
+        <div className="flex flex-col">
+          <Controller
+            name="batch_size"
+            control={control}
+            // rules={{ required: true }}
+            render={({ field }) => (
+              <Slider
+                min={1}
+                max={7}
+                step={1}
+                label="Batch Size"
+                disabled={isBatchDisabled}
+                {...field}
+              />
+            )}
+            defaultValue={1}
+          />
+        </div>
+
         {/* <Label htmlFor="inpaintFull">
           Inpaint full res
           <input

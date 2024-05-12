@@ -26,6 +26,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             selectionBoxRef: createRef(),
             sketchLayerRef: createRef(),
             stageRef: createRef(),
+            batchResultPreviewImageRef: createRef(),
           }}
         >
           <ThemeContext.Provider value={theme}>

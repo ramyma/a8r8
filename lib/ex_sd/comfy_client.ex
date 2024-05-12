@@ -418,6 +418,7 @@ defmodule ExSd.ComfyClient do
   end
 
   @spec get_binary(binary(), binary() | nil) :: {:ok, Finch.Response.t()}
+  @spec get_binary(binary()) :: {:ok, Finch.Response.t()}
   def get_binary(url, base_url \\ "#{get_base_url()}") do
     case Finch.build(:get, "#{base_url}#{url}")
          |> Finch.request(ExSd.Finch, receive_timeout: 1_000_000_000_000) do

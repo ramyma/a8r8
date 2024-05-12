@@ -6,7 +6,7 @@ import {
   setSelectedVae,
   setSelectedModel,
 } from "../state/optionsSlice";
-import { isSdXlModel } from "../utils";
+import { checkIsSdXlModel } from "../utils";
 import useData, { FetchPolicy } from "./useData";
 import useModels from "./useModels";
 
@@ -32,7 +32,7 @@ const useOptions = ({ fetchPolicy }: Props = {}) => {
           setSelectedModel({
             hash: options.sd_checkpoint_hash,
             name: model?.model_name ?? "",
-            isSdXl: isSdXlModel(model?.model_name as string),
+            isSdXl: checkIsSdXlModel(model?.model_name as string),
           })
         );
 

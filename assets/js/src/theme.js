@@ -4,6 +4,9 @@ import { amber } from "@radix-ui/colors";
 
 const theme = {
   ...defaultTheme,
+  data: {
+    active: 'ui~="active"',
+  },
   extend: {
     colors: {
       primary: "#df4b26",

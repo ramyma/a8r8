@@ -90,6 +90,7 @@ const SelectionBox = ({
   const rectX = x - selectionOutlineStrokeWidth / 2;
   const rectY = y - selectionOutlineStrokeWidth / 2;
 
+  //FIXME: batch image preview
   const previewImgWidth = useMemo(
     () =>
       previewImg
@@ -105,6 +106,7 @@ const SelectionBox = ({
     [height, previewImg, width]
   );
 
+  //FIXME: batch image preview
   const previewImgHeight = useMemo(
     () =>
       previewImg
@@ -119,7 +121,6 @@ const SelectionBox = ({
         : height,
     [height, previewImg, width]
   );
-
   const previewImgX = width > height ? x - (previewImgWidth - width) / 2 : x;
   const previewImgY = height > width ? y - (previewImgHeight - height) / 2 : y;
 

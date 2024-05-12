@@ -75,8 +75,8 @@ defmodule ExSdWeb.SdChannel do
 
   @impl true
   def handle_in("get_loras", _payload, socket) do
-    loras = Sd.get_loras()
-    {:reply, loras, socket}
+    Sd.get_loras()
+    {:noreply, socket}
   end
 
   @impl true

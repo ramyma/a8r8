@@ -72,6 +72,7 @@ import {
   setPreviewLayerId,
   updatePromptRegionLayer,
 } from "./state/promptRegionsSlice";
+import Button from "./components/Button";
 
 type LayerProps = {
   id: ActiveLayer;
@@ -242,8 +243,9 @@ const LayerItem = ({
       {/* // FIXME: width on smaller window size */}
       <li
         ref={itemRef}
+        {...(isActive && { "data-ui": "active" })}
         className={
-          "grid sm:grid-cols-1 xl:grid-cols-2 xl:items-center flex-row p-1.5 px-2 justify-between gap-1 " +
+          "group grid sm:grid-cols-1 xl:grid-cols-2 xl:items-center flex-row p-1.5 px-2 justify-between gap-1 " +
           `${
             dragOver
               ? "bg-primary/80"
@@ -289,22 +291,24 @@ const LayerItem = ({
                 color={regionMaskLayer?.maskColor}
                 onColorChange={handleMaskColorChange}
               />
-              <button
-                className="s-2 p-1 rounded bg-transparent disabled:text-neutral-500 disabled:cursor-not-allowed"
+              <Button
+                variant="clear"
+                className="p-1"
                 onClick={moveDownClick}
                 title="Move Down"
                 disabled={index === regionMaskLayersCount - 1}
               >
                 <ArrowDownIcon />
-              </button>
-              <button
-                className="s-2 p-1 rounded bg-transparent disabled:text-neutral-500 disabled:cursor-not-allowed"
+              </Button>
+              <Button
+                variant="clear"
+                className="p-1"
                 onClick={handleMoveUpClick}
                 title="Move Up"
                 disabled={index === 0}
               >
                 <ArrowUpIcon />
-              </button>
+              </Button>
             </div>
           )}
         </div>
@@ -429,7 +433,7 @@ const LayersControl = () => {
   const invertMask = useAppSelector(selectInvertMask);
   const backend = useAppSelector(selectBackend);
 
-  const { hasControlnet, hasForgeCouple } = useScripts();
+  const { hasControlnet, hasRegionalPrompting } = useScripts();
   // const isControlnetLayerVisible = useAppSelector(
   //   selectIsControlnetLayerVisible
   // );
@@ -572,7 +576,6 @@ const LayersControl = () => {
             dispatch(toggleInvertMask());
           }}
           title="Invert Mask"
-          className="data-[state=on]:text-primary hover:!border-inherit"
         />,
         <LayerActionButton
           key="clearMask"
@@ -601,7 +604,9 @@ const LayersControl = () => {
         />,
       ],
     },
-    ...(hasForgeCouple && isRegionalPromptsEnabled ? regionMaskLayers : []),
+    ...(hasRegionalPrompting && isRegionalPromptsEnabled
+      ? regionMaskLayers
+      : []),
     ...(hasControlnet ? controlnetLayers : []),
   ];
 
@@ -816,8 +821,8 @@ const LayersControl = () => {
       <div className="flex justify-between pt-2">
         <h3 className="sm:flex-1 lg:flex-[3] text-sm font-bold">Layers</h3>
         <div className="flex flex-1 gap-4 sticky top-0 mt-[-8px] pe-1">
-          <button
-            className="p-0.5 rounded-md flex justify-center items-center disabled:bg-neutral-900 disabled:text-neutral-700 border-neutral-700 disabled:border-neutral-800 disabled:cursor-not-allowed size-8"
+          <Button
+            className="p-0.5 size-8"
             title="Remove layer"
             onClick={handleRemoveLayer}
             disabled={
@@ -826,14 +831,14 @@ const LayersControl = () => {
             }
           >
             <TrashIcon />
-          </button>
-          <button
-            className="flex justify-center items-center p-0.5 rounded size-8 disabled:bg-neutral-900 disabled:text-neutral-700 border-neutral-700 disabled:border-neutral-800"
+          </Button>
+          <Button
+            className="p-0.5 rounded size-8 "
             title="Add controlnet layer"
             onClick={handleAddLayer}
           >
             <PlusIcon />
-          </button>
+          </Button>
         </div>
       </div>
       <ScrollArea classNames="pe-2 mb-2" ref={layerItemsListRef}>
@@ -1264,12 +1269,14 @@ const LayersControl = () => {
               )}
 
               {backend === "auto" && (
-                <button
-                  className="sticky bottom-0 z-2 text-sm shadow-md shadow-black/30 border border-neutral-700 rounded"
+                <Button
+                  variant="filled"
+                  className="sticky bottom-0 z-2 text-sm shadow-md shadow-black/30"
+                  fullWidth
                   onClick={handleControlnetDetect}
                 >
                   Detect
-                </button>
+                </Button>
               )}
             </div>
           </ScrollArea>
@@ -1291,9 +1298,10 @@ const LayerActionButton = ({
   type: "clearLines" | "clearImage";
 }) => {
   return (
-    <button
+    <Button
+      variant="clear"
       key="clearMask"
-      className="bg-transparent flex size-[32px] items-center justify-center rounded text-base leading-4 p-0"
+      className="size-[32px] items-center justify-center text-base leading-4 p-0 group-data-active:text-black group-data-active:hover:text-neutral-700"
       onClick={(e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1306,7 +1314,7 @@ const LayerActionButton = ({
       ) : type === "clearImage" ? (
         <ViewNoneIcon />
       ) : null}
-    </button>
+    </Button>
   );
 };
 const ColorBox = ({

@@ -1,11 +1,15 @@
-import React, { ReactNode, Ref, forwardRef } from "react";
+import React, { PropsWithoutRef, ReactNode, Ref, forwardRef } from "react";
 import * as RadixScrollArea from "@radix-ui/react-scroll-area";
 interface Props extends RadixScrollArea.ScrollAreaProps {
   children: ReactNode;
   classNames?: string;
+  viewportProps?: PropsWithoutRef<RadixScrollArea.ScrollAreaViewportProps>;
 }
 const ScrollArea = forwardRef(
-  ({ children, classNames = "", ...rest }: Props, ref: Ref<HTMLDivElement>) => (
+  (
+    { children, classNames = "", viewportProps, ...rest }: Props,
+    ref: Ref<HTMLDivElement>
+  ) => (
     <RadixScrollArea.Root
       className={"w-full h-full rounded " + classNames}
       {...rest}
@@ -13,6 +17,7 @@ const ScrollArea = forwardRef(
       <RadixScrollArea.Viewport
         className="w-full h-full rounded [&>div]:!block"
         ref={ref}
+        {...viewportProps}
       >
         {children}
       </RadixScrollArea.Viewport>

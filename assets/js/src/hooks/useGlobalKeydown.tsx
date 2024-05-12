@@ -2,6 +2,10 @@ import { KeyboardEventHandler, useCallback, useEffect } from "react";
 
 interface Props {
   handleKeydown: KeyboardEventHandler;
+  /**
+   * Accept key events from any target element.
+   * When false, only events from the `body` element is processed
+   */
   override?: boolean;
 }
 

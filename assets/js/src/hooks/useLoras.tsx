@@ -1,5 +1,4 @@
 import { Lora, Model } from "../App.d";
-import { useAppSelector } from "../hooks";
 import useData, { FetchPolicy } from "./useData";
 
 type Props = {
@@ -7,7 +6,7 @@ type Props = {
 };
 
 const useLoras = ({ fetchPolicy }: Props = {}) => {
-  const { fetchData, data: loras } = useData<Lora[]>({
+  const { fetchData, data: loras } = useData<Lora[] | undefined>({
     name: "loras",
     fetchPolicy,
   });

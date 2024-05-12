@@ -22,6 +22,7 @@ import useGlobalKeydown from "./hooks/useGlobalKeydown";
 import useBrushColor from "./hooks/useBrushColor";
 import { updateControlnetLayer } from "./state/controlnetSlice";
 import { updatePromptRegionLayer } from "./state/promptRegionsSlice";
+import Button from "./components/Button";
 
 const rgbaToHex = (rgba) => {
   const [r, g, b] = rgba.slice(5, -1).split(",").map(Number);
@@ -153,13 +154,14 @@ const ColorPicker = ({
           onKeyDown={handleKeydown}
         />
         {isSupported() && (
-          <button
-            className="border-neutral-700/60 bg-neutral-900/60 flex justify-center rounded-md rounded-t-none"
+          <Button
+            className="rounded-t-none"
+            fullWidth
             onClick={pickColor}
             onKeyDown={handleKeydown}
           >
             <BiSolidEyedropper />
-          </button>
+          </Button>
         )}
       </div>
     </animated.div>

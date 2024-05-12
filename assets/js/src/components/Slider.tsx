@@ -11,11 +11,21 @@ type Props = {
   max: number;
   step: number;
   showInput?: boolean;
+  disabled?: boolean;
 };
 
 const Slider = forwardRef(
   (
-    { label, min, max, step, showInput = true, value, onChange }: Props,
+    {
+      label,
+      min,
+      max,
+      step,
+      showInput = true,
+      disabled = false,
+      value,
+      onChange,
+    }: Props,
     _ref
   ) => {
     const handleValueChange = (value: number[]) => onChange(value[0]);
@@ -39,6 +49,7 @@ const Slider = forwardRef(
               max={max}
               value={value}
               onChange={handleInputChange}
+              disabled={disabled}
             />
           </div>
         )}
@@ -50,13 +61,18 @@ const Slider = forwardRef(
           step={step}
           aria-label="Volume"
           value={[value]}
+          disabled={disabled}
           onValueChange={handleValueChange}
         >
           {/* TODO: handle values greater than max, the slider extends beyond the available width */}
           <RadixSlider.Track className="relative grow rounded-full h-[3px] bg-neutral-900">
-            <RadixSlider.Range className="absolute bg-primary rounded-full h-full" />
+            <RadixSlider.Range
+              className={`absolute ${disabled ? "bg-neutral-600" : "bg-primary"} rounded-full h-full`}
+            />
           </RadixSlider.Track>
-          <RadixSlider.Thumb className="block w-4 h-4 bg-white shadow-[0_2px_10px] shadow-black rounded-[10px] border-2 focus:border-primary focus:scale-120 outline-none transition-all duration-100 ease-in-out" />
+          <RadixSlider.Thumb
+            className={`block w-4 h-4 ${disabled ? "bg-neutral-700 border-none" : "bg-white"} shadow-[0_2px_10px] shadow-black rounded-[10px] border-2 focus:border-primary focus:scale-120 outline-none transition-all duration-100 ease-in-out`}
+          />
         </RadixSlider.Root>
       </div>
     );

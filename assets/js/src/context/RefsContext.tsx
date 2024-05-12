@@ -5,6 +5,7 @@ import { Node as NodeType } from "konva/lib/Node";
 import { Rect as RectType } from "konva/lib/shapes/Rect";
 import { Layer as LayerType } from "konva/lib/Layer";
 import { Group as GroupType } from "konva/lib/Group";
+import { Image as ImageType } from "konva/lib/shapes/Image";
 
 export type RefsContextProps = {
   selectionBoxRef: RefObject<RectType> | null;
@@ -17,6 +18,7 @@ export type RefsContextProps = {
   sketchLayerRef: RefObject<LayerType> | null;
   overlayLayerRef: RefObject<LayerType> | null;
   controlnetLayerRef: RefObject<LayerType> | null;
+  batchResultPreviewImageRef: RefObject<ImageType> | null;
 };
 const RefsContext = createContext<RefsContextProps>({
   controlnetLayerRef: null,
@@ -29,6 +31,7 @@ const RefsContext = createContext<RefsContextProps>({
   selectionBoxRef: null,
   sketchLayerRef: null,
   stageRef: null,
+  batchResultPreviewImageRef: null,
 });
 
 export default RefsContext;

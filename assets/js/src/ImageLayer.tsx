@@ -1,5 +1,11 @@
-import React, { useCallback, useContext, useEffect } from "react";
-import { Layer } from "react-konva";
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { Group, Image, Layer } from "react-konva";
 import konva from "konva";
 import RefsContext from "./context/RefsContext";
 import SocketContext from "./context/SocketContext";
@@ -19,6 +25,20 @@ import { selectActiveLayer } from "./state/layersSlice";
 
 import { useCustomEventListener } from "react-custom-events";
 import { selectSelectionBox } from "./state/selectionBoxSlice";
+import {
+  selectActiveBatchImageResultIndex,
+  selectBatchImageResults,
+  selectBatchPreviewIsVisible,
+  setBatchImageResults,
+} from "./state/canvasSlice";
+import useBatchGenerationListeners, {
+  UseBatchGenerationListenersProps,
+} from "./hooks/useBatchGenerationListeners";
+import {
+  emitBatchGenerationProps,
+  emitUpdateSeed,
+} from "./Canvas/hooks/useCustomEventsListener";
+import { selectBackend } from "./state/optionsSlice";
 
 type ImageItem = {
   img: HTMLImageElement;
@@ -33,11 +53,24 @@ const ImageLayer = () => {
   // const previewImageRef = useRef<ImageType | null>(null);
 
   const { imageLayerRef } = useContext(RefsContext);
+  const batchImageResults = useAppSelector(selectBatchImageResults);
+  const backend = useAppSelector(selectBackend);
+  const activeBatchImageResultIndex = useAppSelector(
+    selectActiveBatchImageResultIndex
+  );
 
+  const batchGenerationProps = useRef<
+    | Omit<
+        Parameters<typeof handleAddImage>[0],
+        "imageDataUrl" | "isGenerationResult" | "isPreview"
+      >
+    | undefined
+  >();
   const dispatch = useAppDispatch();
 
   const activeLayer = useAppSelector(selectActiveLayer);
   const selectionBox = useAppSelector(selectSelectionBox);
+  const batchPreviewIsVisible = useAppSelector(selectBatchPreviewIsVisible);
 
   const undoCallback = useCallback<
     Required<useHistoryStateProps<konva.Image>>["undoCallback"]
@@ -94,14 +127,16 @@ const ImageLayer = () => {
       imageDataUrl,
       dimensions,
       position = { x: selectionBox.x, y: selectionBox.y },
-      useScaledDimensions,
+      useScaledDimensions = false,
       isGenerationResult = false,
+      isPreview = false,
     }: {
       imageDataUrl: string;
       dimensions?: { width: number; height: number };
       position?: Vector2d;
       useScaledDimensions?: boolean;
       isGenerationResult?: boolean;
+      isPreview?: boolean;
     }) => {
       if (isGenerationResult || activeLayer === "base") {
         const img = new window.Image();
@@ -119,41 +154,89 @@ const ImageLayer = () => {
         };
 
         // for (let index = 0; index < 2000; index++) {
-        const image = new konva.Image({
+        const imageProps = {
           image: img,
           x: newImage.x,
           y: newImage.y,
           width: newImage.width,
           height: newImage.height,
-        });
+        };
 
-        imageLayerRef?.current?.add(image);
-
-        setHistoryStateItem(image, "Add Image");
+        if (isPreview) {
+          emitBatchGenerationProps(imageProps);
+          batchGenerationProps.current = {
+            dimensions,
+            position,
+            useScaledDimensions,
+          };
+        } else {
+          const image = new konva.Image(imageProps);
+          imageLayerRef?.current?.add(image);
+          setHistoryStateItem(image, "Add Image");
+        }
       }
     },
     [activeLayer, imageLayerRef, selectionBox, setHistoryStateItem]
   );
+
+  const handleApplyActiveBatchImage: UseBatchGenerationListenersProps["handleApplyActiveBatchImage"] =
+    () => {
+      activeBatchImageResultIndex !== undefined &&
+        batchGenerationProps.current &&
+        batchImageResults &&
+        handleAddImage({
+          imageDataUrl: batchImageResults[activeBatchImageResultIndex],
+          ...batchGenerationProps.current,
+          isGenerationResult: true,
+        });
+
+      batchGenerationProps.current = undefined;
+      const seedIncrement =
+        backend === "auto" ? activeBatchImageResultIndex ?? 0 : 0;
+
+      emitUpdateSeed((batchImageSeedRef?.current ?? 0) + seedIncrement);
+
+      dispatch(setBatchImageResults([]));
+    };
+
+  useBatchGenerationListeners({
+    handleApplyActiveBatchImage,
+  });
 
   useClipboard({ handleAddImage });
   useDragAndDrop({ handleAddImage });
 
   const { channel } = useContext(SocketContext);
 
+  const batchImageSeedRef = useRef();
+
   useEffect(() => {
     if (channel) {
       const ref = channel.on("image", async (data) => {
-        const { image, position, dimensions, useScaledDimensions, seed } = data;
-        const generationParams = await getPngInfo(image);
-        dispatch(setGenerationParams(generationParams));
-
-        handleAddImage({
-          imageDataUrl: image,
-          dimensions,
-          useScaledDimensions,
-          position,
-          isGenerationResult: true,
-        });
+        const { position, dimensions, useScaledDimensions, seed, images } =
+          data;
+        if (images?.length > 1) {
+          batchImageSeedRef.current = seed;
+          dispatch(setBatchImageResults(images as string[]));
+          handleAddImage({
+            imageDataUrl: images[0],
+            dimensions,
+            useScaledDimensions,
+            position,
+            isGenerationResult: true,
+            isPreview: true,
+          });
+        } else {
+          const generationParams = await getPngInfo(images[0]);
+          dispatch(setGenerationParams(generationParams));
+          handleAddImage({
+            imageDataUrl: images[0],
+            dimensions,
+            useScaledDimensions,
+            position,
+            isGenerationResult: true,
+          });
+        }
 
         dispatch(updateStats({ progress: 0, etaRelative: 0 }));
       });
@@ -162,6 +245,7 @@ const ImageLayer = () => {
       };
     }
   }, [channel, handleAddImage, dispatch]);
+
   // TODO: stress test with many images; explore caching
 
   return (

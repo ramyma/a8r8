@@ -341,6 +341,7 @@ export const getLayers = async ({
     overlayLayerRef,
     // imageLayerRef,
     maskCompositeRectRef,
+    batchResultPreviewImageRef,
   } = refs;
   // if (layer.width() !== 0 && layer.height() !== 0) {
   const stage = stageRef?.current;
@@ -351,6 +352,12 @@ export const getLayers = async ({
   const selectionBox = selectionBoxRef?.current;
   const selectionBoxLayer = selectionBoxLayerRef?.current;
   const overlayLayer = overlayLayerRef?.current;
+  const batchResultPreviewImage = batchResultPreviewImageRef?.current;
+
+  const initialBatchResultPreviewImageVisibility =
+    batchResultPreviewImage?.visible();
+  batchResultPreviewImage?.visible(false);
+
   // const imageLayer = imageLayerRef?.current;
   maskCompositeRectRef?.current?.visible(false);
   // maskLayer?.visible(isMaskLayerVisible);
@@ -549,6 +556,9 @@ export const getLayers = async ({
   bgRect.destroy();
   // controlnetLayer?.visible(false);
   stage?.scale(oldStageScale);
+  batchResultPreviewImage?.visible(
+    initialBatchResultPreviewImageVisibility ?? false
+  );
   // document.getElementById("initIn").value = await imageLayer.toDataURL({
   //   x: selectionBoxTransformer.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
   //   y: selectionBoxTransformer.getAbsolutePosition().y,
@@ -673,7 +683,7 @@ function actionsThrottlingFilter(action) {
   return true;
 }
 
-const debugImage = function (url, label, height = 100) {
+export const debugImage = function (url, label, height = 100) {
   const image = new Image();
   image.crossOrigin = "anonymous";
   image.onload = function () {
@@ -695,5 +705,5 @@ const debugImage = function (url, label, height = 100) {
   image.src = url;
 };
 
-export const isSdXlModel = (modelName: string): boolean =>
+export const checkIsSdXlModel = (modelName: string): boolean =>
   modelName?.toLowerCase()?.includes("xl");

@@ -241,6 +241,201 @@ defmodule ExSd.Sd.ComfyPromptTest do
              }
   end
 
+  test "add_conditioning_mask" do
+    assert ComfyPrompt.add_conditioning_mask(
+             ComfyPrompt.new(),
+             ComfyPrompt.node_ref("conditioning", 0),
+             ComfyPrompt.node_ref("mask_image", 0),
+             1.0,
+             :test
+           ) ==
+             %{
+               prompt: %{
+                 test: %{
+                   class_type: "ConditioningSetMask",
+                   inputs: %{
+                     mask: [
+                       "test_convert_image_mask",
+                       0
+                     ],
+                     strength: 1.0,
+                     set_cond_area: "default",
+                     conditioning: [
+                       "conditioning",
+                       0
+                     ]
+                   }
+                 },
+                 test_convert_image_mask: %{
+                   class_type: "ImageToMask",
+                   inputs: %{
+                     image: [
+                       "test_mask",
+                       0
+                     ],
+                     channel: "red"
+                   }
+                 },
+                 test_mask: %{
+                   class_type: "Base64ImageInput",
+                   inputs: %{
+                     bas64_image: [
+                       "mask_image",
+                       0
+                     ]
+                   }
+                 }
+               }
+             }
+  end
+
+  test "image_to_mask_node" do
+    assert ComfyPrompt.image_to_mask_node("name", ComfyPrompt.node_ref("test", 0)) ==
+             %{
+               "name" => %{
+                 class_type: "ImageToMask",
+                 inputs: %{image: ["test", 0], channel: "red"}
+               }
+             }
+  end
+
+  test "maybe_add_regional_prompts" do
+    attrs = %{
+      "is_regional_prompting_enabled" => true,
+      "regional_prompts" => [
+        %{
+          "id" => "1",
+          "prompt" => "region 1",
+          "weight" => 1.0,
+          "mask" => "mask_binary",
+          "global_prompt_weight" => 0.3
+        },
+        %{
+          "id" => "2",
+          "prompt" => "region 2",
+          "weight" => 1.0,
+          "mask" => "mask_binary2",
+          "global_prompt_weight" => 0.3
+        }
+      ],
+      "positive_loras" => []
+    }
+
+    assert ComfyPrompt.maybe_add_regional_prompts(ComfyPrompt.new(), attrs) ==
+             %{
+               prompt: %{
+                 prompt_region_1: %{
+                   class_type: "ConditioningSetMask",
+                   inputs: %{
+                     mask: [
+                       "prompt_region_1_convert_image_mask",
+                       0
+                     ],
+                     strength: 1.0,
+                     set_cond_area: "default",
+                     conditioning: [
+                       "prompt_region_1_text",
+                       0
+                     ]
+                   }
+                 },
+                 prompt_region_1_convert_image_mask: %{
+                   class_type: "ImageToMask",
+                   inputs: %{
+                     image: [
+                       "prompt_region_1_mask",
+                       0
+                     ],
+                     channel: "red"
+                   }
+                 },
+                 prompt_region_1_mask: %{
+                   class_type: "Base64ImageInput",
+                   inputs: %{bas64_image: "mask_binary"}
+                 },
+                 prompt_region_1_text: %{
+                   class_type: "CLIPTextEncode",
+                   inputs: %{text: "region 1", clip: ["model", 1]}
+                 },
+                 regional_prompt: %{
+                   class_type: "ConditioningCombine",
+                   inputs: %{
+                     conditioning_1: [
+                       "regional_prompt_global_effect",
+                       0
+                     ],
+                     conditioning_2: [
+                       "regional_prompt_combine_1_2",
+                       0
+                     ]
+                   }
+                 },
+                 regional_prompt_combine_1_2: %{
+                   class_type: "ConditioningCombine",
+                   inputs: %{
+                     conditioning_1: [
+                       "prompt_region_1",
+                       0
+                     ],
+                     conditioning_2: [
+                       "prompt_region_2",
+                       0
+                     ]
+                   }
+                 },
+                 regional_prompt_global_effect: %{
+                   class_type: "ConditioningSetAreaStrength",
+                   inputs: %{
+                     strength: 0.3,
+                     conditioning: [
+                       "positive_prompt",
+                       0
+                     ]
+                   }
+                 },
+                 prompt_region_2: %{
+                   class_type: "ConditioningSetMask",
+                   inputs: %{
+                     mask: [
+                       "prompt_region_2_convert_image_mask",
+                       0
+                     ],
+                     strength: 1.0,
+                     set_cond_area: "default",
+                     conditioning: [
+                       "prompt_region_2_text",
+                       0
+                     ]
+                   }
+                 },
+                 prompt_region_2_convert_image_mask: %{
+                   class_type: "ImageToMask",
+                   inputs: %{
+                     image: [
+                       "prompt_region_2_mask",
+                       0
+                     ],
+                     channel: "red"
+                   }
+                 },
+                 prompt_region_2_mask: %{
+                   class_type: "Base64ImageInput",
+                   inputs: %{bas64_image: "mask_binary2"}
+                 },
+                 prompt_region_2_text: %{
+                   class_type: "CLIPTextEncode",
+                   inputs: %{
+                     text: "region 2",
+                     clip: [
+                       "model",
+                       1
+                     ]
+                   }
+                 }
+               }
+             }
+  end
+
   test "txt2img" do
     generation_params = %ExSd.Sd.GenerationParams{
       prompt: "pos prompt",
