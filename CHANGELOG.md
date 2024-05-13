@@ -1,5 +1,22 @@
 # Changelog
 
+
+## [0.6.0] - 2024-05-12
+
+### Added
+
+- Added batch size support
+- Added Comfy regional prompting
+
+### Changed
+
+- Comfy prompt refactoring
+- UI enhancements and tweaks
+
+### Fixed
+
+- Fixed first time model load
+
 ## [0.5.2] - 2024-04-23
 
 ### Fixed
