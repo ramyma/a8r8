@@ -1,4 +1,4 @@
-import React, { MutableRefObject, forwardRef } from "react";
+import React, { forwardRef } from "react";
 import { twMerge } from "tailwind-merge";
 
 export type ButtonProps = {
@@ -34,5 +34,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     );
   }
 );
+
+Button.displayName = "Button";
 
 export default Button;
