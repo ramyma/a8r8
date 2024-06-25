@@ -181,6 +181,28 @@ defmodule ExSd.ComfyGenerationServer do
   end
 
   @impl true
+  def handle_info(:execution_start, state) do
+    PubSub.broadcast!(
+      ExSd.PubSub,
+      "generation",
+      :execution_start
+    )
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:loading_model, state) do
+    PubSub.broadcast!(
+      ExSd.PubSub,
+      "generation",
+      :loading_model
+    )
+
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_info({:backend_change, :comfy}, %{client_id: client_id} = state) do
     connect_to_websocket(client_id)
     {:noreply, state}

@@ -12,6 +12,7 @@ import uFuzzy from "@leeoniya/ufuzzy";
 import { ExtrasSuggestHandlerCommand } from "./customExtentionUtils";
 import useLoras from "../../hooks/useLoras";
 import useEmbeddings from "../../hooks/useEmbeddings";
+import useFuzzySearch from "../../hooks/useFuzzySearch";
 
 export interface CompletionOptionsState {
   /**
@@ -55,9 +56,9 @@ export interface UseExtrasReturn extends UseMenuNavigationReturn<string> {
 }
 
 const commands = ["lora", "embedding"];
-const opts = { intraMode: 1 };
+// const opts = { intraMode: 1 };
 
-const uf = new uFuzzy(opts);
+// const uf = new uFuzzy(opts);
 
 /**
  * This hook provides the state for setting up an extras state change handler. It
@@ -99,8 +100,13 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
   );
 
   const { loras } = useLoras();
-  const lorasByName = useCallback(
-    () => loras?.map(({ name }) => name.replace(".safetensors", "")) ?? [],
+  const lorasByName = useMemo(
+    () =>
+      loras
+        ?.map(({ name }) => name.replace(".safetensors", ""))
+        .toSorted((l1, l2) =>
+          l1.toLocaleLowerCase() < l2.toLocaleLowerCase() ? -1 : 1
+        ) ?? [],
     [loras]
   );
 
@@ -118,20 +124,33 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
   });
   const { setIndex } = menu;
 
+  const { searchItems: searchCommands } = useFuzzySearch(commands ?? []);
+
+  const { searchItems: searchLoraItems } = useFuzzySearch(lorasByName ?? [], {
+    options: {
+      keys: ["name"],
+    },
+  });
+
+  const { searchItems: searchEmbeddingsItems } = useFuzzySearch(
+    embeddings ?? []
+  );
+
   const onChange = useCallback(
     (props) => {
       const { change, exit, query, apply, range } = props;
 
       if (change) {
-        const idxs = uf.filter(commands, query);
+        // const idxs = uf.filter(commands, query);
         // const info = uf.info(idxs, commands, query);
         // const order = uf.sort(info, commands, query);
         // console.log({ idxs, info, order });
-        const filtered = idxs?.length
-          ? idxs?.map((i) => commands[i])
-          : !query
-          ? commands
-          : [];
+        // const filtered = idxs?.length
+        //   ? idxs?.map((i) => commands[i])
+        //   : !query
+        //     ? commands
+        //     : [];
+        const filtered = searchCommands(query);
         setIndex(0);
         setState({
           list: filtered, //take(filtered, 20),
@@ -149,26 +168,26 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
         setState(null);
       }
     },
-    [setIndex]
+    [searchCommands, setIndex]
   );
 
   const onLoraChange = useCallback(
     (props) => {
       const { change, exit, query, apply, range } = props;
-      const loras = lorasByName();
       if (change) {
-        const idxs = uf.filter(loras, query);
-        // const info = uf.info(idxs, loras, query);
-        // const order = uf.sort(info, loras, query);
-        // console.log({ idxs, info, order });
-        const filtered = idxs?.length
-          ? idxs?.map((i) => loras[i])
-          : !query
-          ? loras
-          : [];
+        // const idxs = uf.filter(loras, query);
+        // // const info = uf.info(idxs, loras, query);
+        // // const order = uf.sort(info, loras, query);
+        // // console.log({ idxs, info, order });
+        // const filtered = idxs?.length
+        //   ? idxs?.map((i) => loras[i])
+        //   : !query
+        //     ? loras
+        //     : [];
+        const filtered = searchLoraItems(query);
         setIndex(0);
         setState({
-          list: take(filtered, 20),
+          list: take(filtered, filtered?.length),
           apply: (code) => {
             setState(null);
             return apply(code);
@@ -183,7 +202,7 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
         setState(null);
       }
     },
-    [lorasByName, setIndex]
+    [lorasByName, searchLoraItems, setIndex]
   );
 
   const onEmbeddingChange = useCallback(
@@ -191,18 +210,19 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
       const { change, exit, query, apply, range } = props;
 
       if (change) {
-        const idxs = uf.filter(embeddings, query);
+        // const idxs = uf.filter(embeddings, query);
         // const info = uf.info(idxs, loras, query);
         // const order = uf.sort(info, loras, query);
         // console.log({ idxs, info, order });
-        const filtered = idxs?.length
-          ? idxs?.map((i) => embeddings[i])
-          : !query
-          ? embeddings
-          : [];
+        // const filtered = idxs?.length
+        //   ? idxs?.map((i) => embeddings[i])
+        //   : !query
+        //     ? embeddings
+        //     : [];
+        const filtered = searchEmbeddingsItems(query);
         setIndex(0);
         setState({
-          list: take(filtered, 20),
+          list: take(filtered, filtered?.length),
           apply: (code) => {
             setState(null);
             return apply(code);
@@ -217,7 +237,7 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
         setState(null);
       }
     },
-    [embeddings, setIndex]
+    [searchEmbeddingsItems, setIndex]
   );
 
   useExtensionEvent(CustomExtension, "suggestCommand", onChange);

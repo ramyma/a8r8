@@ -91,6 +91,14 @@ defmodule ExSd.Sd.ImageService do
     end
   end
 
+  @spec flood_alpha_with_color(Vix.Vips.Image.t(), binary() | nil) :: Vix.Vips.Image.t()
+  def flood_alpha_with_color(image, color \\ "white") do
+    Image.compose!(
+      Image.Draw.flood!(Image.new!(Image.width(image), Image.height(image)), 0, 0, color: color),
+      image
+    )
+  end
+
   def image_from_dataurl("data:image/png;base64," <> _binary = dataurl_image) do
     with %{scheme: "data"} = uri <- URI.parse(dataurl_image),
          {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri),
@@ -104,6 +112,17 @@ defmodule ExSd.Sd.ImageService do
 
   def image_from_dataurl(binary_image) do
     image_from_dataurl("data:image/png;base64,#{binary_image}")
+  end
+
+  @spec base64_from_image(nil | Vix.Vips.Image.t()) :: nil | binary()
+  def base64_from_image(image) when is_nil(image) do
+    image
+  end
+
+  def base64_from_image(image) do
+    image
+    |> Image.write!(:memory, suffix: ".png")
+    |> Base.encode64()
   end
 
   @spec mask_from_alpha(binary() | URI.t(), any(), any()) ::

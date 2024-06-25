@@ -110,6 +110,7 @@ const BatchImageResults = (props: Props) => {
               }}
               className="text-success border-success hover:text-success hover:!border-success"
               title="Accept"
+              {...(!isVisible && { tabIndex: -1 })}
             >
               <CheckIcon />
             </Button>
@@ -117,6 +118,7 @@ const BatchImageResults = (props: Props) => {
               onClick={() => dispatch(setBatchImageResults([]))}
               className="text-danger border-danger hover:text-danger hover:!border-danger"
               title="Cancel"
+              {...(!isVisible && { tabIndex: -1 })}
             >
               <Cross1Icon />
             </Button>
@@ -128,6 +130,7 @@ const BatchImageResults = (props: Props) => {
             pressedIconComponent={EyeOpenIcon}
             unpressedIconComponent={EyeNoneIcon}
             className="border border-neutral-700 bg-neutral-900/50 backdrop-blur-sm"
+            {...(!isVisible && { tabIndex: -1 })}
           />
         </div>
       </animated.div>

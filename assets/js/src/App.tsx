@@ -122,9 +122,7 @@ function App() {
                 models={models}
                 refetchModels={refetchModels}
                 setModel={setModel}
-                selectedModel={
-                  selectedModel && { model_name: selectedModel.name }
-                }
+                selectedModel={selectedModel && { name: selectedModel.name }}
               />
               <VaeSelect
                 refetchOptions={refetchOptions}
@@ -182,7 +180,7 @@ const ModelSelect = ({
 
   const handleModelRefreshClick = (e: MouseEvent) => {
     e.preventDefault();
-    refetchOptions();
+    if (backend === "auto") refetchOptions();
     refetchModels();
   };
 
@@ -191,8 +189,8 @@ const ModelSelect = ({
   //TODO: fix types
   return (
     <>
-      {backend === "auto" ? (
-        <div className="inline-flex w-full">
+      <div className="inline-flex w-full">
+        {backend === "auto" ? (
           <Select
             id="auto_model"
             items={models}
@@ -206,25 +204,25 @@ const ModelSelect = ({
             disabled={isModelLoading || isVaeLoading}
             shouldSetDefaultValue={false}
           />
-          <Button
-            variant="clear"
-            onClick={handleModelRefreshClick}
-            className="rounded-tl-none rounded-bl-none !p-2"
-            title="Refresh"
-          >
-            <ReloadIcon />
-          </Button>
-        </div>
-      ) : (
-        <Select
-          id="comfy_model"
-          items={models}
-          name={name}
-          value={selectedModel?.model_name || selectedModel?.name}
-          onChange={handleModelChange}
-          title={title}
-        />
-      )}
+        ) : (
+          <Select
+            id="comfy_model"
+            items={models}
+            name={name}
+            value={selectedModel?.model_name || selectedModel?.name}
+            onChange={handleModelChange}
+            title={title}
+          />
+        )}
+        <Button
+          variant="clear"
+          onClick={handleModelRefreshClick}
+          className="rounded-tl-none rounded-bl-none !p-2"
+          title="Refresh"
+        >
+          <ReloadIcon />
+        </Button>
+      </div>
     </>
   );
 };
@@ -267,8 +265,8 @@ const VaeSelect = ({
 
   return (
     <>
-      {backend === "auto" ? (
-        <div className="inline-flex w-full">
+      <div className="inline-flex w-full">
+        {backend === "auto" ? (
           <Select
             id="auto_vae"
             items={vaeList}
@@ -279,26 +277,25 @@ const VaeSelect = ({
             disabled={isVaeLoading || isModelLoading}
             shouldSetDefaultValue={false}
           />
-
-          <Button
-            variant="clear"
-            onClick={handleModelRefreshClick}
-            className="rounded-tl-none rounded-bl-none !p-2"
-            title="Refresh"
-          >
-            <ReloadIcon />
-          </Button>
-        </div>
-      ) : (
-        <Select
-          id="comfy_vae"
-          items={vaeList}
-          name={name}
-          value={selectedVae}
-          onChange={handleVaeChange}
-          title={title}
-        />
-      )}
+        ) : (
+          <Select
+            id="comfy_vae"
+            items={vaeList}
+            name={name}
+            value={selectedVae}
+            onChange={handleVaeChange}
+            title={title}
+          />
+        )}
+        <Button
+          variant="clear"
+          onClick={handleModelRefreshClick}
+          className="rounded-tl-none rounded-bl-none !p-2"
+          title="Refresh"
+        >
+          <ReloadIcon />
+        </Button>
+      </div>
     </>
   );
 };

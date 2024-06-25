@@ -32,6 +32,7 @@ import Toggle from "./components/Toggle";
 import { useAppDispatch, useAppSelector } from "./hooks";
 import useControlnet from "./hooks/useControlnet";
 import {
+  CONTROL_MODES,
   ControlnetLayer,
   addControlnetLayer,
   removeControlnetLayer,
@@ -73,6 +74,10 @@ import {
   updatePromptRegionLayer,
 } from "./state/promptRegionsSlice";
 import Button from "./components/Button";
+import { weightTypesByName } from "./MainForm/constants";
+import { checkIsIpAdapterControlnetModel } from "./utils";
+
+const WEIGHT_TYPES = Object.keys(weightTypesByName);
 
 type LayerProps = {
   id: ActiveLayer;
@@ -337,7 +342,7 @@ const LayerItem = ({
           {/* <div>add</div> */}
         </div>
       </li>
-      {backend === "auto" && type === "controlnet" && isEnabled && (
+      {type === "controlnet" && isEnabled && (
         <li
           className={`flex text-sm pe-2 ps-5  justify-between items-center cursor-pointe ${
             isMaskLayerActive ? "bg-neutral-50/40" : "bg-neutral-950"
@@ -417,12 +422,6 @@ const LayerItem = ({
     </>
   );
 };
-
-const CONTROL_MODES = [
-  { value: 0, label: "Balanced" },
-  { value: 1, label: "My prompt is more important" },
-  { value: 2, label: "ControlNet is more important" },
-];
 
 const LayersControl = () => {
   const dispatch = useAppDispatch();
@@ -841,7 +840,7 @@ const LayersControl = () => {
           </Button>
         </div>
       </div>
-      <ScrollArea classNames="pe-2 mb-2" ref={layerItemsListRef}>
+      <ScrollArea className="pe-2 mb-2" ref={layerItemsListRef}>
         <ul className="max-h-[31vh] pe-2 flex flex-col w-full mt-2 rounded">
           {/* TODO: animate layer on undo/redo to signal which layer was affected */}
           {layers.map(({ id, ...rest }) => (
@@ -869,7 +868,7 @@ const LayersControl = () => {
             />
           </Label> */}
         {activeControlnetLayer && (
-          <ScrollArea classNames="pe-2 mb-2">
+          <ScrollArea className="pe-2 mb-2">
             <div className="flex gap-5 flex-col mt-2 h-[45vh]  pt-1 pr-2.5">
               <div>
                 <ImageUploader
@@ -999,12 +998,13 @@ const LayersControl = () => {
                   value={activeControlnetLayer?.weight}
                 /> */}
               {/* </div> */}
-              {backend === "auto" && (
-                <div className="flex gap-2 flex-col">
-                  <Label htmlFor={`mode${activeControlnetLayer?.id}`}>
-                    Control Mode
-                  </Label>
-                  {/* <select
+              {backend === "auto" &&
+                !/ip\S*adapter/gi.test(activeControlnetLayer.module) && (
+                  <div className="flex gap-2 flex-col">
+                    <Label htmlFor={`mode${activeControlnetLayer?.id}`}>
+                      Control Mode
+                    </Label>
+                    {/* <select
                   className="p-2 rounded"
                   name="control_mode"
                   id={`module${activeControlnetLayer?.id}`}
@@ -1023,22 +1023,48 @@ const LayersControl = () => {
                   ))}
                 </select> */}
 
-                  <Select
-                    name="control_mode"
-                    id={`mode${activeControlnetLayer?.id}`}
-                    items={CONTROL_MODES}
-                    value={activeControlnetLayer?.control_mode}
-                    onChange={(value) =>
-                      handleControlnetSelectChange({
-                        name: "control_mode",
-                        type: "number",
-                        value,
-                        layerId: activeControlnetLayer.id,
-                      })
-                    }
-                  />
-                </div>
-              )}
+                    <Select
+                      name="control_mode"
+                      id={`mode${activeControlnetLayer?.id}`}
+                      items={CONTROL_MODES}
+                      value={activeControlnetLayer?.control_mode}
+                      onChange={(value) =>
+                        handleControlnetSelectChange({
+                          name: "control_mode",
+                          type: "object",
+                          value,
+                          layerId: activeControlnetLayer.id,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+
+              {backend === "auto" &&
+                checkIsIpAdapterControlnetModel(
+                  activeControlnetLayer?.model
+                ) && (
+                  <div className="flex gap-2 flex-col">
+                    <Label htmlFor={`mode${activeControlnetLayer?.id}`}>
+                      Weight Type
+                    </Label>
+
+                    <Select
+                      name="weight_type"
+                      id={`weight_type${activeControlnetLayer?.id}`}
+                      items={WEIGHT_TYPES}
+                      value={activeControlnetLayer?.weight_type}
+                      onChange={(value) =>
+                        handleControlnetSelectChange({
+                          name: "weight_type",
+                          type: "string",
+                          value,
+                          layerId: activeControlnetLayer.id,
+                        })
+                      }
+                    />
+                  </div>
+                )}
 
               <Slider
                 label="Controlnet Weight"
@@ -1054,6 +1080,28 @@ const LayersControl = () => {
                 }
                 value={activeControlnetLayer?.weight}
               />
+
+              {backend === "auto" &&
+                (activeControlnetLayer?.weight_type ===
+                  "Style and Composition" ||
+                  activeControlnetLayer?.weight_type ===
+                    "Strong Style and Composition") && (
+                  <Slider
+                    label="Composition Weight"
+                    min={0}
+                    max={2}
+                    step={0.01}
+                    value={activeControlnetLayer?.composition_weight ?? 1}
+                    onChange={(value) =>
+                      handleControlnetSelectChange({
+                        name: "composition_weight",
+                        type: "number",
+                        value,
+                        layerId: activeControlnetLayer.id,
+                      })
+                    }
+                  />
+                )}
               {/* <div className="flex gap-2"> */}
               {/* <Label htmlFor={`guidanceStart${activeControlnetLayer?.id}`}>
                 Guidance Start
@@ -1254,10 +1302,10 @@ const LayersControl = () => {
                     Pixel Perfect
                   </Checkbox>
                   <Checkbox
-                    checked={activeControlnetLayer?.lowvram}
+                    checked={activeControlnetLayer?.low_vram}
                     onChange={(value) =>
                       handleControlnetAttrsChange(
-                        "lowvram",
+                        "low_vram",
                         value,
                         activeControlnetLayer.id
                       )
@@ -1301,7 +1349,7 @@ const LayerActionButton = ({
     <Button
       variant="clear"
       key="clearMask"
-      className="size-[32px] items-center justify-center text-base leading-4 p-0 group-data-active:text-black group-data-active:hover:text-neutral-700"
+      className="size-[32px] text-base leading-4 p-0 group-data-active:text-black group-data-active:hover:text-neutral-700"
       onClick={(e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();

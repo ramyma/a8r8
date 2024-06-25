@@ -5,9 +5,9 @@ import { selectIsConnected } from "../state/statsSlice";
 import useSocket from "./useSocket";
 
 export type FetchPolicy = "lazy" | "eager";
-type UseDataProps = {
+export type UseDataProps<T> = {
   name: string;
-  callback?: (data) => void;
+  callback?: (data: T | undefined) => void;
   fetchPolicy?: FetchPolicy;
   forceRequest?: boolean;
   /**
@@ -23,7 +23,7 @@ const useData = <T,>({
   fetchPolicy = "lazy",
   forceRequest = false,
   condition = true,
-}: UseDataProps): { fetchData: () => Promise<T>; data: T } => {
+}: UseDataProps<T>): { fetchData: () => Promise<T>; data: T } => {
   const { channel, getData } = useSocket();
   const ref = useRef(false);
   const dataState = useAppSelector(selectData);
@@ -32,15 +32,15 @@ const useData = <T,>({
   const dispatch = useAppDispatch();
 
   const fetchData = useCallback(async (): Promise<T> => {
-    const data: any = await getData(name);
+    const data: T = await getData(name);
+    callback && callback(data);
     dispatch(updateData({ [name]: data }));
     return data;
-  }, [dispatch, getData, name]);
+  }, [callback, dispatch, getData, name]);
 
   useEffect(() => {
     async function get() {
-      const data = await fetchData();
-      callback && callback(data);
+      await fetchData();
     }
 
     if (
@@ -54,7 +54,6 @@ const useData = <T,>({
     }
   }, [
     fetchPolicy,
-    callback,
     data,
     dispatch,
     getData,
@@ -77,13 +76,14 @@ const useData = <T,>({
         `update_${name}`,
         async ({ data }: { data: T }) => {
           dispatch(updateData({ [name]: data }));
+          callback?.(data);
         }
       );
       return () => {
         channel.off(`update_${name}`, ref);
       };
     }
-  }, [channel, dispatch, fetchPolicy, name]);
+  }, [callback, channel, dispatch, fetchPolicy, name]);
 
   return { fetchData, data };
 };

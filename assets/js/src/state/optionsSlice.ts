@@ -7,7 +7,7 @@ export type OptionsState = {
   selectedModel: {
     hash?: Model["sha256"];
     name: string;
-    isSdXl: boolean;
+    isSdXl?: boolean;
   };
   sd_vae?: string;
   backend: Backend;

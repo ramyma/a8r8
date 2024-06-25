@@ -263,47 +263,52 @@ defmodule ExSd.Sd.SdService do
   def handle_generation_completion(result, :comfy = _backend) do
     %{images: images_base64, attrs: attrs, dimensions: dimensions, flow: flow} = result
 
-    mask_image = ImageService.image_from_dataurl(flow.generation_params.mask)
+    if images_base64 do
+      mask_image = ImageService.image_from_dataurl(flow.generation_params.mask)
 
-    mask_image_average =
-      mask_image
-      |> Image.average!()
-      |> Enum.sum()
-      |> div(3)
+      mask_image_average =
+        mask_image
+        |> Image.average!()
+        |> Enum.sum()
+        |> div(3)
 
-    result_images =
-      images_base64
-      |> Enum.slice(0..flow.generation_params.batch_size)
-      |> Enum.map(fn image_base64 ->
-        if mask_image_average === 255 and
-             attrs["use_scaled_dimensions"] == true do
-          Logger.info("Returning raw image for overriding scale")
+      result_images =
+        images_base64
+        |> Enum.slice(0..flow.generation_params.batch_size)
+        |> Enum.map(fn image_base64 ->
+          if mask_image_average === 255 and
+               attrs["use_scaled_dimensions"] == true do
+            Logger.info("Returning raw image for overriding scale")
 
-          image_base64
-          |> ImageService.image_from_dataurl()
-          |> Image.write!(:memory, suffix: ".png")
-          |> Base.encode64()
-        else
-          result_image =
             image_base64
             |> ImageService.image_from_dataurl()
-            |> Image.thumbnail!(
-              dimensions.width,
-              resize: :force,
-              height: dimensions.height
-            )
+            |> Image.write!(:memory, suffix: ".png")
+            |> Base.encode64()
+          else
+            result_image =
+              image_base64
+              |> ImageService.image_from_dataurl()
+              |> Image.thumbnail!(
+                dimensions.width,
+                resize: :force,
+                height: dimensions.height
+              )
 
-          {:ok, result_image} =
+            {:ok, result_image} =
+              result_image
+              |> Image.compose(mask_image, blend_mode: :dest_in)
+
             result_image
-            |> Image.compose(mask_image, blend_mode: :dest_in)
+            |> Image.write!(:memory, suffix: ".png")
+            |> Base.encode64()
+          end
+        end)
 
-          result_image
-          |> Image.write!(:memory, suffix: ".png")
-          |> Base.encode64()
-        end
-      end)
-
-    result_images
+      result_images
+    else
+      Logger.warning("No result images received")
+      []
+    end
   end
 
   defp put_denoising_strength(
@@ -375,7 +380,7 @@ defmodule ExSd.Sd.SdService do
   end
 
   defp maybe_set_controlnet_images(
-         %GenerationParams{txt2img: true, init_images: init_images, mask: mask} =
+         %GenerationParams{txt2img: true, init_images: init_images, mask: _mask} =
            generation_params
        ) do
     new_generation_params =
@@ -387,13 +392,22 @@ defmodule ExSd.Sd.SdService do
             when is_nil(image) or image == "" ->
               controlnet_layer
               |> Map.put(:image, List.first(init_images))
-              |> Map.put(:mask, controlnet_layer.mask || mask)
+
+            # |> Map.put(:mask_image, controlnet_layer.mask_image || mask)
 
             # |> Map.put(:mask, mask)
 
             %ControlNetArgs{} = controlnet_layer ->
               controlnet_layer
-              |> Map.put(:mask, controlnet_layer.mask || mask)
+              |> Map.put(
+                :image,
+                process_controlnet_image(
+                  controlnet_layer.image || List.first(init_images),
+                  controlnet_layer
+                )
+              )
+
+              # |> Map.put(:effective_region_mask, controlnet_layer.mask_image)
           end)
 
         Map.merge(generation_params, %{
@@ -427,6 +441,21 @@ defmodule ExSd.Sd.SdService do
     )
 
     generation_params
+  end
+
+  defp process_controlnet_image(base64_image, %ControlNetArgs{} = controlnet_layer) do
+    # if scribble set alpha to white
+    if(
+      Regex.match?(~r/scribble/i, controlnet_layer.model) and
+        base64_image
+    ) do
+      base64_image
+      |> ImageService.image_from_dataurl()
+      |> ImageService.flood_alpha_with_color("white")
+      |> ImageService.base64_from_image()
+    else
+      base64_image
+    end
   end
 
   defp remove_invalid_alwayson_scripts(generation_params) do
@@ -544,6 +573,7 @@ defmodule ExSd.Sd.SdService do
   def get_vaes(:comfy), do: ComfyClient.get_vaes()
 
   @spec get_schedulers(backend()) :: {:error, any} | {:ok, any}
+  def get_schedulers(:auto), do: AutoClient.get_schedulers()
   def get_schedulers(:comfy), do: ComfyClient.get_schedulers()
 
   @spec refresh_models() :: {:error, any} | {:ok, any}

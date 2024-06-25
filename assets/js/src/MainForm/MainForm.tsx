@@ -40,6 +40,7 @@ import {
   getLayers,
   checkIsSdXlModel,
   roundToClosestMultipleOf8Down,
+  checkIsIpAdapterControlnetModel,
 } from "../utils";
 import Editor from "../components/Editor";
 
@@ -69,7 +70,7 @@ import SoftInpaintingFields, {
 } from "./SoftInpaintingFields/SoftInpaintingFields";
 import RegionalPromptsFields from "./RegionalPromptsFields";
 import { processPrompt } from "./utils";
-import { REGIONAL_PROMPTS_SEPARATOR } from "./constants";
+import { REGIONAL_PROMPTS_SEPARATOR, weightTypesByName } from "./constants";
 import { selectPromptRegionLayers } from "../state/promptRegionsSlice";
 import { showNotification } from "../Notifications/utils";
 import Button from "../components/Button";
@@ -141,6 +142,8 @@ const MainForm = () => {
     hasRegionalPrompting,
     hasMultidiffusionIntegrated,
   } = useScripts();
+
+  const isA1111 = backend === "auto" && !hasMultidiffusionIntegrated;
 
   const { upscalers } = useUpscalers();
 
@@ -263,6 +266,7 @@ const MainForm = () => {
 
     const {
       batch_size: batchSize,
+      clip_skip: clipSkip,
       scale,
       isSeedPinned,
       use_scaled_dimensions,
@@ -298,7 +302,7 @@ const MainForm = () => {
       promptRegions,
     });
 
-    // Show validation warning if prompt is no set with regional prompts
+    // Show validation warning if prompt is not set with regional prompts
     if (
       backend === "auto" &&
       hasRegionalPrompting &&
@@ -307,6 +311,21 @@ const MainForm = () => {
     ) {
       showNotification({
         body: "Regional prompting requires a base prompt",
+        title: "Missing Prompt",
+        type: "warning",
+      });
+      return;
+    }
+
+    // Show validation warning if no prompt region is enabled with regional prompts
+    if (
+      backend === "comfy" &&
+      hasRegionalPrompting &&
+      isRegionalPromptingEnabled &&
+      regionalPromptsValues?.length === 0
+    ) {
+      showNotification({
+        body: "Regional prompting requires at least one active region",
         title: "Missing Prompt",
         type: "warning",
       });
@@ -322,6 +341,7 @@ const MainForm = () => {
         typeof negative_prompt === "string"
           ? prompt
           : editorJsonToText((negative_prompt as EditorState).doc.toJSON()),
+      scheduler,
       ...rest,
       ...(!isSeedPinned && { seed: -1 }),
       mask: txt2img ? "" : maskDataUrl,
@@ -348,7 +368,7 @@ const MainForm = () => {
               upscaler_for_img2img: upscaler,
             }),
           //TODO: expose clip stop on UI
-          // CLIP_stop_at_last_layers: 1,
+          CLIP_stop_at_last_layers: clipSkip,
           // control_net_no_detectmap: true,
           // sd_vae: model?.isSdXl
           //   ? "sdxl_vae.safetensors"
@@ -442,7 +462,7 @@ const MainForm = () => {
           "Tiled VAE": {
             args: [
               // # enabled,
-              !model?.isSdXl, //TODO: try with SDXL
+              true, //!model?.isSdXl, //TODO: try with SDXL
               // # encoder_tile_size,
               960, //1536,
               // # decoder_tile_size
@@ -568,7 +588,7 @@ const MainForm = () => {
       invert_mask: invertMask,
       model: model?.name,
       vae,
-      ...(backend === "comfy" && {
+      ...((backend === "comfy" || schedulers?.length > 0) && {
         scheduler,
       }),
       ...(backend === "comfy" &&
@@ -585,6 +605,7 @@ const MainForm = () => {
           global_prompt_weight: globalPromptWeight,
         }),
       ultimate_upscale: isUltimateUpscaleEnabled,
+      clip_skip: clipSkip,
     };
 
     // console.log(image, { attrs });
@@ -607,16 +628,49 @@ const MainForm = () => {
               controlnet: {
                 args: controlnetLayersArgs.reduce((acc, item, index) => {
                   if (item.isEnabled) {
+                    const { weight_type, ...itemRest } = item;
+                    const effectiveRegionMask = item.isMaskEnabled
+                      ? controlnetDataUrls[index]?.maskImage
+                      : null;
                     return [
                       ...acc,
                       {
-                        ...item,
+                        ...itemRest,
                         // TODO: handle img2txt to send mask and init image or set on BE
                         image: item.overrideBaseLayer
                           ? controlnetDataUrls[index]?.image || null
                           : null,
-                        mask_image: controlnetDataUrls[index]?.maskImage,
+                        ...(isA1111
+                          ? {
+                              effective_region_mask: effectiveRegionMask,
+                              mask_image: null,
+                            }
+                          : {
+                              mask_image: item.model
+                                ?.toLocaleLowerCase()
+                                .includes("inpaint")
+                                ? maskDataUrl
+                                : controlnetDataUrls[index]?.maskImage,
+                            }),
                         mask: null,
+                        // ...(item.isMaskEnabled && {
+                        //   effective_region_mask:
+                        //     controlnetDataUrls[index]?.maskImage,
+                        // }),
+
+                        // mask: maskDataUrl,
+                        // mask: maskDataUrl,
+
+                        ...(weight_type &&
+                          checkIsIpAdapterControlnetModel(item.model) && {
+                            advanced_weighting: weightTypesByName[
+                              weight_type
+                            ]?.(
+                              model?.isSdXl ?? false,
+                              item.weight,
+                              item.composition_weight ?? 1
+                            ),
+                          }),
                       },
                     ];
                   }
@@ -681,18 +735,40 @@ const MainForm = () => {
         className="flex flex-col p-4 px-6 pt-1 pb-10 gap-8  w-full"
         ref={formRef}
       >
+        <div className="flex place-items-center gap-3 justify-between">
+          <Label htmlFor="clip_skip" className="whitespace-nowrap">
+            Clip Skip
+          </Label>
+          <Controller
+            name="clip_skip"
+            control={control}
+            render={({ field }) => (
+              <Input
+                id="clip_skip"
+                className="text-center max-w-16"
+                type="number"
+                step={1}
+                min={1}
+                max={10}
+                {...field}
+                onChange={(event) => field.onChange(+event.target.value)}
+              />
+            )}
+            defaultValue={1}
+          />
+        </div>
         {!isGenerating || !isConnected ? (
           <Button
             fullWidth
             type="submit"
-            className="mb-2 sticky top-2 w-[100%] z-[20] shadow-md shadow-black/50 enabled:bg-neutral-700 enabled:hover:bg-neutral-600 enabled:hover:text-white"
+            className="mb-2 sticky top-2 w-[100%] z-[20] shadow-md shadow-black/50 enabled:bg-neutral-700 enabled:hover:bg-neutral-600 enabled:hover:text-white "
             disabled={!isConnected}
           >
             Generate
           </Button>
         ) : (
           <Button
-            className="mb-2 bg-red-600 enabled:hover:bg-red-700 hover:text-white sticky top-2 z-[20]"
+            className="mb-2 bg-red-600 enabled:hover:bg-red-700 enabled:hover:border-red-800 hover:text-white sticky top-2 z-[20]"
             fullWidth
             onClick={handleInterrupt}
           >
@@ -739,8 +815,7 @@ const MainForm = () => {
             render={({ field }) => <Select items={samplers} {...field} />}
           />
         </div>
-
-        {backend === "comfy" && (
+        {(backend === "comfy" || schedulers?.length > 0) && (
           <div className="flex flex-col gap-2">
             <Label>Scheduler</Label>
             <Controller

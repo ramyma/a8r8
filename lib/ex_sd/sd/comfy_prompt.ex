@@ -41,50 +41,55 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
 
-    regional_prompts = Map.get(attrs, "regional_prompts")
+    # regional_prompts = Map.get(attrs, "regional_prompts")
 
     prompt =
       new()
       |> add_vae_loader(attrs["vae"])
-      |> add_model_loader(attrs["model"])
+      |> add_model_loader(attrs["model"], clip_skip: Map.get(attrs, "clip_skip", 1))
       |> add_clip_text_encode(
-        node_ref(
-          if(Enum.empty?(positive_loras),
-            do: "model",
-            else: "positive_lora#{length(positive_loras) - 1}"
-          ),
-          1
+        if(Enum.empty?(positive_loras),
+          do: node_ref("clip", 0),
+          else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
         ),
         generation_params.prompt,
-        :positive_prompt
+        "positive_prompt"
       )
       |> add_clip_text_encode(
-        node_ref(
-          if(Enum.empty?(positive_loras),
-            do: "model",
-            else: "positive_lora#{length(positive_loras) - 1}"
-          ),
-          1
+        if(Enum.empty?(positive_loras),
+          do: node_ref("clip", 0),
+          else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
         ),
         generation_params.negative_prompt,
-        :negative_prompt
+        "negative_prompt"
       )
-      |> maybe_add_regional_prompts(attrs)
+      |> maybe_add_regional_prompts_with_coupling(attrs,
+        width: generation_params.width,
+        height: generation_params.height
+      )
       |> add_empty_latent_image(
         batch_size: generation_params.batch_size,
         width: generation_params.width,
         height: generation_params.height
       )
       |> add_k_sampler(
-        :sampler,
+        "sampler",
         cfg: generation_params.cfg_scale,
         denoise: 1,
         latent_image: node_ref("empty_latent_image", 0),
         model:
           node_ref(
             if(Enum.empty?(positive_loras),
-              do: "model",
-              else: "positive_lora#{length(positive_loras) - 1}"
+              do:
+                if(is_regional_prompting_enabled,
+                  do: "attention_couple",
+                  else: "model"
+                ),
+              else:
+                if(is_regional_prompting_enabled,
+                  do: "attention_couple",
+                  else: "positive_lora#{length(positive_loras) - 1}"
+                )
             ),
             0
           ),
@@ -160,45 +165,41 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     # is_sd_xl = attrs["model"] |> String.downcase() |> String.contains?("xl")
 
+    is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
+
     positive_prompt_node_name = get_positive_prompt(attrs)
 
     prompt =
       new()
-      |> add_model_loader(attrs["model"])
+      |> add_model_loader(attrs["model"], clip_skip: Map.get(attrs, "clip_skip", 1))
       |> add_clip_text_encode(
-        node_ref(
-          if(Enum.empty?(positive_loras),
-            do: "model",
-            else: "positive_lora#{length(positive_loras) - 1}"
-          ),
-          1
+        if(Enum.empty?(positive_loras),
+          do: node_ref("clip", 0),
+          else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
         ),
         generation_params.prompt,
         "positive_prompt"
       )
       |> add_clip_text_encode(
-        node_ref(
-          if(Enum.empty?(positive_loras),
-            do: "model",
-            else: "positive_lora#{length(positive_loras) - 1}"
-          ),
-          1
+        if(Enum.empty?(positive_loras),
+          do: node_ref("clip", 0),
+          else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
         ),
         generation_params.prompt,
-        :negative_prompt
+        "negative_prompt"
       )
       |> add_loras(attrs)
       |> add_vae_loader(attrs["vae"])
       |> add_image_loader(
-        name: :image_input,
+        name: "image_input",
         base64_image:
           String.replace(
             List.first(generation_params.init_images),
-            "data:image/png;base64,",
+            ~r/data:image\S+;base64,/i,
             ""
           )
       )
-      |> add_image_scale(generation_params, :scaler,
+      |> add_image_scale(generation_params, "scaler",
         image:
           node_ref(
             if(generation_params.hr_upscaler == "None" or generation_params.hr_scale < 1,
@@ -210,7 +211,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         width: generation_params.width,
         height: generation_params.height
       )
-      |> add_image_upscale_with_model(:upscale_with_model,
+      |> add_image_upscale_with_model("upscale_with_model",
         upscale_model:
           node_ref(
             "upscaler",
@@ -243,7 +244,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         base64_image:
           String.replace(
             generation_params.mask,
-            "data:image/png;base64,",
+            ~r/data:image\S+;base64,/i,
             ""
           )
       )
@@ -323,8 +324,11 @@ defmodule ExSd.Sd.ComfyPrompt do
               )
           )
       )
-      |> maybe_add_regional_prompts(attrs)
-      |> add_k_sampler(:sampler,
+      |> maybe_add_regional_prompts_with_coupling(attrs,
+        width: generation_params.width,
+        height: generation_params.height
+      )
+      |> add_k_sampler("sampler",
         cfg: generation_params.cfg_scale,
         denoise: generation_params.denoising_strength,
         latent_image:
@@ -346,8 +350,16 @@ defmodule ExSd.Sd.ComfyPrompt do
           ),
         model: [
           if(Enum.empty?(positive_loras),
-            do: "model",
-            else: "positive_lora#{length(positive_loras) - 1}"
+            do:
+              if(is_regional_prompting_enabled,
+                do: "attention_couple",
+                else: "model"
+              ),
+            else:
+              if(is_regional_prompting_enabled,
+                do: "attention_couple",
+                else: "positive_lora#{length(positive_loras) - 1}"
+              )
           ),
           0
         ],
@@ -466,7 +478,7 @@ defmodule ExSd.Sd.ComfyPrompt do
             )
         })
       )
-      |> add_k_sampler(:second_pass_sampler,
+      |> add_k_sampler("second_pass_sampler",
         cfg: generation_params.cfg_scale,
         denoise: generation_params.sp_denoising_strength,
         # TODO: for upscaler other than latent use upscale with model flow instead
@@ -489,8 +501,16 @@ defmodule ExSd.Sd.ComfyPrompt do
           ),
         model: [
           if(Enum.empty?(positive_loras),
-            do: "model",
-            else: "positive_lora#{length(positive_loras) - 1}"
+            do:
+              if(is_regional_prompting_enabled,
+                do: "attention_couple",
+                else: "model"
+              ),
+            else:
+              if(is_regional_prompting_enabled,
+                do: "attention_couple",
+                else: "positive_lora#{length(positive_loras) - 1}"
+              )
           ),
           0
         ],
@@ -574,7 +594,7 @@ defmodule ExSd.Sd.ComfyPrompt do
     prompt
   end
 
-  @spec add_node_input(map(), binary(), node_value()) :: map()
+  @spec add_node_input(map(), atom() | binary(), node_value()) :: map()
   def add_node_input(node, input_name, value) do
     node_name = node_name(node)
 
@@ -606,7 +626,7 @@ defmodule ExSd.Sd.ComfyPrompt do
   def add_vae_loader(prompt, vae_name, name \\ "vae") do
     node =
       node(name, "VAELoader")
-      |> add_node_input("vae_name", vae_name)
+      |> add_node_input(:vae_name, vae_name)
 
     prompt
     |> add_node(node)
@@ -616,8 +636,8 @@ defmodule ExSd.Sd.ComfyPrompt do
   def add_vae_decode(prompt, samples, vae, name \\ "vae_decode") do
     node =
       node(name, "VAEDecode")
-      |> add_node_input("samples", samples)
-      |> add_node_input("vae", vae)
+      |> add_node_input(:samples, samples)
+      |> add_node_input(:vae, vae)
 
     prompt
     |> add_node(node)
@@ -644,15 +664,27 @@ defmodule ExSd.Sd.ComfyPrompt do
     |> add_node(latent_batch_node)
   end
 
-  @spec add_model_loader(prompt(), binary(), binary()) :: prompt()
-  def add_model_loader(prompt, model_name, name \\ "model") do
+  @spec add_model_loader(prompt(), binary(), [
+          {:name, binary()} | {:clip_skip, non_neg_integer()}
+        ]) ::
+          prompt()
+  def add_model_loader(prompt, model_name, options \\ []) do
+    name = Keyword.get(options, :name, "model")
+
     node =
       node(name, "CheckpointLoaderSimple", %{
         ckpt_name: model_name
       })
 
+    clip_skip_node =
+      node("clip", "CLIPSetLastLayer", %{
+        clip: node_ref(name, 1),
+        stop_at_clip_layer: -Keyword.get(options, :clip_skip, 1)
+      })
+
     prompt
     |> add_node(node)
+    |> add_node(clip_skip_node)
   end
 
   @spec add_clip_text_encode(prompt(), ref_node_value(), binary(), binary()) :: prompt()
@@ -674,7 +706,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         options \\ []
       ) do
     node =
-      node(Keyword.get(options, :name, :empty_latent_image), "EmptyLatentImage", %{
+      node(Keyword.get(options, :name, "empty_latent_image"), "EmptyLatentImage", %{
         batch_size: Keyword.get(options, :batch_size, 1),
         width: Keyword.get(options, :width),
         height: Keyword.get(options, :height)
@@ -710,8 +742,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         sampler_name: Keyword.get(options, :sampler_name),
         scheduler: Keyword.get(options, :scheduler),
         seed: Keyword.get(options, :seed),
-        steps: Keyword.get(options, :steps),
-        control_after_generate: "increment"
+        steps: Keyword.get(options, :steps)
       })
 
     prompt
@@ -760,12 +791,17 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           ),
         clip:
-          node_ref(
-            if(index > 0,
-              do: "positive_lora#{index - 1}",
-              else: "model"
-            ),
-            1
+          if(index > 0,
+            do:
+              node_ref(
+                "positive_lora#{index - 1}",
+                1
+              ),
+            else:
+              node_ref(
+                "clip",
+                0
+              )
           ),
         lora_name: "#{name}.safetensors",
         strength_model: value,
@@ -797,14 +833,48 @@ defmodule ExSd.Sd.ComfyPrompt do
             | {:base64_image, binary()}
           ]
         ) :: prompt()
+  @spec add_image_loader(%{
+          prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}
+        }) :: %{prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}}
   def add_image_loader(prompt, options \\ []) do
     node =
       node(Keyword.get(options, :name), "Base64ImageInput", %{
-        # TODO: fix typo in A8R* Comfy node
-        bas64_image: Keyword.get(options, :base64_image)
+        base64_image: Keyword.get(options, :base64_image)
       })
 
     add_node(prompt, node)
+  end
+
+  @spec add_mask_image_loader(
+          prompt(),
+          [
+            {:name, binary()}
+            | {:base64_image, binary()}
+          ]
+        ) :: prompt()
+  def add_mask_image_loader(prompt, options \\ []) do
+    image_to_mask_name = Keyword.get(options, :name)
+    image_loader_name = "#{image_to_mask_name}_image_loader"
+
+    image_to_mask_node =
+      node(image_to_mask_name, "ImageToMask", %{
+        image: node_ref(image_loader_name, 0),
+        channel: "red"
+      })
+
+    add_image_loader(prompt, Keyword.put(options, :name, image_loader_name))
+    |> add_node(image_to_mask_node)
+  end
+
+  @spec maybe_add_image_loader(prompt(), boolean(), keyword()) :: prompt()
+  def maybe_add_image_loader(prompt, condition, options \\ [])
+
+  def maybe_add_image_loader(prompt, condition, options) when condition == true do
+    add_image_loader(prompt, options)
+  end
+
+  def maybe_add_image_loader(prompt, _condition, _options) do
+    prompt
   end
 
   @spec add_controlnet_apply_advanced(prompt(), [
@@ -817,8 +887,25 @@ defmodule ExSd.Sd.ComfyPrompt do
           | {:negative, ref_node_value()}
           | {:control_net, ref_node_value()}
           | {:image, ref_node_value()}
+          | {:mask, ref_node_value()}
         ]) :: prompt()
   def add_controlnet_apply_advanced(prompt, options \\ []) do
+    node =
+      node(Keyword.get(options, :name), "ACN_AdvancedControlNetApply", %{
+        strength: Keyword.get(options, :strength),
+        start_percent: Keyword.get(options, :start_percent),
+        end_percent: Keyword.get(options, :end_percent),
+        positive: Keyword.get(options, :positive),
+        negative: Keyword.get(options, :negative),
+        control_net: Keyword.get(options, :control_net),
+        image: Keyword.get(options, :image),
+        mask_optional: Keyword.get(options, :mask)
+      })
+
+    add_node(prompt, node)
+  end
+
+  def add_controlnet_apply_advanced_old(prompt, options \\ []) do
     node =
       node(Keyword.get(options, :name), "ControlNetApplyAdvanced", %{
         strength: Keyword.get(options, :strength),
@@ -872,9 +959,19 @@ defmodule ExSd.Sd.ComfyPrompt do
         base64_image:
           String.replace(
             entry.image || generation_params.init_images |> List.first(),
-            "data:image/png;base64,",
+            ~r/data:image\S+;base64,/i,
             ""
           )
+      )
+      |> add_mask_image_loader(
+        name: "cn#{index}_mask",
+        base64_image:
+          entry.mask_image &&
+            String.replace(
+              entry.mask_image,
+              ~r/data:image\S+;base64,/i,
+              ""
+            )
       )
       |> add_controlnet_loader("cn#{index}_controlnet_loader", control_net_name: entry.model)
       |> add_controlnet_apply_advanced(
@@ -929,7 +1026,8 @@ defmodule ExSd.Sd.ComfyPrompt do
               else: "cn#{index}_preprocessor"
             ),
             0
-          )
+          ),
+        mask: entry.mask_image && node_ref("cn#{index}_mask", 0)
       )
       |> maybe_add_controlnet_preprocessor(index, entry.module,
         name: "cn#{index}_preprocessor",
@@ -938,8 +1036,8 @@ defmodule ExSd.Sd.ComfyPrompt do
     end)
   end
 
-  @spec maybe_add_regional_prompts(prompt(), map()) :: prompt()
-  def maybe_add_regional_prompts(prompt, attrs) do
+  @spec maybe_add_regional_prompts_with_conditioning(prompt(), map()) :: prompt()
+  def maybe_add_regional_prompts_with_conditioning(prompt, attrs) do
     is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
     regional_prompts = Map.get(attrs, "regional_prompts")
     global_prompt_weight = Map.get(attrs, "global_prompt_weight", 0.3)
@@ -962,12 +1060,13 @@ defmodule ExSd.Sd.ComfyPrompt do
             new_prompt =
               acc_prompt
               |> add_clip_text_encode(
-                node_ref(
-                  if(Enum.empty?(positive_loras),
-                    do: "model",
-                    else: "positive_lora#{length(positive_loras) - 1}"
-                  ),
-                  1
+                if(Enum.empty?(positive_loras),
+                  do: node_ref("clip", 0),
+                  else:
+                    node_ref(
+                      "positive_lora#{length(positive_loras) - 1}",
+                      1
+                    )
                 ),
                 prompt,
                 "prompt_region_#{id}_text"
@@ -986,7 +1085,6 @@ defmodule ExSd.Sd.ComfyPrompt do
 
                 last_node_name = "regional_prompt_combine_#{id}_#{node_1_name}"
 
-                # FIXME: a system limit has been reached, binary_to_atom(
                 {new_prompt
                  |> add_conditioning_combine(
                    node_ref(node_1_name, 0),
@@ -1005,12 +1103,122 @@ defmodule ExSd.Sd.ComfyPrompt do
       |> add_conditioning_area_strength(
         node_ref("positive_prompt", 0),
         global_prompt_weight,
-        :regional_prompt_global_effect
+        "regional_prompt_global_effect"
       )
       |> add_conditioning_combine(
         node_ref("regional_prompt_global_effect", 0),
         node_ref(last_node_name, 0),
-        :regional_prompt
+        "regional_prompt"
+      )
+    else
+      prompt
+    end
+  end
+
+  @spec maybe_add_regional_prompts_with_coupling(prompt(), map(), [
+          {:width, non_neg_integer()} | {:height, non_neg_integer()}
+        ]) :: prompt()
+  def maybe_add_regional_prompts_with_coupling(prompt, attrs, options \\ []) do
+    is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
+    regional_prompts = Map.get(attrs, "regional_prompts")
+    global_prompt_weight = Map.get(attrs, "global_prompt_weight", 0.3)
+
+    if is_regional_prompting_enabled && regional_prompts && not Enum.empty?(regional_prompts) do
+      positive_loras = Map.get(attrs, "positive_loras")
+
+      {new_prompt, attention_couple_regions} =
+        Enum.reduce(
+          regional_prompts,
+          {prompt, []},
+          fn regional_prompt, {acc_prompt, acc_attention_couple_regions} ->
+            id = Map.get(regional_prompt, "id")
+            prompt = Map.get(regional_prompt, "prompt")
+            weight = Map.get(regional_prompt, "weight")
+            mask = Map.get(regional_prompt, "mask")
+
+            new_prompt =
+              acc_prompt
+              |> add_clip_text_encode(
+                if(Enum.empty?(positive_loras),
+                  do: node_ref("clip", 0),
+                  else:
+                    node_ref(
+                      "positive_lora#{length(positive_loras) - 1}",
+                      1
+                    )
+                ),
+                prompt,
+                "attention_couple_region_#{id}_prompt"
+              )
+              |> add_mask_image_loader(
+                name: "attention_couple_region_#{id}_mask",
+                base64_image: mask
+              )
+              |> add_node(
+                node("attention_couple_region_#{id}", "AttentionCoupleRegion", %{
+                  cond: node_ref("attention_couple_region_#{id}_prompt", 0),
+                  mask: node_ref("attention_couple_region_#{id}_mask", 0),
+                  weight: weight
+                })
+              )
+
+            new_attention_couple_regions =
+              Enum.concat(
+                acc_attention_couple_regions,
+                ["attention_couple_region_#{id}"]
+              )
+
+            {new_prompt, new_attention_couple_regions}
+          end
+        )
+
+      new_prompt =
+        Enum.chunk_every(attention_couple_regions, 10)
+        |> Enum.with_index()
+        |> Enum.reduce(new_prompt, fn {regions_batch, index}, acc_prompt ->
+          acc_prompt
+          |> add_node(
+            node(
+              "attention_couple_regions_#{index}",
+              "AttentionCoupleRegions",
+              Map.merge(
+                Enum.reduce(Enum.with_index(regions_batch), %{}, fn {region, region_index}, acc ->
+                  Map.put(acc, "region_#{region_index + 1}", [region, 0])
+                end),
+                if(index > 0,
+                  do: %{regions: node_ref("attention_couple_regions_#{index - 1}", 0)},
+                  else: %{}
+                )
+              )
+            )
+          )
+        end)
+
+      new_prompt
+      |> add_node(
+        node(
+          "attention_couple",
+          "AttentionCouple",
+          %{
+            global_prompt_weight: global_prompt_weight,
+            model:
+              node_ref(
+                if(Enum.empty?(positive_loras),
+                  do: "model",
+                  else: "positive_lora#{length(positive_loras) - 1}"
+                ),
+                0
+              ),
+            base_prompt: node_ref("positive_prompt", 0),
+            width: Keyword.get(options, :width),
+            height: Keyword.get(options, :height),
+            regions:
+              node_ref(
+                "attention_couple_regions_#{max(0, ceil(length(attention_couple_regions) / 10) - 1)}",
+                0
+              )
+          }
+        )
       )
     else
       prompt
@@ -1021,7 +1229,7 @@ defmodule ExSd.Sd.ComfyPrompt do
   def add_output(prompt, images, name \\ "output") do
     node =
       node(name, "Base64ImageOutput")
-      |> add_node_input("images", images)
+      |> add_node_input(:images, images)
 
     prompt
     |> add_node(node)
@@ -1036,8 +1244,8 @@ defmodule ExSd.Sd.ComfyPrompt do
   def add_conditioning_area_strength(prompt, conditioning_prompt, weight, name) do
     node =
       node(name, "ConditioningSetAreaStrength")
-      |> add_node_input("conditioning", conditioning_prompt)
-      |> add_node_input("strength", weight)
+      |> add_node_input(:conditioning, conditioning_prompt)
+      |> add_node_input(:strength, weight)
 
     prompt
     |> add_node(node)
@@ -1056,10 +1264,10 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     node =
       node(name, "ConditioningSetMask")
-      |> add_node_input("conditioning", conditioning_prompt)
-      |> add_node_input("mask", node_ref("#{name}_convert_image_mask", 0))
-      |> add_node_input("strength", weight)
-      |> add_node_input("set_cond_area", "default")
+      |> add_node_input(:conditioning, conditioning_prompt)
+      |> add_node_input(:mask, node_ref("#{name}_convert_image_mask", 0))
+      |> add_node_input(:strength, weight)
+      |> add_node_input(:set_cond_area, "default")
 
     prompt
     |> add_node(convert_image_to_mask_node)
@@ -1202,16 +1410,18 @@ defmodule ExSd.Sd.ComfyPrompt do
       positive_loras = Keyword.get(options, :positive_loras)
       controlnet_args = Keyword.get(options, :controlnet_args)
 
+      is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
+
       prompt
-      |> add_latent_scale(generation_params, :hires_latent_scaler,
+      |> add_latent_scale(generation_params, "hires_latent_scaler",
         samples:
           node_ref(
             "sampler",
             0
           )
       )
-      |> add_vae_decode(node_ref("sampler", 0), get_vae(attrs), :first_pass_vae_decode)
-      |> add_image_scale(generation_params, :scaler,
+      |> add_vae_decode(node_ref("sampler", 0), get_vae(attrs), "first_pass_vae_decode")
+      |> add_image_scale(generation_params, "scaler",
         image:
           node_ref(
             if(generation_params.hr_upscaler == "None" or generation_params.hr_scale < 1,
@@ -1221,7 +1431,7 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           )
       )
-      |> add_image_upscale_with_model(:upscale_with_model,
+      |> add_image_upscale_with_model("upscale_with_model",
         upscale_model:
           node_ref(
             "upscaler",
@@ -1233,10 +1443,10 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           )
       )
-      |> add_upscale_model_loader(generation_params.hr_upscaler, :upscaler)
-      |> add_vae_encode(node_ref("scaler", 0), get_vae(attrs), :second_pass_vae_encode)
+      |> add_upscale_model_loader(generation_params.hr_upscaler, "upscaler")
+      |> add_vae_encode(node_ref("scaler", 0), get_vae(attrs), "second_pass_vae_encode")
       |> add_k_sampler(
-        :hires_sampler,
+        "hires_sampler",
         cfg: generation_params.cfg_scale,
         denoise: generation_params.sp_denoising_strength,
         latent_image:
@@ -1250,8 +1460,16 @@ defmodule ExSd.Sd.ComfyPrompt do
         model:
           node_ref(
             if(Enum.empty?(positive_loras),
-              do: "model",
-              else: "positive_lora#{length(positive_loras) - 1}"
+              do:
+                if(is_regional_prompting_enabled,
+                  do: "attention_couple",
+                  else: "model"
+                ),
+              else:
+                if(is_regional_prompting_enabled,
+                  do: "attention_couple",
+                  else: "positive_lora#{length(positive_loras) - 1}"
+                )
             ),
             0
           ),
@@ -1413,6 +1631,8 @@ defmodule ExSd.Sd.ComfyPrompt do
     if add_condition do
       is_sd_xl = sd_xl_model?(attrs)
 
+      is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
+
       positive_loras = Map.get(attrs, "positive_loras")
 
       node =
@@ -1443,8 +1663,16 @@ defmodule ExSd.Sd.ComfyPrompt do
           model:
             node_ref(
               if(Enum.empty?(positive_loras),
-                do: "model",
-                else: "positive_lora#{length(positive_loras) - 1}"
+                do:
+                  if(is_regional_prompting_enabled,
+                    do: "attention_couple",
+                    else: "model"
+                  ),
+                else:
+                  if(is_regional_prompting_enabled,
+                    do: "attention_couple",
+                    else: "positive_lora#{length(positive_loras) - 1}"
+                  )
               ),
               0
             ),
@@ -1484,17 +1712,18 @@ defmodule ExSd.Sd.ComfyPrompt do
     end
   end
 
-  defp get_positive_prompt(attrs) do
-    is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
+  defp get_positive_prompt(_attrs) do
+    # is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
 
-    regional_prompts = Map.get(attrs, "regional_prompts")
+    # regional_prompts = Map.get(attrs, "regional_prompts")
 
-    if(
-      is_regional_prompting_enabled && regional_prompts &&
-        not Enum.empty?(regional_prompts),
-      do: "regional_prompt",
-      else: "positive_prompt"
-    )
+    # if(
+    #   is_regional_prompting_enabled && regional_prompts &&
+    #     not Enum.empty?(regional_prompts),
+    #   do: "regional_prompt",
+    #   else: "positive_prompt"
+    # )
+    "positive_prompt"
   end
 
   defp get_vae(attrs) do
