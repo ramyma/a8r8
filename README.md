@@ -126,6 +126,7 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+      5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
 
 &nbsp;
 
@@ -152,6 +153,7 @@ If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a re
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+      5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
 
 &nbsp;
 
@@ -181,6 +183,7 @@ Start the SD backend of your choice
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+      5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
 
 &nbsp;
 
