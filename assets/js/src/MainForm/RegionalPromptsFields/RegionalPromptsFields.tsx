@@ -226,7 +226,7 @@ const PromptRegion = ({
       >
         <div className="flex gap-3 place-items-center sm:flex-col 2xl:flex-row sm:items-start">
           <Label
-            className={`pe-3 transition-colors ${isEnabled ? (isActive ? "text-primary" : "text-inherit") : "text-neutral-600"}`}
+            className={`pe-3 transition-colors cursor-pointer ${isEnabled ? (isActive ? "text-primary" : "text-inherit") : "text-neutral-600"}`}
           >
             {name || `Region ${index + 1}`}
           </Label>
@@ -277,6 +277,7 @@ const PromptRegion = ({
             onCheckedChange={handleIsEnabledCheckedChange}
           />
         </div>
+        {/* FIXME: move the inital position if there isn't enough room in viewport*/}
         {isColorPickerVisible && (
           <Portal.Root>
             <ColorPicker

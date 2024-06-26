@@ -158,7 +158,11 @@ defmodule ExSd.Sd.ComfyWebsocketServer do
         %{state | closing?: true}
 
       {:text, text}, state ->
-        Logger.debug("Received: #{inspect(text)}")
+        # filter out crystool debug messages
+        if(!String.contains?(text, "crystools.monitor"),
+          do: Logger.debug("Received: #{inspect(text)}")
+        )
+
         response = Jason.decode!(text)
 
         case Map.get(response, "type") do
@@ -172,14 +176,30 @@ defmodule ExSd.Sd.ComfyWebsocketServer do
               {:progress, progress}
             )
 
-          "executed" ->
-            output = get_in(response, ["data", "output"])
+          "executing" ->
+            node_name = get_in(response, ["data", "node"])
 
-            PubSub.broadcast!(
-              ExSd.PubSub,
-              "comfy",
-              {:generation_complete, output}
-            )
+            if not is_nil(node_name) and
+                 (node_name == "model" or Regex.match?(~r/cn\d+_controlnet_loader/i, node_name)) do
+              PubSub.broadcast!(
+                ExSd.PubSub,
+                "comfy",
+                :loading_model
+              )
+            end
+
+          "executed" ->
+            node_name = get_in(response, ["data", "node"])
+
+            if node_name == "output" do
+              output = get_in(response, ["data", "output"])
+
+              PubSub.broadcast!(
+                ExSd.PubSub,
+                "comfy",
+                {:generation_complete, output}
+              )
+            end
 
           "execution_error" ->
             exception_message = get_in(response, ["data", "exception_message"])
@@ -188,6 +208,13 @@ defmodule ExSd.Sd.ComfyWebsocketServer do
               ExSd.PubSub,
               "comfy",
               {:error, exception_message}
+            )
+
+          "execution_start" ->
+            PubSub.broadcast!(
+              ExSd.PubSub,
+              "comfy",
+              :execution_start
             )
 
           "execution_cached" ->

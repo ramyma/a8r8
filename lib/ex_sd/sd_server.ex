@@ -272,6 +272,31 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_info(
+        :loading_model,
+        %{backend: :comfy} = state
+      ) do
+    ExSd.Sd.broadcast_message("Loading model", "", :warning)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(
+        :execution_start,
+        %{backend: :comfy, generating_session_name: generating_session_name} = state
+      ) do
+    ExSd.Sd.broadcast_progress(%{
+      progress: 0,
+      etaRelative: 0,
+      isGenerating: true,
+      generatingSessionName: generating_session_name
+    })
+
+    {:noreply, %{state | is_generating: true}}
+  end
+
+  @impl true
+  def handle_info(
         {:generation_error, error},
         %{generating_session_name: generating_session_name} = state
       ) do
@@ -472,13 +497,9 @@ defmodule ExSd.SdServer do
   end
 
   @impl true
-  def handle_call(:schedulers, _, %{backend: :comfy} = state) do
+  def handle_call(:schedulers, _, state) do
     new_state = state |> put_schedulers()
     {:reply, {:ok, new_state.schedulers}, state}
-  end
-
-  def handle_call(:schedulers, _, state) do
-    {:reply, {:ok, state.schedulers}, state}
   end
 
   @impl true
@@ -660,7 +681,7 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp refresh_and_put_models(state) do
+  defp refresh_and_put_models(%{backend: :auto} = state) do
     case SdService.refresh_models() do
       {:ok, _} ->
         state |> put_models()
@@ -670,8 +691,12 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp put_schedulers(%{backend: :comfy} = state) do
-    case SdService.get_schedulers(:comfy) do
+  defp refresh_and_put_models(%{backend: :comfy} = state) do
+    state |> put_models()
+  end
+
+  defp put_schedulers(%{backend: backend} = state) do
+    case SdService.get_schedulers(backend) do
       {:ok, schedulers} ->
         state |> Map.put(:schedulers, schedulers |> Enum.sort())
 
@@ -749,7 +774,9 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp put_memory_usage(%{backend: backend} = state) do
+  defp put_memory_usage(
+         %{backend: backend, generating_session_name: generating_session_name} = state
+       ) do
     case SdService.get_memory_usage(backend) do
       {:ok,
        %{
@@ -775,6 +802,14 @@ defmodule ExSd.SdServer do
 
       {:error, _} ->
         # TODO: handle error?
+
+        Sd.broadcast_progress(%{
+          progress: 0,
+          etaRelative: 0,
+          isGenerating: false,
+          generatingSessionName: generating_session_name
+        })
+
         state |> Map.put(:is_connected, false)
     end
   end

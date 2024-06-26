@@ -17,6 +17,8 @@ export const CustomPopupComponent: FC = () => {
     return null;
   }
 
+  // TODO: scroll to highlighted item
+
   return (
     <FloatingWrapper
       positioner="cursor"
@@ -26,7 +28,7 @@ export const CustomPopupComponent: FC = () => {
       blurOnInactive={false}
       containerClass="z-20"
     >
-      <ScrollArea classNames="bg-neutral-900/95 border border-neutral-700 backdrop-blur-sm rounded text-sm shadow-md shadow-black">
+      <ScrollArea className="bg-neutral-900/95 border border-neutral-700 backdrop-blur-sm rounded text-sm shadow-md shadow-black">
         <div {...getMenuProps()} className={"max-h-96"}>
           {enabled &&
             (state?.list ?? emptyList).map((extra, index) => {

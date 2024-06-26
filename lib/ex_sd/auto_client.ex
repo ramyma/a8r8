@@ -114,6 +114,19 @@ defmodule ExSd.AutoClient do
     end
   end
 
+  def get_schedulers() do
+    with response <- get("/schedulers"),
+         {:ok, body} <- handle_response(response) do
+      # TODO: if for some reason body doesn't have "name", it will raise an error
+      schedulers_names = body |> Enum.map(& &1["name"])
+
+      {:ok, schedulers_names}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
   def get_controlnet_models() do
     with response <- get("/model_list", base_url: "#{get_base_url()}/controlnet"),
          {:ok, body} <- handle_response(response) do
@@ -237,7 +250,7 @@ defmodule ExSd.AutoClient do
   end
 
   def get_options() do
-    with response <- get("/options"),
+    with response <- get("/options", timeout: 4_100),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else

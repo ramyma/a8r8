@@ -54,10 +54,10 @@ defmodule ExSd.MixProject do
       {:bandit, "~> 1.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_url, "~> 2.0"},
-      {:image, "~> 0.43"},
+      {:image, "~> 0.48"},
       {:nx, "~> 0.7"},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
-      {:grpc, "~> 0.7"},
+      {:grpc, "~> 0.8"},
       {:protobuf, "~> 0.12"},
       # {:mint, "~> 1.4.2"}
       # {:bumblebee, "~> 0.2"},

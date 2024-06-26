@@ -16,6 +16,8 @@ import { CrossCircledIcon } from "@radix-ui/react-icons";
 import uFuzzy from "@leeoniya/ufuzzy";
 import Input from "./Input";
 import ScrollArea from "./ScrollArea";
+import useFuzzySearch from "../hooks/useFuzzySearch";
+import { twMerge } from "tailwind-merge";
 
 const uFuzzyObj = new uFuzzy({
   intraMode: 1,
@@ -29,7 +31,7 @@ const uFuzzyObj = new uFuzzy({
 export interface SelectProps<
   T = string | number | { value: string | number; label: string },
 > extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChange" | "value"> {
-  items: Required<SelectProps>["value"][];
+  items: Readonly<T[]>;
   /**
    * @defaultValue 'value'
    */
@@ -78,23 +80,32 @@ const Select = forwardRef(
     const [search, setSearch] = useState("");
     const [activeItem, setActiveItem] = useState(0);
 
+    //TODO:add loading state
+
+    const { searchItems } = useFuzzySearch(items ?? [], {
+      filter: search,
+      options: { keys: [textAttr] },
+    });
+
     const filteredItems = useMemo(() => {
       if (!search) {
         setActiveItem(0);
         return items;
       }
-      const haystack = items?.map((item) =>
-        typeof item === "string" ? item : item?.[textAttr]
-      );
-      if (haystack?.length > 0) {
-        const idxs = uFuzzyObj.filter(haystack, search);
+      // const haystack = items?.map((item) =>
+      //   typeof item === "string" ? item : item?.[textAttr]
+      // );
+      // if (haystack?.length > 0) {
+      //   const idxs = uFuzzyObj.filter(haystack, search);
 
-        const filtered = items?.filter((_, index) => idxs?.includes(index));
-        setActiveItem(0);
-        return filtered;
-      }
-      return items;
-    }, [items, search, textAttr]);
+      //   const filtered = items?.filter((_, index) => idxs?.includes(index));
+      //   setActiveItem(0);
+      //   return filtered;
+      // }
+      const resultItems = searchItems(search);
+      return resultItems;
+      // return [];
+    }, [items, search]);
 
     const selectedItemIdx: number = filteredItems?.findIndex(
       (item) => (typeof item === "object" ? item[valueAttr] : item) === value
@@ -208,6 +219,7 @@ const Select = forwardRef(
     const handleSearchChange: ChangeEventHandler<HTMLInputElement> = (e) => {
       const value = e.target.value;
       setSearch(value);
+      setActiveItem(0);
     };
 
     const decrementSelectedItemIdx = () => {
@@ -301,10 +313,10 @@ const Select = forwardRef(
       >
         <RadixSelect.Trigger
           ref={triggerRef}
-          className={
-            "inline-flex items-center justify-between rounded px-2 text-sm leading-none h-[35px] gap-[5px]  text-violet11 shadow-[0_2px_10px] shadow-black/10 focus:shadow-[0_0_0_2px] focus:shadow-black data-[placeholder]:text-violet9 outline-none w-full text-neutral-200 bg-neutral-800/80 hover:bg-neutral-800 border-neutral-700 disabled:text-neutral-700 overflow-hidden " +
-              rest.className ?? ""
-          }
+          className={twMerge(
+            "inline-flex items-center justify-between rounded px-2 text-sm leading-none h-[35px] gap-[5px] data-[placeholder]:text-violet9 outline-none w-full text-neutral-200 bg-neutral-800/80 enabled:hover:bg-neutral-700/80 border border-neutral-700/95 enabled:hover:border-neutral-500 disabled:text-neutral-700 enabled:focus:border-neutral-200 disabled:cursor-not-allowed overflow-hidden transition-colors",
+            rest.className ?? ""
+          )}
           title={title}
           onClick={toggleOpen}
           onKeyDown={handleTriggerKeyDown}
@@ -350,6 +362,7 @@ const Select = forwardRef(
                   onChange={handleSearchChange}
                   onKeyDown={handleSearchKeydown}
                   ref={searchInputRef}
+                  fullWidth
                 />
 
                 <CrossCircledIcon

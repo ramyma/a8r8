@@ -41,7 +41,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
   test "add_vae" do
     assert ComfyPrompt.add_vae_loader(ComfyPrompt.new(), "vae_name_test") ==
              ComfyPrompt.new(%{
-               vae: %{
+               "vae" => %{
                  class_type: "VAELoader",
                  inputs: %{
                    vae_name: "vae_name_test"
@@ -53,11 +53,15 @@ defmodule ExSd.Sd.ComfyPromptTest do
   test "add_model" do
     assert ComfyPrompt.add_model_loader(ComfyPrompt.new(), "model_name_test") ==
              ComfyPrompt.new(%{
-               model: %{
+               "model" => %{
                  class_type: "CheckpointLoaderSimple",
                  inputs: %{
                    ckpt_name: "model_name_test"
                  }
+               },
+               "clip" => %{
+                 class_type: "CLIPSetLastLayer",
+                 inputs: %{clip: ["model", 1], stop_at_clip_layer: -1}
                }
              })
   end
@@ -88,7 +92,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
              batch_size: 1
            ) ==
              ComfyPrompt.new(%{
-               empty_latent_image: %{
+               "empty_latent_image" => %{
                  class_type: "EmptyLatentImage",
                  inputs: %{
                    batch_size: 1,
@@ -107,7 +111,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
            ) ==
              %{
                prompt: %{
-                 vae_decode: %{
+                 "vae_decode" => %{
                    class_type: "VAEDecode",
                    inputs: %{vae: ["vae", 0], samples: ["sampler", 0]}
                  }
@@ -139,9 +143,16 @@ defmodule ExSd.Sd.ComfyPromptTest do
            ) ==
              %{
                prompt: %{
-                 vae_encode_node: %{
+                 :vae_encode_node => %{
+                   class_type: "RepeatLatentBatch",
+                   inputs: %{
+                     "amount" => 1,
+                     "samples" => ["vae_encode_node_node", 0]
+                   }
+                 },
+                 "vae_encode_node_node" => %{
                    class_type: "VAEEncode",
-                   inputs: %{vae: ["vae", 0], pixels: ["image", 0]}
+                   inputs: %{"pixels" => ["image", 0], "vae" => ["vae", 0]}
                  }
                }
              }
@@ -158,7 +169,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                prompt:
                  Map.merge(
                    %{
-                     output: %{
+                     "output" => %{
                        class_type: "Base64ImageOutput",
                        inputs: %{
                          images: ["sampler", 1]
@@ -196,8 +207,8 @@ defmodule ExSd.Sd.ComfyPromptTest do
            ) ==
              %{
                prompt: %{
-                 cn0_apply_controlnet: %{
-                   class_type: "ControlNetApplyAdvanced",
+                 "cn0_apply_controlnet" => %{
+                   class_type: "ACN_AdvancedControlNetApply",
                    inputs: %{
                      control_net: ["cn0_controlnet_loader", 0],
                      end_percent: 1.0,
@@ -205,19 +216,20 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      negative: ["negative_prompt", 0],
                      positive: ["positive_prompt", 0],
                      start_percent: 0,
-                     strength: 1
+                     strength: 1,
+                     mask_optional: ["cn0_mask", 0]
                    }
                  },
-                 cn0_controlnet_loader: %{
+                 "cn0_controlnet_loader" => %{
                    class_type: "ControlNetLoader",
                    inputs: %{control_net_name: "test_cn_model1"}
                  },
-                 cn0_image: %{
+                 "cn0_image" => %{
                    class_type: "Base64ImageInput",
-                   inputs: %{bas64_image: "input_image"}
+                   inputs: %{base64_image: "input_image"}
                  },
-                 cn1_apply_controlnet: %{
-                   class_type: "ControlNetApplyAdvanced",
+                 "cn1_apply_controlnet" => %{
+                   class_type: "ACN_AdvancedControlNetApply",
                    inputs: %{
                      positive: ["cn0_apply_controlnet", 0],
                      image: ["cn1_preprocessor", 0],
@@ -225,17 +237,34 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      negative: ["cn0_apply_controlnet", 1],
                      control_net: ["cn1_controlnet_loader", 0],
                      start_percent: 0.3,
-                     strength: 0.5
+                     strength: 0.5,
+                     mask_optional: ["cn1_mask", 0]
                    }
                  },
-                 cn1_controlnet_loader: %{
+                 "cn1_controlnet_loader" => %{
                    class_type: "ControlNetLoader",
                    inputs: %{control_net_name: "test_cn_model2"}
                  },
-                 cn1_image: %{class_type: "Base64ImageInput", inputs: %{bas64_image: ""}},
-                 cn1_preprocessor: %{
+                 "cn1_image" => %{class_type: "Base64ImageInput", inputs: %{base64_image: ""}},
+                 "cn1_preprocessor" => %{
                    class_type: "CannyEdgePreprocessor",
                    inputs: %{image: ["cn1_image", 0], high_threshold: 200, low_threshold: 100}
+                 },
+                 "cn0_mask" => %{
+                   class_type: "ImageToMask",
+                   inputs: %{image: ["cn0_mask_image_loader", 0], channel: "red"}
+                 },
+                 "cn0_mask_image_loader" => %{
+                   class_type: "Base64ImageInput",
+                   inputs: %{base64_image: ""}
+                 },
+                 "cn1_mask" => %{
+                   class_type: "ImageToMask",
+                   inputs: %{image: ["cn1_mask_image_loader", 0], channel: "red"}
+                 },
+                 "cn1_mask_image_loader" => %{
+                   class_type: "Base64ImageInput",
+                   inputs: %{base64_image: ""}
                  }
                }
              }
@@ -247,11 +276,11 @@ defmodule ExSd.Sd.ComfyPromptTest do
              ComfyPrompt.node_ref("conditioning", 0),
              ComfyPrompt.node_ref("mask_image", 0),
              1.0,
-             :test
+             "test"
            ) ==
              %{
                prompt: %{
-                 test: %{
+                 "test" => %{
                    class_type: "ConditioningSetMask",
                    inputs: %{
                      mask: [
@@ -266,7 +295,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      ]
                    }
                  },
-                 test_convert_image_mask: %{
+                 "test_convert_image_mask" => %{
                    class_type: "ImageToMask",
                    inputs: %{
                      image: [
@@ -276,10 +305,10 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      channel: "red"
                    }
                  },
-                 test_mask: %{
+                 "test_mask" => %{
                    class_type: "Base64ImageInput",
                    inputs: %{
-                     bas64_image: [
+                     base64_image: [
                        "mask_image",
                        0
                      ]
@@ -299,7 +328,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
              }
   end
 
-  test "maybe_add_regional_prompts" do
+  test "maybe_add_regional_prompts_with_conditioning" do
     attrs = %{
       "is_regional_prompting_enabled" => true,
       "regional_prompts" => [
@@ -321,10 +350,10 @@ defmodule ExSd.Sd.ComfyPromptTest do
       "positive_loras" => []
     }
 
-    assert ComfyPrompt.maybe_add_regional_prompts(ComfyPrompt.new(), attrs) ==
+    assert ComfyPrompt.maybe_add_regional_prompts_with_conditioning(ComfyPrompt.new(), attrs) ==
              %{
                prompt: %{
-                 prompt_region_1: %{
+                 "prompt_region_1" => %{
                    class_type: "ConditioningSetMask",
                    inputs: %{
                      mask: [
@@ -339,7 +368,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      ]
                    }
                  },
-                 prompt_region_1_convert_image_mask: %{
+                 "prompt_region_1_convert_image_mask" => %{
                    class_type: "ImageToMask",
                    inputs: %{
                      image: [
@@ -349,15 +378,15 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      channel: "red"
                    }
                  },
-                 prompt_region_1_mask: %{
+                 "prompt_region_1_mask" => %{
                    class_type: "Base64ImageInput",
-                   inputs: %{bas64_image: "mask_binary"}
+                   inputs: %{base64_image: "mask_binary"}
                  },
-                 prompt_region_1_text: %{
+                 "prompt_region_1_text" => %{
                    class_type: "CLIPTextEncode",
-                   inputs: %{text: "region 1", clip: ["model", 1]}
+                   inputs: %{text: "region 1", clip: ["clip", 0]}
                  },
-                 regional_prompt: %{
+                 "regional_prompt" => %{
                    class_type: "ConditioningCombine",
                    inputs: %{
                      conditioning_1: [
@@ -365,12 +394,12 @@ defmodule ExSd.Sd.ComfyPromptTest do
                        0
                      ],
                      conditioning_2: [
-                       "regional_prompt_combine_1_2",
+                       "regional_prompt_combine_2_prompt_region_1",
                        0
                      ]
                    }
                  },
-                 regional_prompt_combine_1_2: %{
+                 "regional_prompt_combine_2_prompt_region_1" => %{
                    class_type: "ConditioningCombine",
                    inputs: %{
                      conditioning_1: [
@@ -383,7 +412,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      ]
                    }
                  },
-                 regional_prompt_global_effect: %{
+                 "regional_prompt_global_effect" => %{
                    class_type: "ConditioningSetAreaStrength",
                    inputs: %{
                      strength: 0.3,
@@ -393,7 +422,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      ]
                    }
                  },
-                 prompt_region_2: %{
+                 "prompt_region_2" => %{
                    class_type: "ConditioningSetMask",
                    inputs: %{
                      mask: [
@@ -408,7 +437,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      ]
                    }
                  },
-                 prompt_region_2_convert_image_mask: %{
+                 "prompt_region_2_convert_image_mask" => %{
                    class_type: "ImageToMask",
                    inputs: %{
                      image: [
@@ -418,22 +447,133 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      channel: "red"
                    }
                  },
-                 prompt_region_2_mask: %{
+                 "prompt_region_2_mask" => %{
                    class_type: "Base64ImageInput",
-                   inputs: %{bas64_image: "mask_binary2"}
+                   inputs: %{base64_image: "mask_binary2"}
                  },
-                 prompt_region_2_text: %{
+                 "prompt_region_2_text" => %{
                    class_type: "CLIPTextEncode",
                    inputs: %{
                      text: "region 2",
                      clip: [
-                       "model",
-                       1
+                       "clip",
+                       0
                      ]
                    }
                  }
                }
              }
+  end
+
+  test "maybe_add_regional_prompts_with_coupling" do
+    attrs = %{
+      "is_regional_prompting_enabled" => true,
+      "regional_prompts" => [
+        %{
+          "id" => "1",
+          "prompt" => "region 1",
+          "weight" => 1.0,
+          "mask" => "mask_binary",
+          "global_prompt_weight" => 0.3
+        },
+        %{
+          "id" => "2",
+          "prompt" => "region 2",
+          "weight" => 1.0,
+          "mask" => "mask_binary2",
+          "global_prompt_weight" => 0.3
+        }
+      ],
+      "positive_loras" => []
+    }
+
+    assert ComfyPrompt.maybe_add_regional_prompts_with_coupling(ComfyPrompt.new(), attrs,
+             width: 768,
+             height: 512
+           ) ==
+             %{
+               prompt: %{
+                 "attention_couple_region_1" => %{
+                   inputs: %{
+                     weight: 1,
+                     cond: [
+                       "attention_couple_region_1_prompt",
+                       0
+                     ],
+                     mask: [
+                       "attention_couple_region_1_mask",
+                       0
+                     ]
+                   },
+                   class_type: "AttentionCoupleRegion"
+                 },
+                 "attention_couple_region_2" => %{
+                   inputs: %{
+                     weight: 1,
+                     cond: [
+                       "attention_couple_region_2_prompt",
+                       0
+                     ],
+                     mask: [
+                       "attention_couple_region_2_mask",
+                       0
+                     ]
+                   },
+                   class_type: "AttentionCoupleRegion"
+                 },
+                 "attention_couple_regions_0" => %{
+                   inputs: %{
+                     "region_1" => [
+                       "attention_couple_region_1",
+                       0
+                     ],
+                     "region_2" => [
+                       "attention_couple_region_2",
+                       0
+                     ]
+                   },
+                   class_type: "AttentionCoupleRegions"
+                 },
+                 "attention_couple" => %{
+                   inputs: %{
+                     global_prompt_weight: 0.3,
+                     width: 768,
+                     height: 512,
+                     model: [
+                       "model",
+                       0
+                     ],
+                     base_prompt: [
+                       "positive_prompt",
+                       0
+                     ],
+                     regions: [
+                       "attention_couple_regions_0",
+                       0
+                     ]
+                   },
+                   class_type: "AttentionCouple"
+                 }
+               }
+             }
+             |> ComfyPrompt.add_mask_image_loader(
+               name: "attention_couple_region_1_mask",
+               base64_image: "mask_binary"
+             )
+             |> ComfyPrompt.add_mask_image_loader(
+               name: "attention_couple_region_2_mask",
+               base64_image: "mask_binary2"
+             )
+             |> ComfyPrompt.add_clip_text_encode(
+               ComfyPrompt.node_ref("clip", 0),
+               "region 1",
+               "attention_couple_region_1_prompt"
+             )
+             |> ComfyPrompt.add_clip_text_encode(
+               ComfyPrompt.node_ref("clip", 0),
+               "region 2",
+               "attention_couple_region_2_prompt"
+             )
   end
 
   test "txt2img" do
@@ -471,15 +611,15 @@ defmodule ExSd.Sd.ComfyPromptTest do
     assert ComfyPrompt.txt2img(generation_params, attrs) ==
              %{
                prompt: %{
-                 :empty_latent_image => %{
+                 "empty_latent_image" => %{
                    class_type: "EmptyLatentImage",
                    inputs: %{batch_size: 1, height: 768, width: 512}
                  },
-                 :first_pass_vae_decode => %{
+                 "first_pass_vae_decode" => %{
                    class_type: "VAEDecode",
                    inputs: %{samples: ["sampler", 0], vae: ["vae", 0]}
                  },
-                 :hires_latent_scaler => %{
+                 "hires_latent_scaler" => %{
                    class_type: "LatentUpscale",
                    inputs: %{
                      crop: "disabled",
@@ -489,7 +629,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      width: 1024
                    }
                  },
-                 :hires_sampler => %{
+                 "hires_sampler" => %{
                    class_type: "KSampler",
                    inputs: %{
                      cfg: 7,
@@ -504,29 +644,29 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      steps: 20
                    }
                  },
-                 :model => %{
+                 "model" => %{
                    class_type: "CheckpointLoaderSimple",
                    inputs: %{ckpt_name: "model_name"}
                  },
-                 :negative_prompt => %{
+                 "negative_prompt" => %{
                    class_type: "CLIPTextEncode",
                    inputs: %{
                      clip: ["positive_lora1", 1],
                      text: "neg prompt"
                    }
                  },
-                 :output => %{
+                 "output" => %{
                    class_type: "Base64ImageOutput",
                    inputs: %{images: ["vae_decode", 0]}
                  },
-                 :positive_prompt => %{
+                 "positive_prompt" => %{
                    class_type: "CLIPTextEncode",
                    inputs: %{
                      clip: ["positive_lora1", 1],
                      text: "pos prompt"
                    }
                  },
-                 :sampler => %{
+                 "sampler" => %{
                    class_type: "KSampler",
                    inputs: %{
                      cfg: 7,
@@ -541,7 +681,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      steps: 20
                    }
                  },
-                 :scaler => %{
+                 "scaler" => %{
                    class_type: "ImageScale",
                    inputs: %{
                      crop: "disabled",
@@ -551,33 +691,36 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      width: 1024
                    }
                  },
-                 :second_pass_vae_encode => %{
-                   class_type: "VAEEncode",
-                   inputs: %{pixels: ["scaler", 0], vae: ["vae", 0]}
+                 "second_pass_vae_encode" => %{
+                   class_type: "RepeatLatentBatch",
+                   inputs: %{
+                     "amount" => 1,
+                     "samples" => ["second_pass_vae_encode_node", 0]
+                   }
                  },
-                 :upscale_with_model => %{
+                 "upscale_with_model" => %{
                    class_type: "ImageUpscaleWithModel",
                    inputs: %{
                      image: ["first_pass_vae_decode", 0],
                      upscale_model: ["upscaler", 0]
                    }
                  },
-                 :upscaler => %{
+                 "upscaler" => %{
                    class_type: "UpscaleModelLoader",
                    inputs: %{model_name: nil}
                  },
-                 :vae => %{
+                 "vae" => %{
                    class_type: "VAELoader",
                    inputs: %{vae_name: "vae_name"}
                  },
-                 :vae_decode => %{
+                 "vae_decode" => %{
                    class_type: "VAEDecode",
                    inputs: %{samples: ["sampler", 0], vae: ["vae", 0]}
                  },
                  "positive_lora0" => %{
                    class_type: "LoraLoader",
                    inputs: %{
-                     clip: ["model", 1],
+                     clip: ["clip", 0],
                      lora_name: "lora1.safetensors",
                      model: ["model", 0],
                      strength_clip: 1,
@@ -594,8 +737,8 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      strength_model: 0.2
                    }
                  },
-                 :cn0_apply_controlnet => %{
-                   class_type: "ControlNetApplyAdvanced",
+                 "cn0_apply_controlnet" => %{
+                   class_type: "ACN_AdvancedControlNetApply",
                    inputs: %{
                      positive: ["positive_prompt", 0],
                      image: ["cn0_preprocessor", 0],
@@ -603,17 +746,34 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      end_percent: 1.0,
                      negative: ["negative_prompt", 0],
                      start_percent: 0.0,
-                     strength: 1.0
+                     strength: 1.0,
+                     mask_optional: ["cn0_mask", 0]
                    }
                  },
-                 :cn0_controlnet_loader => %{
+                 "cn0_controlnet_loader" => %{
                    class_type: "ControlNetLoader",
                    inputs: %{control_net_name: "model1"}
                  },
-                 :cn0_image => %{class_type: "Base64ImageInput", inputs: %{bas64_image: ""}},
-                 :cn0_preprocessor => %{
+                 "cn0_image" => %{class_type: "Base64ImageInput", inputs: %{base64_image: ""}},
+                 "cn0_preprocessor" => %{
                    class_type: "AIO_Preprocessor",
                    inputs: %{image: ["cn0_image", 0], preprocessor: "module1"}
+                 },
+                 "clip" => %{
+                   class_type: "CLIPSetLastLayer",
+                   inputs: %{clip: ["model", 1], stop_at_clip_layer: -1}
+                 },
+                 "cn0_mask" => %{
+                   class_type: "ImageToMask",
+                   inputs: %{image: ["cn0_mask_image_loader", 0], channel: "red"}
+                 },
+                 "cn0_mask_image_loader" => %{
+                   class_type: "Base64ImageInput",
+                   inputs: %{base64_image: ""}
+                 },
+                 "second_pass_vae_encode_node" => %{
+                   class_type: "VAEEncode",
+                   inputs: %{"pixels" => ["scaler", 0], "vae" => ["vae", 0]}
                  }
                }
              }

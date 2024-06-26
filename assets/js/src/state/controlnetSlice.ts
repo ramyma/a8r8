@@ -4,6 +4,13 @@ import ControlnetLayer from "../ControlnetLayer";
 import { BrushStroke } from "../MaskLayer-types";
 import { RootState } from "../store";
 import { selectActiveControlnetId } from "./layersSlice";
+import { weightTypesByName } from "../MainForm/constants";
+
+export const CONTROL_MODES = [
+  "Balanced",
+  "My prompt is more important",
+  "ControlNet is more important",
+] as const;
 
 type ControlnetResizeMode =
   | "Crop and Resize"
@@ -40,18 +47,21 @@ type ControlnetUi = {
   image?: ImageItem | string | null;
   mask_image?: string | null;
   maskColor?: string;
+  weight_type?: keyof typeof weightTypesByName;
+  composition_weight?: number;
 };
 export type ControlnetLayer = {
   id?: string;
   model: string;
   weight: number;
   resize_mode: ControlnetResizeMode;
-  lowvram?: boolean;
+  low_vram?: boolean;
   guidance_start: number;
   guidance_end: number;
-  control_mode: number;
+  control_mode: (typeof CONTROL_MODES)[number];
   isEnabled: boolean;
   pixel_perfect: boolean;
+  advanced_weighting?: number[];
 } & ControlnetDetection &
   Partial<ControlnetUi>;
 interface ControlnetState {
@@ -63,7 +73,7 @@ const controlnetLayerInitialState: ControlnetLayer = {
   module: "None",
   weight: 1,
   resize_mode: "Crop and Resize", //"Just Resize",
-  lowvram: false,
+  low_vram: false,
   processor_res: 512,
   threshold_a: 0,
   threshold_b: 0,
@@ -78,7 +88,7 @@ const controlnetLayerInitialState: ControlnetLayer = {
   isMaskVisible: true,
   isMaskEnabled: false,
   pixel_perfect: true,
-  control_mode: 0,
+  control_mode: "Balanced",
   maskColor: "#FFFFFF",
 };
 const initialState: ControlnetState = {

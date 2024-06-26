@@ -124,14 +124,7 @@ export const extractControlnetArgs = (pngInfo: PngInfo): ControlnetLayer[] => {
             case "control mode": {
               layer = {
                 ...layer,
-                control_mode:
-                  value == "Balanced"
-                    ? 0
-                    : value == "My prompt is more important"
-                      ? 1
-                      : value == "ControlNet is more important"
-                        ? 2
-                        : parseControlnetValue(value),
+                control_mode: value,
               };
               break;
             }
@@ -504,6 +497,8 @@ export const getLayers = async ({
         if (!layer.isEnabled) return undefined;
         let layerGroup = controlnetLayerGroups?.[index * 2];
         layerGroup?.visible(true);
+        //FIXME: Pasted image on CN layer on canvas should be fetched from canvas rather than
+        // sending the whole image
         const controlnetDataUrl = layer.overrideBaseLayer
           ? ((layer.image as string) ||
               controlnetLayer?.toDataURL({
@@ -707,3 +702,7 @@ export const debugImage = function (url, label, height = 100) {
 
 export const checkIsSdXlModel = (modelName: string): boolean =>
   modelName?.toLowerCase()?.includes("xl");
+
+export const checkIsIpAdapterControlnetModel = (
+  modelName: string = ""
+): boolean => /ip\Sadapter/i.test(modelName);

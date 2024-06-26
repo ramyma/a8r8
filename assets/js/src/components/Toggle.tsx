@@ -23,6 +23,7 @@ const Toggle = forwardRef(
       pressedIconComponent: PressedIconComponent,
       unpressedIconComponent: UnpressedIconComponent,
       onChange,
+      ...rest
     }: Props,
     _ref
   ) => (
@@ -40,6 +41,7 @@ const Toggle = forwardRef(
           e.stopPropagation();
         },
       })}
+      {...rest}
     >
       {pressed ?? value ? <PressedIconComponent /> : <UnpressedIconComponent />}
     </RadixToggle.Root>

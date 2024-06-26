@@ -28,6 +28,7 @@ defmodule ExSd.Sd.GenerationParams do
     field(:seed_resize_from_h, :integer, default: 0)
     field(:seed_resize_from_w, :integer, default: 0)
     field(:sampler_name, :string, default: "")
+    field(:scheduler, :string, default: "")
     field(:batch_size, :integer, default: 1)
     field(:n_iter, :integer, default: 1)
     field(:steps, :integer, default: 20)
@@ -80,6 +81,7 @@ defmodule ExSd.Sd.GenerationParams do
       :seed_resize_from_h,
       :seed_resize_from_w,
       :sampler_name,
+      :scheduler,
       :batch_size,
       :n_iter,
       :steps,

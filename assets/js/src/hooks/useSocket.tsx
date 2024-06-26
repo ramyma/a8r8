@@ -1,7 +1,6 @@
-import { useCallback, useContext } from "react";
+import { useCallback, useContext, useMemo } from "react";
 import SocketContext from "../context/SocketContext";
 import throttle from "lodash.throttle";
-import { showNotification } from "../Notifications/utils";
 
 const useSocket = () => {
   const { channel, presenceChannel } = useContext(SocketContext);
@@ -11,11 +10,17 @@ const useSocket = () => {
     },
     [channel]
   );
-  const sendPresenceMessage = useCallback(
-    (message: string, payload = {}, timeout?: number | undefined) => {
-      if (presenceChannel)
-        return presenceChannel.push(message, payload, timeout);
-    },
+
+  const sendPresenceMessage = useMemo(
+    () =>
+      throttle(
+        (message: string, payload = {}, timeout?: number | undefined) => {
+          if (presenceChannel) {
+            return presenceChannel.push(message, payload, timeout);
+          }
+        },
+        16
+      ),
     [presenceChannel]
   );
 
@@ -39,9 +44,9 @@ const useSocket = () => {
   );
 
   const broadcastSelectionBoxUpdate = useCallback(
-    throttle((selectionBoxUpdate) => {
+    (selectionBoxUpdate) => {
       sendPresenceMessage("update_selection_box", selectionBoxUpdate);
-    }, 16),
+    },
     [sendPresenceMessage]
   );
   return {
