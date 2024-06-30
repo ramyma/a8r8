@@ -44,10 +44,10 @@ if ! [ -x "$(command -v asdf)" ]; then
 
         # Check if asdf.bash is already in .zshrc
         if ! grep -Fxq '. "$HOME/.asdf/completions/asdf.bash"' "$HOME/.zshrc"; then
-            echo '"# append completions to fpath"' >>"$HOME/.zshrc"
-            echo '"fpath=(${ASDF_DATA_DIR}/completions $fpath)"' >>"$HOME/.zshrc"
-            echo '"# initialise completions with ZSH compinit"' >>"$HOME/.zshrc"
-            echo '"autoload -Uz compinit && compinit"' >>"$HOME/.zshrc"
+            echo "# append completions to fpath" >>"$HOME/.zshrc"
+            echo "fpath=(${ASDF_DATA_DIR}/completions $fpath)" >>"$HOME/.zshrc"
+            echo "# initialise completions with ZSH's compinit" >>"$HOME/.zshrc"
+            echo "autoload -Uz compinit && compinit" >>"$HOME/.zshrc"
         fi
 
         source ~/.zshrc
