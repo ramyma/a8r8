@@ -19,6 +19,7 @@ Links: [[Discord](https://discord.gg/RzdGa839MK)]
       - [One-Click Windows WSL2 (**RECOMMENDED**)](#one-click-windows-wsl2-recommended)
       - [Docker](#docker)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken)
+      - [Mac](#mac)
       - [Linux (Debian based)](#linux-debian-based)
     - [Running](#running)
       - [One-Click Windows WSL2](#one-click-windows-wsl2)
@@ -29,7 +30,7 @@ Links: [[Discord](https://discord.gg/RzdGa839MK)]
       - [One-Click Windows WSL2](#one-click-windows-wsl2-1)
       - [Docker](#docker-2)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-2)
-      - [Linux (Debian based)](#linux-debian-based-2)
+      - [Mac \& Linux (Debian based)](#mac--linux-debian-based)
   - [Key Shortcuts](#key-shortcuts)
   - [Development Environment](#development-environment)
   - [Sample Generations](#sample-generations)
@@ -164,6 +165,34 @@ If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a re
 
 &nbsp;
 
+#### Mac
+
+1. Download latest One-Click Installer from [latest release](https://github.com/ramyma/a8r8/releases/latest) 
+2. Run `xcode-select --install` to install developer tools, and follow the installation prompts
+3. Install Homebrew from https://brew.sh/ 
+4. Run `CLONE_REPO=true ./install-mac.sh` (preferably from a terminal window)
+
+_Or_
+
+1. Run `xcode-select --install` to install developer tools, and follow the installation prompts
+2. Install Homebrew from https://brew.sh/ 
+3. Clone repo
+4. Run `./install-mac.sh` within the cloned directory (preferably from a terminal window)
+  
+&nbsp;
+  
+Start the SD backend of your choice
+   1. Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
+   2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
+      1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
+      2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
+      3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
+      4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+      5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+
+&nbsp;
+
+
 #### Linux (Debian based)
 
 1. Download latest One-Click Installer from [latest release](https://github.com/ramyma/a8r8/releases/latest) 
@@ -262,9 +291,9 @@ Update: one of the dependencies doesn't work with Windows at the moment, so it w
 
 &nbsp;
 
-#### Linux (Debian based)
+#### Mac & Linux (Debian based)
 
-Run `./install.sh`
+Run `./update.sh`
 
 &nbsp;
 &nbsp;

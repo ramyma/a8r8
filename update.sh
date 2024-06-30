@@ -9,4 +9,17 @@ fi
 
 echo Initiating update...
 
-PULL_REPO=true ./install.sh
+case "$OSTYPE" in
+darwin*)
+    echo Updating for Mac
+    PULL_REPO=true ./install-mac.sh
+    ;;
+linux*)
+    echo Updating for Linux
+    PULL_REPO=true ./install.sh
+    ;;
+*)
+    echo Updating for $OSTYPE
+    PULL_REPO=true ./install.sh
+    ;;
+esac
