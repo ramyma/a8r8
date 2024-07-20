@@ -51,6 +51,8 @@ jobs:
         run: mix deps.get --only prod
       - name: Compile
         run: mix compile
+      - name: Install deps
+        run: pnpm -C assets install
       - name: Build assets
         run: pnpm -C assets build
       - name: Digest assests
