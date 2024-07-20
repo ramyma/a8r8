@@ -1,1 +1,1 @@
-export { default as default } from "./SoftInpaintingFields";
+export { default } from "./SoftInpaintingFields";

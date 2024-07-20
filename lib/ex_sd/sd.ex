@@ -65,6 +65,9 @@ defmodule ExSd.Sd do
   @spec get_controlnet_preprocessors :: {:ok, list}
   defdelegate get_controlnet_preprocessors(), to: SdServer
 
+  @spec get_ip_adapter_models :: {:ok, map()}
+  defdelegate get_ip_adapter_models(), to: SdServer
+
   @spec get_options :: {:ok, map()}
   defdelegate get_options(), to: SdServer
 

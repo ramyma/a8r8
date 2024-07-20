@@ -214,6 +214,38 @@ defmodule ExSd.ComfyClient do
     end
   end
 
+  @spec get_ip_adapter_models() :: {:error, any()} | {:ok, list(binary())}
+  def get_ip_adapter_models() do
+    with response <- get("/object_info/IPAdapterUnifiedLoader"),
+         {:ok, body} <- handle_response(response) do
+      models =
+        body
+        |> get_in(["IPAdapterUnifiedLoader", "input", "required", "preset"])
+        |> List.first()
+
+      {:ok, models}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  @spec get_ip_adapter_weight_types() :: {:error, any()} | {:ok, list(binary())}
+  def get_ip_adapter_weight_types() do
+    with response <- get("/object_info/IPAdapterAdvanced"),
+         {:ok, body} <- handle_response(response) do
+      models =
+        body
+        |> get_in(["IPAdapterAdvanced", "input", "required", "weight_type"])
+        |> List.first()
+
+      {:ok, models}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
   def get_models() do
     with response <- get("/object_info/CheckpointLoader"),
          {:ok, body} <- handle_response(response) do

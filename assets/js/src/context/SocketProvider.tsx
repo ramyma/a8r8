@@ -18,7 +18,7 @@ export const sessionName = uuid4();
 const socket = new Socket(`ws://${location.hostname}:4000/socket`);
 socket.connect();
 const channel = socket.channel("sd", {});
-
+// TODO: make optional
 // TODO: move into useEffect to be avoid getting stuck disconnection
 channel
   .join()

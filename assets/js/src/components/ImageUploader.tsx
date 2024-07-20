@@ -13,8 +13,9 @@ interface Props {
   image?: string;
   onChange: (image: string) => void;
   title?: string;
+  multiple?: boolean;
 }
-const ImageUploader = ({ image, title, onChange }: Props) => {
+const ImageUploader = ({ image, title, multiple = false, onChange }: Props) => {
   const [isDragging, setIsDragging] = useState(false);
   const inputRef: MutableRefObject<HTMLInputElement> =
     useRef<HTMLInputElement>() as MutableRefObject<HTMLInputElement>;
@@ -146,6 +147,7 @@ const ImageUploader = ({ image, title, onChange }: Props) => {
           className="hidden"
           ref={inputRef}
           onChange={handleImageChange}
+          multiple={multiple}
         />
 
         <div
