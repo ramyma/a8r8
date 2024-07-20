@@ -52,7 +52,7 @@ jobs:
       - name: Compile
         run: mix compile
       - name: Build assets
-        run: pnpm build
+        run: pnpm -C assets build
       - name: Digest assests
         run: mix phx.digest
       - name: Create mix release
