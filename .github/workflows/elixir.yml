@@ -27,12 +27,14 @@ jobs:
         with:
           version: 9
           run_install: false
+          package_json_file: assets/package.json
 
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "pnpm"
+          cache-dependency-path: assets/pnpm-lock.yaml
 
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
@@ -50,7 +52,7 @@ jobs:
       - name: Compile
         run: mix compile
       - name: Build assets
-        run: pnpm -C assets build
+        run: pnpm build
       - name: Digest assests
         run: mix phx.digest
       - name: Create mix release
