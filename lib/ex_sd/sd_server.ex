@@ -32,6 +32,8 @@ defmodule ExSd.SdServer do
        embeddings: [],
        controlnet_models: [],
        controlnet_preprocessors: [],
+       ip_adapter_models: [],
+       ip_adapter_weight_types: [],
        task: nil,
        generating_session_name: nil,
        progress: 0,
@@ -555,6 +557,18 @@ defmodule ExSd.SdServer do
   end
 
   @impl true
+  def handle_cast(
+        :ip_adapter_models,
+        %{ip_adapter_models: ip_adapter_models, ip_adapter_weight_types: ip_adapter_weight_types} =
+          state
+      ) do
+    Sd.broadcast_data("ip_adapter_models", ip_adapter_models)
+    Sd.broadcast_data("ip_adapter_weight_types", ip_adapter_weight_types)
+
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_cast(:options, state) do
     new_state = state |> maybe_put_options()
 
@@ -596,6 +610,7 @@ defmodule ExSd.SdServer do
     |> put_embeddings()
     |> put_controlnet_models()
     |> put_controlnet_preprocessors()
+    |> put_ip_adapter_models()
   end
 
   defp put_samplers(%{backend: backend} = state) do
@@ -646,6 +661,18 @@ defmodule ExSd.SdServer do
         state
         |> Map.put(:controlnet_preprocessors, mapped_modules)
 
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_ip_adapter_models(%{backend: backend} = state) do
+    with {:ok, ip_adapter_models} <- SdService.get_ip_adapter_models(backend),
+         {:ok, ip_adapter_weight_types} <- SdService.get_ip_adapter_weight_types(backend) do
+      state
+      |> Map.put(:ip_adapter_models, ip_adapter_models)
+      |> Map.put(:ip_adapter_weight_types, ip_adapter_weight_types)
+    else
       {:error, _} ->
         state
     end
@@ -1023,6 +1050,11 @@ defmodule ExSd.SdServer do
   @spec get_controlnet_preprocessors :: {:ok, list(binary)}
   def get_controlnet_preprocessors() do
     GenServer.cast(__MODULE__, :controlnet_preprocessors)
+  end
+
+  @spec get_ip_adapter_models :: {:ok, map()}
+  def get_ip_adapter_models() do
+    GenServer.call(__MODULE__, :ip_adapter_models)
   end
 
   @spec get_options :: {:ok, map()}

@@ -2,7 +2,6 @@ import {
   combineReducers,
   configureStore,
   // createListenerMiddleware,
-  PreloadedState,
 } from "@reduxjs/toolkit";
 import canvasReducer from "./state/canvasSlice";
 import linesReducer from "./state/linesSlice";
@@ -60,7 +59,7 @@ const rootReducer = //undoable(
 // They may contain any sync or async logic, similar to thunks.
 // listenerMiddleware.startListening({});
 
-export function setupStore(preloadedState?: PreloadedState<RootState>) {
+export function setupStore(preloadedState?: Partial<RootState>) {
   return configureStore({
     reducer: rootReducer,
     // middleware: (getDefaultMiddleware) =>

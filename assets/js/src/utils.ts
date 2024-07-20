@@ -607,13 +607,13 @@ export const editorJsonToText = (json: RemirrorJSON) => {
       return (
         acc +
         nodesText +
-        (index < ((json?.content as RemirrorJSON[]).length - 1 ?? 0)
+        (index < ((json?.content as RemirrorJSON[])?.length - 1 || 0)
           ? "\n"
           : "")
       );
     }, "");
 
-    return text?.trim() ?? "";
+    return text?.trim?.() ?? "";
   }
   return "";
 };

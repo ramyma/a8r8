@@ -27,17 +27,17 @@ defmodule ExSd.Sd.ImageService do
     end
   end
 
-  # defp maybe_feather!(image, sigma, true = _condition) do
-  #   Image.feather!(image, sigma: sigma)
-  # end
+  defp maybe_feather!(image, sigma, true = _condition) do
+    Image.feather!(image, sigma: sigma)
+  end
 
-  # defp maybe_feather!(image, _sigma, _condition) do
-  #   image
-  # end
+  defp maybe_feather!(image, _sigma, _condition) do
+    image
+  end
 
   # Creates a mask image that fills the transparent parts with white.
   # , options \\ []) do
-  def fill_mask!(mask_data_url, image_average, invert_mask) do
+  def fill_mask!(mask_data_url, image_average, invert_mask, options \\ []) do
     with %{scheme: "data"} = uri <- URI.parse(mask_data_url),
          {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri),
          {:ok, image} <- Image.from_binary(data),
@@ -59,7 +59,8 @@ defmodule ExSd.Sd.ImageService do
               |> Image.Draw.flood!(0, 0, color: :white)
 
               # TODO: control using attrs
-              # |> maybe_feather!(20.0, Keyword.get(options, :should_feather_mask, true)),
+              # |> maybe_feather!(20.0, Keyword.get(options, :should_feather_mask, true))
+
               # |> Image.feather!(sigma: 15)
 
               # Image.compose!(
@@ -85,8 +86,8 @@ defmodule ExSd.Sd.ImageService do
         _ ->
           # blur the image mask if it's not an empty mask
           # TODO: control mask blur dynamically
-          image
-          |> Image.blur!(sigma: 6)
+          # |> Image.feather!(sigma: 15)
+          image |> Image.blur!(sigma: 30)
       end
     end
   end

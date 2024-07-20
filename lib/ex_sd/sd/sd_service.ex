@@ -564,6 +564,12 @@ defmodule ExSd.Sd.SdService do
   @spec get_controlnet_preprocessors(:comfy) :: {:error, any} | {:ok, list(binary)}
   def get_controlnet_preprocessors(:comfy), do: ComfyClient.get_controlnet_preprocessors()
 
+  @spec get_ip_adapter_models(backend()) :: {:error, any} | {:ok, list(binary())}
+  def get_ip_adapter_models(:comfy), do: ComfyClient.get_ip_adapter_models()
+
+  @spec get_ip_adapter_weight_types(backend()) :: {:error, any} | {:ok, list(binary())}
+  def get_ip_adapter_weight_types(:comfy), do: ComfyClient.get_ip_adapter_weight_types()
+
   @spec get_models(backend()) :: {:error, any} | {:ok, any}
   def get_models(:auto), do: AutoClient.get_models()
   def get_models(:comfy), do: ComfyClient.get_models()

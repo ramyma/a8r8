@@ -18,12 +18,22 @@ export const sessionName = uuid4();
 const socket = new Socket(`ws://${location.hostname}:4000/socket`);
 socket.connect();
 const channel = socket.channel("sd", {});
-
+// TODO: make optional
+const civitChannel = socket.channel("civit", {});
 // TODO: move into useEffect to be avoid getting stuck disconnection
 channel
   .join()
   .receive("ok", (resp) => {
     console.log("Joined successfully", resp);
+  })
+  .receive("error", (resp) => {
+    console.log("Unable to join", resp);
+  });
+
+civitChannel
+  .join()
+  .receive("ok", (resp) => {
+    console.log("Joined Civit successfully", resp);
   })
   .receive("error", (resp) => {
     console.log("Unable to join", resp);
@@ -84,7 +94,9 @@ const SocketProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [dispatch]);
   return (
-    <SocketContext.Provider value={{ socket, channel, presenceChannel }}>
+    <SocketContext.Provider
+      value={{ socket, channel, civitChannel, presenceChannel }}
+    >
       {children}
     </SocketContext.Provider>
   );

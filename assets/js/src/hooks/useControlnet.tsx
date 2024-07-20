@@ -13,13 +13,14 @@ import {
 import useData, { FetchPolicy } from "./useData";
 import useSocket from "./useSocket";
 import { selectSelectionBox } from "../state/selectionBoxSlice";
+import { selectBackend } from "../state/optionsSlice";
 
 type Props = {
   // selectedModel: Model["sha256"];
   fetchPolicy?: FetchPolicy;
 };
 
-type ConrolnetModuleSlider = {
+type ControlnetModuleSlider = {
   name: string;
   min: number;
   max: number;
@@ -28,7 +29,7 @@ type ConrolnetModuleSlider = {
 
 type ControlnetModule = {
   name: string;
-  sliders: ConrolnetModuleSlider[];
+  sliders: ControlnetModuleSlider[];
 };
 
 const useControlnet = ({ fetchPolicy }: Props = {}) => {
@@ -36,6 +37,7 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
   const activeLayerName = useAppSelector(selectActiveLayer);
   const isMaskLayerVisible = useAppSelector(selectIsMaskLayerVisible);
   const selectionBox = useAppSelector(selectSelectionBox);
+  const backend = useAppSelector(selectBackend);
 
   const dispatch = useAppDispatch();
   const {
@@ -59,6 +61,15 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
       name: "controlnet_preprocessors",
       fetchPolicy,
     });
+
+  const {
+    fetchData: fetchIpApapterModels,
+    data: { ip_adapter_models, ip_adapter_weight_types } = {},
+  } = useData<string[]>({
+    name: "ip_adapter_models",
+    fetchPolicy,
+    condition: backend === "comfy",
+  });
 
   const controlnetDetect = async ({
     module,
@@ -175,8 +186,11 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
   return {
     controlnet_models,
     controlnet_preprocessors,
+    ip_adapter_models,
+    ip_adapter_weight_types,
     fetchControlnetModels,
     fetchControlnetModules,
+    fetchIpApapterModels,
     controlnetDetect,
   };
 };

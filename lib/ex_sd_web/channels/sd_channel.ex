@@ -110,6 +110,12 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
+  def handle_in("get_ip_adapter_models", _payload, socket) do
+    ip_adapter_models = Sd.get_ip_adapter_models()
+    {:reply, ip_adapter_models, socket}
+  end
+
+  @impl true
   def handle_in("get_options", _payload, socket) do
     Sd.get_options()
     {:noreply, socket}
@@ -143,6 +149,12 @@ defmodule ExSdWeb.SdChannel do
   def handle_in("controlnet_detect", params, socket) do
     Sd.controlnet_detect(params)
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("civit_get_model_by_hash", hash, socket) do
+    ExSd.Civit.get_model_by_hash(hash)
+    {:reply, socket}
   end
 
   # @impl true

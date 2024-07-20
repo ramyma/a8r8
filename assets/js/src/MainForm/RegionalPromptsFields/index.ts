@@ -1,1 +1,1 @@
-export { default as default } from "./RegionalPromptsFields";
+export { default } from "./RegionalPromptsFields";

@@ -65,6 +65,9 @@ defmodule ExSd.Sd do
   @spec get_controlnet_preprocessors :: {:ok, list}
   defdelegate get_controlnet_preprocessors(), to: SdServer
 
+  @spec get_ip_adapter_models :: {:ok, map()}
+  defdelegate get_ip_adapter_models(), to: SdServer
+
   @spec get_options :: {:ok, map()}
   defdelegate get_options(), to: SdServer
 
@@ -155,5 +158,17 @@ defmodule ExSd.Sd do
       |> Jason.decode!()
       |> Map.get("__metadata__")
     end)
+  end
+
+  def py(image_base64_string) do
+    {:ok, channel} = GRPC.Stub.connect("localhost:50052")
+    request = %Helloworld.HelloRequest{name: image_base64_string}
+
+    {:ok, reply} = channel |> Helloworld.Greeter.Stub.say_hello(request)
+    "data:image/png;base64, #{reply.result}"
+
+    # # With interceptors
+    # {:ok, channel} =
+    #   GRPC.Stub.connect("localhost:50051", interceptors: [GRPC.Client.Interceptors.Logger])
   end
 end
