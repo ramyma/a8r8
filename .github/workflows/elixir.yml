@@ -1,0 +1,48 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Elixir CI
+
+on:
+  push:
+    branches: [ "release-test" ]
+  # pull_request:
+  #   branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    name: Build and test
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: prod
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.17.2' # [Required] Define the Elixir version
+        otp-version: '27.0.1'      # [Required] Define the Erlang/OTP version
+    - name: Restore dependencies cache
+      uses: actions/cache@v3
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-
+    - name: Install dependencies
+      run: mix deps.get --only prod
+    - name: Compile
+      run: mix compile
+    - name: Build assets
+      run: pnpm -C assets build
+    - name: Digest assests
+      run: mix phx.digest
+    - name: Create mix release
+      run: mix release
+    # - name: Run tests
+    #   run: mix test
