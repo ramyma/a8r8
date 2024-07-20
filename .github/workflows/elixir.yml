@@ -49,8 +49,6 @@ jobs:
           restore-keys: ${{ runner.os }}-mix-
       - name: Install dependencies
         run: mix deps.get --only prod
-      - name: Compile
-        run: mix compile
       - name: Install deps
         run: pnpm -C assets install
       - name: Build assets
@@ -58,6 +56,6 @@ jobs:
       - name: Digest assests
         run: mix phx.digest
       - name: Create mix release
-        run: mix release
+        run: mix release --overwrite
     # - name: Run tests
     #   run: mix test
