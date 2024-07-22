@@ -3,7 +3,7 @@
 # separate terms of service, privacy policy, and support
 # documentation.
 
-name: Elixir CI
+name: A8R8 CI
 
 on:
   push:
@@ -65,12 +65,12 @@ jobs:
       - name: Create mix release
         run: mix release --overwrite
       - name: Compress build
-        run: tar -I 'zstd --ultra -22'  -cf A8R8_ubuntu-22-04.tar.zst  _build/prod/
+        run: tar -I 'zstd --ultra -22'  -cf A8R8_ubuntu-22-04_build.tar.zst  _build/prod/
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ubuntu-22.04-build
-          path: A8R8_ubuntu-22-04.tar.zst
+          path: A8R8_ubuntu-22-04_build.tar.zst
           retention-days: 5
           overwrite: true
 
@@ -90,31 +90,7 @@ jobs:
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:
-          files: A8R8_ubuntu-22-04.tar.zst
+          files: A8R8_ubuntu-22-04_build.tar.zst
           target_commitish: main
           draft: true
           token: ${{ secrets.GH_TOKEN }}
-      # - name: Create draft release
-      #   id: create_release
-      #   run: |
-      #     release_id=$(curl -L \
-      #     -X POST \
-      #     -H "Accept: application/vnd.github+json" \
-      #     -H "Authorization: Bearer ${{ github.token }}" \
-      #     -H "X-GitHub-Api-Version: 2022-11-28" \
-      #     https://api.github.com/repos/${{ github.repository }}/releases \
-      #     -d '{"tag_name":"draft_release","target_commitish":"main","name":"draft_release","body":"Auto generated draft release","draft":true,"prerelease":false,"generate_release_notes":false}'); \
-      #     echo "release_id=$(echo $release_id | jq '.id')" >> $GITHUB_OUTPUT
-
-      # - name: Show draft release ID
-      #   run: echo ${{ steps.create_release.outputs.release_id }}
-      # - name: Upload asset to draft release
-      #   run: |
-      #     curl -i -L \
-      #       -X POST \
-      #       -H "Accept: application/vnd.github+json" \
-      #       -H "Authorization: Bearer ${{ github.token }}" \
-      #       -H "X-GitHub-Api-Version: 2022-11-28" \
-      #       -H "Content-Type: application/octet-stream" \
-      #       "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ steps.create_release.outputs.release_id }}/assets?name=A8R8_ubuntu-22-04.tar.zst" \
-      #       --data-binary "@A8R8_ubuntu-22-04.tar.zst"
