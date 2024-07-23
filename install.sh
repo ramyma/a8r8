@@ -90,3 +90,5 @@ mix compile
 mix phx.digest
 
 echo "Installation done!"
+
+read -p "Press Enter to close" </dev/tty

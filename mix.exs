@@ -11,7 +11,9 @@ defmodule ExSd.MixProject do
       aliases: aliases(),
       deps: deps(),
       releases: [
-        a8r8: []
+        a8r8: [
+          path: "a8r8-build"
+        ]
       ]
     ]
   end

@@ -8,11 +8,13 @@ name: A8R8 CI
 on:
   push:
     branches: ["release-test"]
+    tags:
+      - "v*"
   # pull_request:
   #   branches: [ "main" ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -20,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       MIX_ENV: prod
+      BUILD_PATH: a8r8-build
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -50,7 +53,7 @@ jobs:
       - name: Restore build lib cache
         uses: actions/cache@v4
         with:
-          path: _build/prod/lib
+          path: ${{ env.BUILD_PATH }}/lib
           key: ${{ runner.os }}-build-lib
       - name: Install dependencies
         run: mix deps.get --only prod
@@ -65,7 +68,7 @@ jobs:
       - name: Create mix release
         run: mix release --overwrite
       - name: Compress build
-        run: tar -I 'zstd --ultra -22'  -cf A8R8_ubuntu-22-04_build.tar.zst  _build/prod/
+        run: tar -I 'zstd --ultra -22' -cf A8R8_ubuntu-22-04_build.tar.zst ${{ env.BUILD_PATH }}
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -73,6 +76,8 @@ jobs:
           path: A8R8_ubuntu-22-04_build.tar.zst
           retention-days: 5
           overwrite: true
+          compression-level: 0
+          if-no-files-found: error
 
     # - name: Run tests
     #   run: mix test
@@ -81,16 +86,23 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: ubuntu-22.04-build
           path: .
       - name: Show available files
         run: ls
+      - name: Create One Click Installer zip
+        run: zip A8R8_One-Click-Installer.zip one-click-installer-wsl.bat install-packaged.sh
+
       - name: Create draft release
         uses: softprops/action-gh-release@v2
         with:
-          files: A8R8_ubuntu-22-04_build.tar.zst
+          name: ${{ github.ref_name	}}
+          files: |
+            A8R8_ubuntu-22-04_build.tar.zst
+            A8R8_One-Click-Installer.zip
           target_commitish: main
           draft: true
           token: ${{ secrets.GH_TOKEN }}

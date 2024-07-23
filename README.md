@@ -119,7 +119,7 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 5. Run `.\one-click-installer-wsl.bat`
 6. Set the user name and password if it's your first time using it. Make sure you remember the password you entered
 7. Once the installation completes, you can open the generated `a8r8` folder
-8. To start the application open `run-windows.bat` (preferably in a terminal to see the output logs)
+8. To start the application open `run-windows-wsl.bat` (preferably in a terminal to see the output logs)
 9. Start the SD backend of your choice
    1. Forge/Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
@@ -231,7 +231,7 @@ If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a re
 1. Make sure you followed the [installation steps](#windows-wsl2-recommended)
 2. Go to the folder where you cloned the repo
 3. Right click within the folder and choose `Open in Terminal`
-4. Run `run-windows.bat`
+4. Run `run-windows-wsl.bat`
 5. Run your stable diffusion backend (Forge/A1111/Comfy)
 
 &nbsp;
@@ -271,7 +271,7 @@ Run `./run.sh`
 
 #### One-Click Windows WSL2
 
-1. Run `update-windows.bat`
+1. Run `update-windows-wsl.bat`
 
 #### Docker
 
