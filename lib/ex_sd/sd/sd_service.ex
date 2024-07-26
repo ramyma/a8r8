@@ -605,15 +605,7 @@ defmodule ExSd.Sd.SdService do
   end
 
   def get_embeddings(:comfy) do
-    case ComfyClient.get_embeddings() do
-      {:ok, embeddings} ->
-        {:ok,
-         embeddings
-         |> Enum.sort_by(&String.downcase/1, &<=/2)}
-
-      result ->
-        result
-    end
+    {:ok, []}
   end
 
   @spec get_options() :: {:error, any} | {:ok, any}

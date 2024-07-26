@@ -1,1 +1,1 @@
-wsl -d ubuntu -e bash -c "./update.sh"
+wsl -d ubuntu -e bash -c "./update-pacakged.sh"

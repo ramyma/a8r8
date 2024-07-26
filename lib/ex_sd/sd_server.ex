@@ -540,7 +540,7 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_call(:options, _, state) do
-    new_state = state |> put_options()
+    new_state = state |> maybe_put_options()
     {:reply, {:ok, new_state.options}, new_state}
   end
 
@@ -814,7 +814,7 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp put_options(state) do
+  defp maybe_put_options(%{backend: :auto} = state) do
     case SdService.get_options() do
       {:ok, options} ->
         state |> Map.put(:options, options)
@@ -822,6 +822,10 @@ defmodule ExSd.SdServer do
       {:error, _} ->
         state
     end
+  end
+
+  defp maybe_put_options(state) do
+    state
   end
 
   defp fetch_png_info(png_data_url) do

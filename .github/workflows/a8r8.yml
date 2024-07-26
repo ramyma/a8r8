@@ -7,7 +7,7 @@ name: A8R8 CI
 
 on:
   push:
-    branches: ["release-test"]
+    # branches: ["release-test"]
     tags:
       - "v*"
   # pull_request:
@@ -53,7 +53,7 @@ jobs:
       - name: Restore build lib cache
         uses: actions/cache@v4
         with:
-          path: ${{ env.BUILD_PATH }}/lib
+          path: _build/prod/lib
           key: ${{ runner.os }}-build-lib
       - name: Install dependencies
         run: mix deps.get --only prod
@@ -93,8 +93,14 @@ jobs:
           path: .
       - name: Show available files
         run: ls
+      - name: Create the version file
+        run: echo ${{ github.ref_name }} > version.txt
       - name: Create One Click Installer zip
-        run: zip A8R8_One-Click-Installer.zip one-click-installer-wsl.bat install-packaged.sh
+        run: zip A8R8_One-Click-Installer.zip one-click-installer-wsl.bat update-windows-wsl.bat run-windows-wsl.bat install-packaged.sh run-packaged.sh update-packaged.sh example_user.sh version.txt
+
+      - name: Get tag message
+        id: tag_message
+        run: echo "tag_message=$(git tag -l --format='%(contents:subject)' ${{ github.ref_name }})" >> $GITHUB_OUTPUT
 
       - name: Create draft release
         uses: softprops/action-gh-release@v2
@@ -103,6 +109,8 @@ jobs:
           files: |
             A8R8_ubuntu-22-04_build.tar.zst
             A8R8_One-Click-Installer.zip
+            version.txt
           target_commitish: main
           draft: true
+          body: ${{ steps.tag_message.outputs.tag_message }}
           token: ${{ secrets.GH_TOKEN }}

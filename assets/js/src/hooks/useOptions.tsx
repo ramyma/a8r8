@@ -19,6 +19,7 @@ const useOptions = ({ fetchPolicy }: Props = {}) => {
   const { data: options, fetchData } = useData<Options>({
     name: "options",
     fetchPolicy,
+    condition: backend === "auto",
   });
   const updateSelectedModel = useCallback(
     (options: Options) => {
