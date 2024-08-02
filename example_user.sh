@@ -7,3 +7,6 @@
 
 # Set custom address or port here
 # export COMFY_URL="http://localhost:8188"
+
+# Set default backend: "a1111" | "comfy" | "forge"
+export DEFAULT_BACKEND="comfy"

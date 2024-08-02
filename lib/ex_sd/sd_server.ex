@@ -40,7 +40,7 @@ defmodule ExSd.SdServer do
        is_generating: false,
        scripts: nil,
        #  FIXME: reinitialize backend on crash correctly
-       backend: :auto
+       backend: get_default_backend()
      }, {:continue, :init_status_loop}}
   end
 
@@ -1011,7 +1011,7 @@ defmodule ExSd.SdServer do
     try do
       GenServer.call(__MODULE__, :backend, timeout)
     catch
-      :exit, _ -> {:ok, :auto}
+      :exit, _ -> {:ok, get_default_backend()}
     end
   end
 
@@ -1061,5 +1061,12 @@ defmodule ExSd.SdServer do
 
   def stop() do
     GenServer.stop(ExSd.SdServer)
+  end
+
+  defp get_default_backend() do
+    if(Application.fetch_env!(:ex_sd, :default_backend) in [:a1111, :forge],
+      do: :auto,
+      else: :comfy
+    )
   end
 end
