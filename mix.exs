@@ -4,12 +4,17 @@ defmodule ExSd.MixProject do
   def project do
     [
       app: :ex_sd,
-      version: "0.2.0",
-      elixir: "~> 1.15",
+      version: "0.7.1",
+      elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      releases: [
+        a8r8: [
+          path: "a8r8-build"
+        ]
+      ]
     ]
   end
 

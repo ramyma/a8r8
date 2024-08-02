@@ -40,7 +40,7 @@ defmodule ExSd.SdServer do
        is_generating: false,
        scripts: nil,
        #  FIXME: reinitialize backend on crash correctly
-       backend: :auto
+       backend: get_default_backend()
      }, {:continue, :init_status_loop}}
   end
 
@@ -480,68 +480,92 @@ defmodule ExSd.SdServer do
   end
 
   @impl true
-  def handle_call(:samplers, _, %{samplers: samplers} = state) do
-    {:reply, {:ok, samplers}, state}
+  def handle_cast(:samplers, %{samplers: samplers} = state) do
+    Sd.broadcast_data("samplers", samplers)
+
+    {:noreply, state}
   end
 
   @impl true
-  def handle_call(:models, _, state) do
+  def handle_cast(:models, state) do
     new_state = state |> refresh_and_put_models
-    {:reply, {:ok, new_state.models}, state}
+    Sd.broadcast_data("models", new_state.models)
+
+    {:noreply, state}
   end
 
   @impl true
-  def handle_call(:vaes, _, state) do
+  def handle_cast(:vaes, state) do
     new_state = state |> put_vaes()
-    {:reply, {:ok, new_state.vaes}, state}
+
+    Sd.broadcast_data("vaes", new_state.vaes)
+
+    {:noreply, state}
   end
 
   @impl true
-  def handle_call(:schedulers, _, state) do
+  def handle_cast(:schedulers, state) do
     new_state = state |> put_schedulers()
-    {:reply, {:ok, new_state.schedulers}, state}
+
+    Sd.broadcast_data("schedulers", new_state.schedulers)
+
+    {:noreply, state}
   end
 
   @impl true
-  def handle_call(:scripts, _, %{scripts: scripts} = state) do
-    {:reply, {:ok, scripts}, state}
+  def handle_cast(:scripts, %{scripts: scripts} = state) do
+    Sd.broadcast_data("scripts", scripts)
+
+    {:noreply, state}
   end
 
   @impl true
-  def handle_call(:upscalers, _, state) do
+  def handle_cast(:upscalers, state) do
     new_state = state |> put_upscalers()
-    {:reply, {:ok, new_state.upscalers}, state}
+
+    Sd.broadcast_data("upscalers", new_state.upscalers)
+
+    {:noreply, state}
   end
 
   @impl true
-  def handle_call(:embeddings, _, state) do
+  def handle_cast(:embeddings, state) do
     new_state = state |> put_embeddings()
-    {:reply, {:ok, new_state.embeddings}, state}
+
+    Sd.broadcast_data("embeddings", new_state.embeddings)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast(:controlnet_models, %{controlnet_models: controlnet_models} = state) do
+    Sd.broadcast_data("controlnet_models", controlnet_models)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast(
+        :controlnet_preprocessors,
+        %{controlnet_preprocessors: controlnet_preprocessors} = state
+      ) do
+    Sd.broadcast_data("controlnet_preprocessors", controlnet_preprocessors)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast(:options, state) do
+    new_state = state |> maybe_put_options()
+
+    Sd.broadcast_data("options", new_state.options)
+
+    {:noreply, new_state}
   end
 
   @impl true
   def handle_call(:backend, _, %{backend: backend} = state) do
     {:reply, {:ok, backend}, state}
-  end
-
-  @impl true
-  def handle_call(:controlnet_models, _, %{controlnet_models: controlnet_models} = state) do
-    {:reply, {:ok, controlnet_models}, state}
-  end
-
-  @impl true
-  def handle_call(
-        :controlnet_preprocessors,
-        _,
-        %{controlnet_preprocessors: controlnet_preprocessors} = state
-      ) do
-    {:reply, {:ok, controlnet_preprocessors}, state}
-  end
-
-  @impl true
-  def handle_call(:options, _, state) do
-    new_state = state |> put_options()
-    {:reply, {:ok, new_state.options}, new_state}
   end
 
   @impl true
@@ -814,7 +838,7 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp put_options(state) do
+  defp maybe_put_options(%{backend: :auto} = state) do
     case SdService.get_options() do
       {:ok, options} ->
         state |> Map.put(:options, options)
@@ -822,6 +846,10 @@ defmodule ExSd.SdServer do
       {:error, _} ->
         state
     end
+  end
+
+  defp maybe_put_options(state) do
+    state
   end
 
   defp fetch_png_info(png_data_url) do
@@ -940,32 +968,32 @@ defmodule ExSd.SdServer do
 
   @spec get_samplers :: {:ok, list()}
   def get_samplers() do
-    GenServer.call(__MODULE__, :samplers)
+    GenServer.cast(__MODULE__, :samplers)
   end
 
   @spec get_models :: {:ok, list()}
   def get_models() do
-    GenServer.call(__MODULE__, :models)
+    GenServer.cast(__MODULE__, :models)
   end
 
   @spec get_vaes :: {:ok, list()}
   def get_vaes() do
-    GenServer.call(__MODULE__, :vaes)
+    GenServer.cast(__MODULE__, :vaes)
   end
 
   @spec get_schedulers :: {:ok, list()}
   def get_schedulers() do
-    GenServer.call(__MODULE__, :schedulers)
+    GenServer.cast(__MODULE__, :schedulers)
   end
 
   @spec get_scripts :: {:ok, map()}
   def get_scripts() do
-    GenServer.call(__MODULE__, :scripts)
+    GenServer.cast(__MODULE__, :scripts)
   end
 
   @spec get_upscalers :: {:ok, list()}
   def get_upscalers() do
-    GenServer.call(__MODULE__, :upscalers)
+    GenServer.cast(__MODULE__, :upscalers)
   end
 
   @spec get_loras :: {:ok, list()}
@@ -975,7 +1003,7 @@ defmodule ExSd.SdServer do
 
   @spec get_embeddings :: {:ok, map()}
   def get_embeddings() do
-    GenServer.call(__MODULE__, :embeddings)
+    GenServer.cast(__MODULE__, :embeddings)
   end
 
   @spec get_backend(pos_integer() | nil) :: {:ok, atom()}
@@ -983,23 +1011,23 @@ defmodule ExSd.SdServer do
     try do
       GenServer.call(__MODULE__, :backend, timeout)
     catch
-      :exit, _ -> {:ok, :auto}
+      :exit, _ -> {:ok, get_default_backend()}
     end
   end
 
   @spec get_controlnet_models :: {:ok, list(binary)}
   def get_controlnet_models() do
-    GenServer.call(__MODULE__, :controlnet_models)
+    GenServer.cast(__MODULE__, :controlnet_models)
   end
 
   @spec get_controlnet_preprocessors :: {:ok, list(binary)}
   def get_controlnet_preprocessors() do
-    GenServer.call(__MODULE__, :controlnet_preprocessors)
+    GenServer.cast(__MODULE__, :controlnet_preprocessors)
   end
 
   @spec get_options :: {:ok, map()}
   def get_options() do
-    GenServer.call(__MODULE__, :options)
+    GenServer.cast(__MODULE__, :options)
   end
 
   def set_model(model_title) do
@@ -1033,5 +1061,12 @@ defmodule ExSd.SdServer do
 
   def stop() do
     GenServer.stop(ExSd.SdServer)
+  end
+
+  defp get_default_backend() do
+    if(Application.fetch_env!(:ex_sd, :default_backend) in [:a1111, :forge],
+      do: :auto,
+      else: :comfy
+    )
   end
 end

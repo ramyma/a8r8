@@ -1,1 +1,0 @@
-wsl -d ubuntu -e bash -c "./update.sh"

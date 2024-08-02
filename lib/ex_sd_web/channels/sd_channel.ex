@@ -33,8 +33,8 @@ defmodule ExSdWeb.SdChannel do
 
   @impl true
   def handle_in("get_samplers", _payload, socket) do
-    samplers = Sd.get_samplers()
-    {:reply, samplers, socket}
+    Sd.get_samplers()
+    {:noreply, socket}
   end
 
   @impl true
@@ -45,32 +45,32 @@ defmodule ExSdWeb.SdChannel do
 
   @impl true
   def handle_in("get_models", _payload, socket) do
-    models = Sd.get_models()
-    {:reply, models, socket}
+    Sd.get_models()
+    {:noreply, socket}
   end
 
   @impl true
   def handle_in("get_vaes", _payload, socket) do
-    vaes = Sd.get_vaes()
-    {:reply, vaes, socket}
+    Sd.get_vaes()
+    {:noreply, socket}
   end
 
   @impl true
   def handle_in("get_schedulers", _payload, socket) do
-    schedulers = Sd.get_schedulers()
-    {:reply, schedulers, socket}
+    Sd.get_schedulers()
+    {:noreply, socket}
   end
 
   @impl true
   def handle_in("get_scripts", _payload, socket) do
-    scripts = Sd.get_scripts()
-    {:reply, scripts, socket}
+    Sd.get_scripts()
+    {:noreply, socket}
   end
 
   @impl true
   def handle_in("get_upscalers", _payload, socket) do
-    upscalers = Sd.get_upscalers()
-    {:reply, upscalers, socket}
+    Sd.get_upscalers()
+    {:noreply, socket}
   end
 
   @impl true
@@ -81,8 +81,8 @@ defmodule ExSdWeb.SdChannel do
 
   @impl true
   def handle_in("get_embeddings", _payload, socket) do
-    embeddings = Sd.get_embeddings()
-    {:reply, embeddings, socket}
+    Sd.get_embeddings()
+    {:noreply, socket}
   end
 
   @impl true
@@ -99,20 +99,20 @@ defmodule ExSdWeb.SdChannel do
 
   @impl true
   def handle_in("get_controlnet_models", _payload, socket) do
-    controlnet_models = Sd.get_controlnet_models()
-    {:reply, controlnet_models, socket}
+    Sd.get_controlnet_models()
+    {:noreply, socket}
   end
 
   @impl true
   def handle_in("get_controlnet_preprocessors", _payload, socket) do
-    controlnet_preprocessors = Sd.get_controlnet_preprocessors()
-    {:reply, controlnet_preprocessors, socket}
+    Sd.get_controlnet_preprocessors()
+    {:noreply, socket}
   end
 
   @impl true
   def handle_in("get_options", _payload, socket) do
-    options = Sd.get_options()
-    {:reply, options, socket}
+    Sd.get_options()
+    {:noreply, socket}
   end
 
   @impl true

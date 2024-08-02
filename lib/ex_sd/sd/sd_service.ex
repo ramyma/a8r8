@@ -590,7 +590,7 @@ defmodule ExSd.Sd.SdService do
   def get_loras(:auto), do: AutoClient.get_loras()
   def get_loras(:comfy), do: ComfyClient.get_loras()
 
-  @spec get_embeddings(backend()) :: {:error, any} | {:ok, any}
+  @spec get_embeddings(backend()) :: {:error, any} | {:ok, list()}
   def get_embeddings(:auto) do
     case AutoClient.get_embeddings() do
       {:ok, embeddings} ->
@@ -605,15 +605,7 @@ defmodule ExSd.Sd.SdService do
   end
 
   def get_embeddings(:comfy) do
-    case ComfyClient.get_embeddings() do
-      {:ok, embeddings} ->
-        {:ok,
-         embeddings
-         |> Enum.sort_by(&String.downcase/1, &<=/2)}
-
-      result ->
-        result
-    end
+    {:ok, []}
   end
 
   @spec get_options() :: {:error, any} | {:ok, any}

@@ -70,6 +70,7 @@ if config_env() == :prod do
     check_origin: false,
     secret_key_base: "DF/ywuXdpVxNQVPiPlZhoS7kUmRC4Cj/TCz8hAxzv2JSm30emKVV4tTm4mq3yC7r"
 
+  config :ex_sd, :default_backend, String.to_atom(System.get_env("DEFAULT_BACKEND") || "auto")
   config :ex_sd, :auto_client_base_url, System.get_env("AUTO_URL") || "http://localhost:7860"
   config :ex_sd, :comfy_client_base_url, System.get_env("COMFY_URL") || "http://localhost:8188"
   # ## SSL Support
