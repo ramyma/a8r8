@@ -22,3 +22,5 @@ echo "Accessing A1111/Forge on $AUTO_URL"
 echo "Accessing ComfyUI on $COMFY_URL"
 
 sh a8r8-build/bin/server start
+
+bash -i -c "read -p 'Press Enter to close...'"

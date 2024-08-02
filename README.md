@@ -17,18 +17,18 @@ Links: [[Discord](https://discord.gg/RzdGa839MK)]
   - [Getting started](#getting-started)
     - [Installation](#installation)
       - [One-Click Windows WSL2 (**RECOMMENDED**)](#one-click-windows-wsl2-recommended)
-      - [Docker](#docker)
+      - [Docker (not actively updated)](#docker-not-actively-updated)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken)
       - [Mac](#mac)
       - [Linux (Debian based)](#linux-debian-based)
     - [Running](#running)
       - [One-Click Windows WSL2](#one-click-windows-wsl2)
-      - [Docker](#docker-1)
+      - [Docker](#docker)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-1)
       - [Linux (Debian based)](#linux-debian-based-1)
     - [Updating](#updating)
       - [One-Click Windows WSL2](#one-click-windows-wsl2-1)
-      - [Docker](#docker-2)
+      - [Docker](#docker-1)
       - [Windows (EXPERIMENTAL / BROKEN)](#windows-experimental--broken-2)
       - [Mac \& Linux (Debian based)](#mac--linux-debian-based)
   - [Key Shortcuts](#key-shortcuts)
@@ -113,18 +113,16 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 #### One-Click Windows WSL2 (**RECOMMENDED**)
 
 1. Install [Forge](https://github.com/lllyasviel/stable-diffusion-webui-forge?tab=readme-ov-file#installing-forge) and/or[Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) and/or [ComfyUI](https://github.com/comfyanonymous/ComfyUI)  if you haven't yet
-2. Download latest One-Click Installer from [latest release](https://github.com/ramyma/a8r8/releases/latest) or[one-click-installer-wsl.bat](https://github.com/ramyma/a8r8/raw/main/one-click-installer-wsl.bat) and [install.sh](https://github.com/ramyma/a8r8/raw/main/install.sh) in the folder you want to install the application in
-3. Go to the folder where you downloaded the files
-4. Right click within the folder and choose `Open in Terminal`
-5. Run `.\one-click-installer-wsl.bat`
-6. Set the user name and password if it's your first time using it. Make sure you remember the password you entered
-7. Once the installation completes, you can open the generated `a8r8` folder
-8. To start the application open `run-windows-wsl.bat` (preferably in a terminal to see the output logs)
-9. Start the SD backend of your choice
+2. Download latest One-Click Installer from [latest release](https://github.com/ramyma/a8r8/releases/latest)
+3. Unzip the downloaded archive
+4. Run `.\one-click-installer-wsl.bat`
+5. Set the WSL user name and password if it's your first time using it. Make sure you remember the password you entered
+6. To start the application open `run-windows-wsl.bat`
+7. Start the SD backend of your choice
    1. Forge/Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
-      2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
+      2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen --max-upload-size 500`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
@@ -134,13 +132,18 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
 >**NOTE**:
 To use regional prompting with Forge, make sure to install the [Forge Couple](https://github.com/Haoming02/sd-forge-couple) extension >= v1.5.0 to your Forge installation
 
+>**NOTE**:
+You can copy the `example_user.sh` file and rename it to `user.sh` to configure tha application.
 
 >**NOTE**:
 If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a remote machine, make sure to set the remote address in `user.sh` and uncomment the URL entries.
 
+>**NOTE**:
+You can define the default backend selected on startup by setting `DEFAULT_BACKEND` in `user.sh`.
+
 &nbsp;
 
-#### Docker
+#### Docker (not actively updated)
 
 1. Install [Automatic1111 webui](https://github.com/AUTOMATIC1111/stable-diffusion-webui#installation-and-running) and/or [ComfyUI](https://github.com/comfyanonymous/ComfyUI)  if you haven't yet
 2. Clone this repo and open a terminal at the root directory
@@ -151,7 +154,7 @@ If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a re
    1. Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
-      2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
+      2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen --max-upload-size 500`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
@@ -160,8 +163,8 @@ If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a re
 
 #### Windows (EXPERIMENTAL / BROKEN)
 
-1. Clone this repo and open a terminal at the root directory
-2. Run `install.ps1` in a powershell window
+1. ~~Clone this repo and open a terminal at the root directory~~
+2. ~~Run `install.ps1` in a powershell window~~
 
 &nbsp;
 
@@ -185,7 +188,7 @@ Start the SD backend of your choice
    1. Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
-      2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
+      2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen --max-upload-size 500`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
@@ -195,8 +198,14 @@ Start the SD backend of your choice
 
 #### Linux (Debian based)
 
-1. Download latest One-Click Installer from [latest release](https://github.com/ramyma/a8r8/releases/latest) 
-2. Run `CLONE_REPO=true ./install.sh`
+Ubuntu 22.04:
+1. Download latest One-Click Installer from [latest release](https://github.com/ramyma/a8r8/releases/latest)
+2. Run `./install-packaged.sh`
+
+_Or_
+
+3. Download latest One-Click Installer from [latest release](https://github.com/ramyma/a8r8/releases/latest) 
+4. Run `CLONE_REPO=true ./install.sh`
 
 _Or_
 
@@ -209,7 +218,7 @@ Start the SD backend of your choice
    1. Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
-      2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen`
+      2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen --max-upload-size 500`
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
@@ -219,8 +228,6 @@ Start the SD backend of your choice
 >**NOTE**:
 To use regional prompting with Forge, make sure to install the [Forge Couple](https://github.com/Haoming02/sd-forge-couple) extension >= v1.5.0 to your Forge installation
 
->**NOTE**:
-If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a remote machine, make sure to set the remote address in `user.sh` and uncomment the URL entries.
 
 &nbsp;
 
@@ -229,10 +236,16 @@ If you're running the stable diffusion backend (Forge / A1111 / ComfyUI) on a re
 #### One-Click Windows WSL2
 
 1. Make sure you followed the [installation steps](#windows-wsl2-recommended)
-2. Go to the folder where you cloned the repo
-3. Right click within the folder and choose `Open in Terminal`
-4. Run `run-windows-wsl.bat`
-5. Run your stable diffusion backend (Forge/A1111/Comfy)
+2. Go to the installation folder
+3. Run `run-windows-wsl.bat`
+4. Run your stable diffusion backend (Forge/A1111/Comfy)
+5. Open [http://localhost:4000](http://localhost:4000) in your browser
+
+
+
+>**NOTE**:
+You might need to change your firewall settings to allow WSL to connect to the host machine correctly.
+Please open an issue if you're having trouble connecting the application to your backend of choice.
 
 &nbsp;
 
@@ -263,7 +276,7 @@ Update: one of the dependencies doesn't work with Windows at the moment, so it w
 
 #### Linux (Debian based)
 
-Run `./run.sh`
+Run `./run.sh` or `./run-packaged.sh` if you used the package installation
 
 &nbsp;
 
@@ -293,7 +306,7 @@ Update: one of the dependencies doesn't work with Windows at the moment, so it w
 
 #### Mac & Linux (Debian based)
 
-Run `./update.sh`
+Run `./update.sh` or `./update-packaged.sh` if you used the package installation.
 
 &nbsp;
 &nbsp;
