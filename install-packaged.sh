@@ -7,7 +7,7 @@ current_version=$(cat version.txt)
 
 echo
 
-if [ $UPDATE = true ]; then
+if [ "$UPDATE" = true ]; then
     echo "Checking latest version"
     echo
 
@@ -37,7 +37,7 @@ if [ $UPDATE = true ]; then
             #Unzip and overwite
             unzip -o A8R8_One-Click-Installer.zip
 
-            sh install-packaged.sh
+            UPDATE=false sh install-packaged.sh
 
             exit 1
         fi
