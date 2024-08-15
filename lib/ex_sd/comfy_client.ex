@@ -214,6 +214,23 @@ defmodule ExSd.ComfyClient do
     end
   end
 
+  @spec get_union_controlnet_types() :: {:error, any()} | {:ok, list(binary())}
+  def get_union_controlnet_types() do
+    with response <- get("/object_info/SetUnionControlNetType"),
+         {:ok, body} <- handle_response(response) do
+      types =
+        body
+        |> get_in(["SetUnionControlNetType", "input", "required", "type"])
+        |> List.first()
+        |> Enum.sort()
+
+      {:ok, types}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
   @spec get_ip_adapter_models() :: {:error, any()} | {:ok, list(binary())}
   def get_ip_adapter_models() do
     with response <- get("/object_info/IPAdapterUnifiedLoader"),

@@ -74,13 +74,13 @@ import { REGIONAL_PROMPTS_SEPARATOR, weightTypesByName } from "./constants";
 import { selectPromptRegionLayers } from "../state/promptRegionsSlice";
 import { showNotification } from "../Notifications/utils";
 import Button from "../components/Button";
-import Modal from "../components/Modal";
-import ModelsModal from "../ModelsModal";
-import LorasModal from "../LorasModal";
 import { useCustomEventListener } from "react-custom-events";
+import ComfySoftInpaintingFields from "./ComfySoftInpaintingFields";
+import { ComfySoftInpaintingArgs } from "./ComfySoftInpaintingFields/ComfySoftInpaintingFields";
 
 export type MainFormValues = Record<string, any> & {
   softInpainting: SoftInpaintingArgs;
+  comfySoftInpainting: ComfySoftInpaintingArgs;
   regionalPrompts?: Record<string, { prompt: EditorState; weight }>;
   globalPromptWeight?: number;
 };
@@ -284,6 +284,7 @@ const MainForm = () => {
       negative_prompt,
       scheduler,
       softInpainting,
+      comfySoftInpainting,
       globalPromptWeight,
       fooocus_inpaint,
       ...rest
@@ -609,12 +610,17 @@ const MainForm = () => {
       ...(backend === "comfy" && iPAdapters?.length
         ? { ip_adapters: iPAdapters }
         : {}),
-      ...(backend === "comfy" && !txt2img ? { fooocus_inpaint } : {}),
+      ...(backend === "comfy" && !txt2img && model?.isSdXl
+        ? { fooocus_inpaint }
+        : {}),
+      ...(backend === "comfy" && comfySoftInpainting.isEnabled
+        ? { mask_blur: comfySoftInpainting.maskBlur }
+        : {}),
       ultimate_upscale: isUltimateUpscaleEnabled,
       clip_skip: clipSkip,
     };
 
-    console.log(image, { attrs });
+    // console.log(image, { attrs });
 
     batchImageResults?.length && dispatch(setBatchImageResults([]));
 
@@ -918,7 +924,9 @@ const MainForm = () => {
 
         {showSoftInpainting && <SoftInpaintingFields control={control} />}
 
-        {backend === "comfy" && !txt2img && (
+        {backend === "comfy" && <ComfySoftInpaintingFields control={control} />}
+
+        {backend === "comfy" && model?.isSdXl && !txt2img && (
           <Controller
             name="fooocus_inpaint"
             control={control}

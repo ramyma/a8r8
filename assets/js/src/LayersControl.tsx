@@ -449,6 +449,7 @@ const LayersControl = () => {
     controlnetDetect,
     ip_adapter_models,
     ip_adapter_weight_types,
+    unionControlnetTypes,
   } = useControlnet();
 
   // const { register, handleSubmit, setValue } = useForm();
@@ -905,6 +906,22 @@ const LayersControl = () => {
                 </Checkbox>
               )}
 
+              {backend === "comfy" && !activeControlnetLayer?.isIpAdapter && (
+                <Checkbox
+                  checked={activeControlnetLayer?.is_union}
+                  value={activeControlnetLayer?.is_union}
+                  onChange={(value) =>
+                    handleControlnetAttrsChange(
+                      "is_union",
+                      value,
+                      activeControlnetLayer.id
+                    )
+                  }
+                >
+                  Union Controlnet
+                </Checkbox>
+              )}
+
               {backend === "comfy" && activeControlnetLayer?.isIpAdapter ? (
                 <>
                   <div className="flex gap-2 h-full flex-col">
@@ -992,6 +1009,31 @@ const LayersControl = () => {
                   </div>
                 </>
               )}
+
+              {backend === "comfy" &&
+                !activeControlnetLayer?.isIpAdapter &&
+                activeControlnetLayer?.is_union && (
+                  <div className="flex gap-2 flex-col">
+                    <Label
+                      htmlFor={`module${activeControlnetLayer?.union_type}`}
+                    >
+                      Union Type
+                    </Label>
+                    <Select
+                      name="union_type"
+                      items={unionControlnetTypes}
+                      value={activeControlnetLayer?.union_type}
+                      onChange={(value) =>
+                        handleControlnetSelectChange({
+                          name: "union_type",
+                          type: "text",
+                          value,
+                          layerId: activeControlnetLayer.id,
+                        })
+                      }
+                    />
+                  </div>
+                )}
 
               {backend === "auto" &&
                 !/ip\S*adapter/gi.test(activeControlnetLayer.module) && (

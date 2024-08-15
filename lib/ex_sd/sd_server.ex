@@ -32,6 +32,7 @@ defmodule ExSd.SdServer do
        embeddings: [],
        controlnet_models: [],
        controlnet_preprocessors: [],
+       controlnet_union_types: [],
        ip_adapter_models: [],
        ip_adapter_weight_types: [],
        task: nil,
@@ -548,6 +549,16 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_cast(
+        :controlnet_union_types,
+        %{controlnet_union_types: controlnet_union_types} = state
+      ) do
+    Sd.broadcast_data("controlnet_union_types", controlnet_union_types)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast(
         :controlnet_preprocessors,
         %{controlnet_preprocessors: controlnet_preprocessors} = state
       ) do
@@ -558,12 +569,24 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_cast(
+        :union_controlnet_types,
+        %{union_controlnet_types: union_controlnet_types} = state
+      ) do
+    Sd.broadcast_data("union_controlnet_types", union_controlnet_types)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast(
         :ip_adapter_models,
         %{ip_adapter_models: ip_adapter_models, ip_adapter_weight_types: ip_adapter_weight_types} =
           state
       ) do
-    Sd.broadcast_data("ip_adapter_models", ip_adapter_models)
-    Sd.broadcast_data("ip_adapter_weight_types", ip_adapter_weight_types)
+    Sd.broadcast_data("ip_adapter_models", %{
+      ip_adapter_models: ip_adapter_models,
+      ip_adapter_weight_types: ip_adapter_weight_types
+    })
 
     {:noreply, state}
   end
@@ -610,6 +633,7 @@ defmodule ExSd.SdServer do
     |> put_embeddings()
     |> put_controlnet_models()
     |> put_controlnet_preprocessors()
+    |> put_controlnet_types()
     |> put_ip_adapter_models()
   end
 
@@ -666,9 +690,20 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp put_ip_adapter_models(%{backend: backend} = state) do
-    with {:ok, ip_adapter_models} <- SdService.get_ip_adapter_models(backend),
-         {:ok, ip_adapter_weight_types} <- SdService.get_ip_adapter_weight_types(backend) do
+  defp put_controlnet_types(%{backend: :comfy} = state) do
+    case SdService.get_union_controlnet_types(:comfy) do
+      {:ok, union_controlnet_types} ->
+        state
+        |> Map.put(:union_controlnet_types, union_controlnet_types)
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_ip_adapter_models(%{backend: :comfy} = state) do
+    with {:ok, ip_adapter_models} <- SdService.get_ip_adapter_models(:comfy),
+         {:ok, ip_adapter_weight_types} <- SdService.get_ip_adapter_weight_types(:comfy) do
       state
       |> Map.put(:ip_adapter_models, ip_adapter_models)
       |> Map.put(:ip_adapter_weight_types, ip_adapter_weight_types)
@@ -676,6 +711,10 @@ defmodule ExSd.SdServer do
       {:error, _} ->
         state
     end
+  end
+
+  defp put_ip_adapter_models(state) do
+    state
   end
 
   defp put_models(%{backend: :auto} = state) do
@@ -1047,14 +1086,24 @@ defmodule ExSd.SdServer do
     GenServer.cast(__MODULE__, :controlnet_models)
   end
 
+  @spec get_controlnet_union_types :: {:ok, list(binary)}
+  def get_controlnet_union_types() do
+    GenServer.cast(__MODULE__, :controlnet_union_types)
+  end
+
   @spec get_controlnet_preprocessors :: {:ok, list(binary)}
   def get_controlnet_preprocessors() do
     GenServer.cast(__MODULE__, :controlnet_preprocessors)
   end
 
+  @spec get_union_controlnet_types :: {:ok, list(binary)}
+  def get_union_controlnet_types() do
+    GenServer.cast(__MODULE__, :union_controlnet_types)
+  end
+
   @spec get_ip_adapter_models :: {:ok, map()}
   def get_ip_adapter_models() do
-    GenServer.call(__MODULE__, :ip_adapter_models)
+    GenServer.cast(__MODULE__, :ip_adapter_models)
   end
 
   @spec get_options :: {:ok, map()}
