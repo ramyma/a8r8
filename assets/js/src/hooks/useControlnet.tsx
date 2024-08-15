@@ -62,10 +62,19 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
       fetchPolicy,
     });
 
+  const { fetchData: fetchUnionControlnetTypes, data: unionControlnetTypes } =
+    useData<string[]>({
+      name: "union_controlnet_types",
+      fetchPolicy,
+    });
+
   const {
     fetchData: fetchIpApapterModels,
     data: { ip_adapter_models, ip_adapter_weight_types } = {},
-  } = useData<string[]>({
+  } = useData<{
+    ip_adapter_models: string[];
+    ip_adapter_weight_types: string[];
+  }>({
     name: "ip_adapter_models",
     fetchPolicy,
     condition: backend === "comfy",
@@ -186,10 +195,12 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
   return {
     controlnet_models,
     controlnet_preprocessors,
+    unionControlnetTypes,
     ip_adapter_models,
     ip_adapter_weight_types,
     fetchControlnetModels,
     fetchControlnetModules,
+    fetchUnionControlnetTypes,
     fetchIpApapterModels,
     controlnetDetect,
   };

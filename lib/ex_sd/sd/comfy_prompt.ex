@@ -169,7 +169,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         controlnet_args: controlnet_args
       )
 
-    File.write!("./prompt.json", Jason.encode!(prompt, pretty: true))
+    # File.write!("./prompt.json", Jason.encode!(prompt, pretty: true))
     prompt
   end
 
@@ -698,7 +698,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         add_condition: has_ultimate_upscale
       )
 
-    File.write!("./prompt.json", Jason.encode!(prompt, pretty: true))
+    # File.write!("./prompt.json", Jason.encode!(prompt, pretty: true))
     prompt
   end
 
@@ -971,6 +971,31 @@ defmodule ExSd.Sd.ComfyPrompt do
     add_node(prompt, node)
   end
 
+  @spec maybe_add_set_union_controlnet_type(
+          prompt(),
+          binary(),
+          boolean(),
+          [
+            {:control_net, ref_node_value()},
+            {:type, binary()}
+          ]
+        ) :: prompt()
+  def maybe_add_set_union_controlnet_type(prompt, name, condition, options \\ [])
+
+  def maybe_add_set_union_controlnet_type(prompt, _name, false, _options) do
+    prompt
+  end
+
+  def maybe_add_set_union_controlnet_type(prompt, name, _condition, options) do
+    node =
+      node(name, "SetUnionControlNetType", %{
+        control_net: Keyword.get(options, :control_net),
+        type: Keyword.get(options, :type)
+      })
+
+    add_node(prompt, node)
+  end
+
   @spec add_image_loader(
           prompt(),
           [
@@ -1129,6 +1154,12 @@ defmodule ExSd.Sd.ComfyPrompt do
       |> add_controlnet_loader("cn#{entry.model}_controlnet_loader",
         control_net_name: entry.model
       )
+      |> maybe_add_set_union_controlnet_type(
+        "cn#{index}_union_controlnet_type",
+        entry.is_union,
+        control_net: node_ref("cn#{entry.model}_controlnet_loader", 0),
+        type: entry.union_type
+      )
       |> add_controlnet_apply_advanced(
         name: "cn#{index}_apply_controlnet",
         strength: entry.weight,
@@ -1155,7 +1186,10 @@ defmodule ExSd.Sd.ComfyPrompt do
         # TODO: reuse loaded models to avoid loading a model more than once for different layers
         control_net:
           node_ref(
-            "cn#{entry.model}_controlnet_loader",
+            if(entry.is_union,
+              do: "cn#{index}_union_controlnet_type",
+              else: "cn#{entry.model}_controlnet_loader"
+            ),
             0
           ),
         image:
@@ -1371,7 +1405,8 @@ defmodule ExSd.Sd.ComfyPrompt do
               node_ref(
                 "attention_couple_regions_#{max(0, ceil(length(attention_couple_regions) / 10) - 1)}",
                 0
-              )
+              ),
+            ip_adapter_active: not Enum.empty?(ip_adapters)
           }
         )
       )
@@ -1798,7 +1833,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         image:
           if(Map.get(ip_adapter, "image"),
             do: node_ref("ip_adapter_#{index}_image_loader", 0),
-            else: nil
+            else: node_ref("image_input", 0)
           ),
         attn_mask:
           if(Map.get(ip_adapter, "mask"),

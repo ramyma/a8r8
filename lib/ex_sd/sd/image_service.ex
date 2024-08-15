@@ -37,6 +37,10 @@ defmodule ExSd.Sd.ImageService do
 
   # Creates a mask image that fills the transparent parts with white.
   # , options \\ []) do
+  @spec fill_mask!(binary() | URI.t(), any(), any(), [{:mask_blur, non_neg_integer()}]) ::
+          {:error, any()}
+          | Vix.Vips.Image.t()
+  @spec fill_mask!(binary() | URI.t(), any(), any()) :: {:error, any()} | Vix.Vips.Image.t()
   def fill_mask!(mask_data_url, image_average, invert_mask, options \\ []) do
     with %{scheme: "data"} = uri <- URI.parse(mask_data_url),
          {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri),
@@ -87,7 +91,13 @@ defmodule ExSd.Sd.ImageService do
           # blur the image mask if it's not an empty mask
           # TODO: control mask blur dynamically
           # |> Image.feather!(sigma: 15)
-          image |> Image.blur!(sigma: 30)
+          mask_blur = Keyword.get(options, :mask_blur, 6)
+
+          if mask_blur != 0 do
+            image |> Image.blur!(sigma: mask_blur)
+          else
+            image
+          end
       end
     end
   end
@@ -126,9 +136,9 @@ defmodule ExSd.Sd.ImageService do
     |> Base.encode64()
   end
 
-  @spec mask_from_alpha(binary() | URI.t(), any(), any()) ::
+  @spec mask_from_alpha(binary() | URI.t(), any(), any(), [{:mask_blur, non_neg_integer()}]) ::
           {:error, {:error, any()} | URI.t()} | {:ok, <<_::64, _::_*8>>, Vix.Vips.Image.t()}
-  def mask_from_alpha(image_data_url, mask_data_url, invert_mask) do
+  def mask_from_alpha(image_data_url, mask_data_url, invert_mask, options \\ []) do
     with %{scheme: "data"} = uri <- URI.parse(image_data_url),
          {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri),
          {:ok, image} <- Image.from_binary(data) do
@@ -143,7 +153,11 @@ defmodule ExSd.Sd.ImageService do
 
       {:ok, mask} =
         mask_from_image
-        |> Image.Math.add(fill_mask!(mask_data_url, Image.average!(mask_from_image), invert_mask))
+        |> Image.Math.add(
+          fill_mask!(mask_data_url, Image.average!(mask_from_image), invert_mask,
+            mask_blur: Keyword.get(options, :mask_blur)
+          )
+        )
 
       mask_binary =
         mask

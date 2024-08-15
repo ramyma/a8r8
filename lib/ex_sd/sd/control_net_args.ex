@@ -28,6 +28,8 @@ defmodule ExSd.Sd.ControlNetArgs do
     field :pixel_perfect, :boolean, default: true
     field :control_mode, :string, default: "Balanced"
     field :advanced_weighting, {:array, :float}, default: nil
+    field :is_union, :boolean, default: false
+    field :union_type, :binary
   end
 
   def changeset(%__MODULE__{} = control_net, attrs) do
@@ -52,7 +54,9 @@ defmodule ExSd.Sd.ControlNetArgs do
         :guidance_end,
         :pixel_perfect,
         :control_mode,
-        :advanced_weighting
+        :advanced_weighting,
+        :is_union,
+        :union_type
       ]
     )
   end
