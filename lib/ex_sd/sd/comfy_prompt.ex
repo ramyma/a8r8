@@ -231,7 +231,10 @@ defmodule ExSd.Sd.ComfyPrompt do
             ""
           )
       )
-      |> add_image_scale(generation_params, "scaler",
+      |> maybe_add_image_scale(
+        generation_params,
+        "scaler",
+        generation_params.hr_scale != 1 and generation_params.hr_upscaler != "Latent",
         image:
           node_ref(
             if(generation_params.hr_upscaler == "None" or generation_params.hr_scale < 1,
@@ -406,7 +409,11 @@ defmodule ExSd.Sd.ComfyPrompt do
         }),
         fooocus_inpaint
       )
-      |> add_latent_scale(generation_params, "latent_upscaler",
+      |> maybe_add_latent_scale(
+        generation_params,
+        "latent_upscaler",
+        not has_ultimate_upscale and generation_params.hr_upscaler == "Latent" and
+          attrs["scale"] != 1,
         samples:
           if(inpaint_model?(attrs),
             do:
@@ -416,7 +423,7 @@ defmodule ExSd.Sd.ComfyPrompt do
               ),
             else:
               node_ref(
-                "latent_noise_mask",
+                "inpaint_latent_batch",
                 0
               )
           )
@@ -488,7 +495,10 @@ defmodule ExSd.Sd.ComfyPrompt do
         seed: generation_params.seed,
         steps: generation_params.steps
       )
-      |> add_latent_scale(generation_params, "second_pass_latent_upscaler",
+      |> maybe_add_latent_scale(
+        generation_params,
+        "second_pass_latent_upscaler",
+        generation_params.hr_upscaler == "Latent",
         samples:
           node_ref(
             "sampler",
@@ -515,7 +525,10 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           )
       )
-      |> add_image_scale(generation_params, "second_pass_scaler",
+      |> maybe_add_image_scale(
+        generation_params,
+        "second_pass_scaler",
+        true,
         image:
           node_ref(
             if(!has_full_scale_pass or generation_params.hr_upscaler == "None",
@@ -525,13 +538,38 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           )
       )
-      |> add_vae_encode(
-        node_ref(
-          "second_pass_scaler",
-          0
-        ),
-        get_vae(attrs),
-        "second_pass_vae_encode"
+      # |> add_vae_encode(
+      #   node_ref(
+      #     "second_pass_scaler",
+      #     0
+      #   ),
+      #   get_vae(attrs),
+      #   "second_pass_vae_encode"
+      # )
+      |> add_img2img_vae_encode(
+        name: "second_pass_vae_encode",
+        pixels:
+          node_ref(
+            "second_pass_scaler",
+            0
+          ),
+        vae: get_vae(attrs),
+        batch_size: generation_params.batch_size,
+        positive:
+          node_ref(
+            get_positive_prompt(attrs),
+            0
+          ),
+        negative:
+          node_ref(
+            "negative_prompt",
+            0
+          ),
+        mask:
+          node_ref(
+            "image_to_mask",
+            0
+          )
       )
       |> add_node(
         node("second_pass_inpaint_model_conditioning", "InpaintModelConditioning", %{
@@ -564,7 +602,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         # TODO: for upscaler other than latent use upscale with model flow instead
         latent_image:
           if(generation_params.hr_upscaler == "Latent",
-            do: "second_pass_latent_upscaler",
+            do: node_ref("second_pass_latent_upscaler", 0),
             else:
               if(inpaint_model?(attrs),
                 do:
@@ -574,8 +612,8 @@ defmodule ExSd.Sd.ComfyPrompt do
                   ),
                 else:
                   node_ref(
-                    "second_pass_vae_encode",
-                    0
+                    "second_pass_vae_encode_node",
+                    3
                   )
               )
           ),
@@ -631,7 +669,7 @@ defmodule ExSd.Sd.ComfyPrompt do
                   ),
                 else:
                   node_ref(
-                    "img2img_vae_encode",
+                    "img2img_vae_encode_node",
                     1
                   )
               ),
@@ -1609,7 +1647,10 @@ defmodule ExSd.Sd.ComfyPrompt do
       is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
 
       prompt
-      |> add_latent_scale(generation_params, "hires_latent_scaler",
+      |> maybe_add_latent_scale(
+        generation_params,
+        "hires_latent_scaler",
+        generation_params.hr_upscaler == "Latent",
         samples:
           node_ref(
             "sampler",
@@ -1617,7 +1658,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           )
       )
       |> add_vae_decode(node_ref("sampler", 0), get_vae(attrs), "first_pass_vae_decode")
-      |> add_image_scale(generation_params, "scaler",
+      |> maybe_add_image_scale(generation_params, "scaler", true,
         image:
           node_ref(
             if(generation_params.hr_upscaler == "None" or generation_params.hr_scale < 1,
@@ -1702,13 +1743,27 @@ defmodule ExSd.Sd.ComfyPrompt do
     end
   end
 
-  @spec add_latent_scale(prompt(), GenerationParams.t(), binary(), [
-          {:samples, ref_node_value()}
-          | {:width, non_neg_integer()}
-          | {:height, non_neg_integer()}
-        ]) ::
+  @spec maybe_add_latent_scale(
+          prompt(),
+          GenerationParams.t(),
+          binary(),
+          boolean(),
+          [
+            {:samples, ref_node_value()}
+            | {:width, non_neg_integer()}
+            | {:height, non_neg_integer()}
+          ]
+        ) ::
           prompt()
-  def add_latent_scale(prompt, %GenerationParams{} = generation_params, name, options \\ []) do
+  def maybe_add_latent_scale(prompt, generation_params, name, add_condition, options \\ [])
+
+  def maybe_add_latent_scale(
+        prompt,
+        %GenerationParams{} = generation_params,
+        name,
+        true = _add_condition,
+        options
+      ) do
     node =
       node(name, "LatentUpscale", %{
         samples: Keyword.get(options, :samples),
@@ -1740,6 +1795,16 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     prompt
     |> add_node(node)
+  end
+
+  def maybe_add_latent_scale(
+        prompt,
+        _generation_params,
+        _name,
+        _add_condition,
+        _options
+      ) do
+    prompt
   end
 
   @spec add_ip_adapter_unified_loader(prompt(), binary(), [
@@ -1848,13 +1913,33 @@ defmodule ExSd.Sd.ComfyPrompt do
     end)
   end
 
-  @spec add_image_scale(prompt(), GenerationParams.t(), binary(), [
+  @spec maybe_add_image_scale(prompt(), GenerationParams.t(), binary(), boolean(), [
           {:image, ref_node_value()},
           {:width, non_neg_integer()},
           {:height, non_neg_integer()}
         ]) ::
           prompt()
-  def add_image_scale(prompt, %GenerationParams{} = generation_params, name, options \\ []) do
+  @spec maybe_add_image_scale(
+          %{prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}},
+          ExSd.Sd.GenerationParams.t(),
+          binary(),
+          boolean()
+        ) :: %{prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}}
+  def maybe_add_image_scale(
+        prompt,
+        generation_params,
+        name,
+        add_condition,
+        options \\ []
+      )
+
+  def maybe_add_image_scale(
+        prompt,
+        %GenerationParams{} = generation_params,
+        name,
+        true = _add_condition,
+        options
+      ) do
     node =
       node(name, "ImageScale", %{
         # "nearest-exact",
@@ -1887,6 +1972,16 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     prompt
     |> add_node(node)
+  end
+
+  def maybe_add_image_scale(
+        prompt,
+        _generation_params,
+        _name,
+        _add_condition,
+        _options
+      ) do
+    prompt
   end
 
   @spec add_image_upscale_with_model(prompt(), binary(), [
