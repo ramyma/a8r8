@@ -93,7 +93,7 @@ defmodule ExSd.Sd.ImageService do
           # |> Image.feather!(sigma: 15)
           mask_blur = Keyword.get(options, :mask_blur, 6)
 
-          if mask_blur != 0 do
+          if mask_blur && mask_blur != 0 do
             image |> Image.blur!(sigma: mask_blur)
           else
             image
