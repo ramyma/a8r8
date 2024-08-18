@@ -966,6 +966,47 @@ const LayersControl = () => {
                 </>
               ) : (
                 <>
+                  <div className="flex gap-2 h-full flex-col">
+                    <Label htmlFor={`model${activeControlnetLayer?.id}`}>
+                      Controlnet Model
+                    </Label>
+                    <Select
+                      name="model"
+                      id={`model${activeControlnetLayer?.id}`}
+                      items={controlnet_models ?? []}
+                      value={activeControlnetLayer?.model}
+                      onChange={(value) =>
+                        handleControlnetSelectChange({
+                          name: "model",
+                          type: "text",
+                          value,
+                          layerId: activeControlnetLayer.id,
+                        })
+                      }
+                    />
+                  </div>
+                  {backend === "comfy" && activeControlnetLayer?.is_union && (
+                    <div className="flex gap-2 flex-col">
+                      <Label
+                        htmlFor={`module${activeControlnetLayer?.union_type}`}
+                      >
+                        Union Type
+                      </Label>
+                      <Select
+                        name="union_type"
+                        items={unionControlnetTypes}
+                        value={activeControlnetLayer?.union_type}
+                        onChange={(value) =>
+                          handleControlnetSelectChange({
+                            name: "union_type",
+                            type: "text",
+                            value,
+                            layerId: activeControlnetLayer.id,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
                   <div className="flex gap-2 flex-col">
                     <Label htmlFor={`module${activeControlnetLayer?.id}`}>
                       Controlnet Preprocessor
@@ -987,53 +1028,8 @@ const LayersControl = () => {
                       }
                     />
                   </div>
-
-                  <div className="flex gap-2 h-full flex-col">
-                    <Label htmlFor={`model${activeControlnetLayer?.id}`}>
-                      Controlnet Model
-                    </Label>
-                    <Select
-                      name="model"
-                      id={`model${activeControlnetLayer?.id}`}
-                      items={controlnet_models ?? []}
-                      value={activeControlnetLayer?.model}
-                      onChange={(value) =>
-                        handleControlnetSelectChange({
-                          name: "model",
-                          type: "text",
-                          value,
-                          layerId: activeControlnetLayer.id,
-                        })
-                      }
-                    />
-                  </div>
                 </>
               )}
-
-              {backend === "comfy" &&
-                !activeControlnetLayer?.isIpAdapter &&
-                activeControlnetLayer?.is_union && (
-                  <div className="flex gap-2 flex-col">
-                    <Label
-                      htmlFor={`module${activeControlnetLayer?.union_type}`}
-                    >
-                      Union Type
-                    </Label>
-                    <Select
-                      name="union_type"
-                      items={unionControlnetTypes}
-                      value={activeControlnetLayer?.union_type}
-                      onChange={(value) =>
-                        handleControlnetSelectChange({
-                          name: "union_type",
-                          type: "text",
-                          value,
-                          layerId: activeControlnetLayer.id,
-                        })
-                      }
-                    />
-                  </div>
-                )}
 
               {backend === "auto" &&
                 !/ip\S*adapter/gi.test(activeControlnetLayer.module) && (
