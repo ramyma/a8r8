@@ -704,7 +704,7 @@ const MainForm = () => {
                                 /data:\S+;base64,/,
                                 ""
                               ) || null
-                            : null,
+                            : initImageDataUrl?.replace(/data:\S+;base64,/, ""),
                           mask: controlnetDataUrls[index]?.maskImage?.replace(
                             /data:\S+;base64,/,
                             ""
@@ -910,7 +910,9 @@ const MainForm = () => {
 
         {showSoftInpainting && <SoftInpaintingFields control={control} />}
 
-        {backend === "comfy" && <ComfySoftInpaintingFields control={control} />}
+        {backend === "comfy" && !txt2img && (
+          <ComfySoftInpaintingFields control={control} />
+        )}
 
         {backend === "comfy" && model?.isSdXl && !txt2img && (
           <Controller
