@@ -613,7 +613,7 @@ const MainForm = () => {
       ...(backend === "comfy" && !txt2img && model?.isSdXl
         ? { fooocus_inpaint }
         : {}),
-      ...(backend === "comfy" && comfySoftInpainting.isEnabled
+      ...(backend === "comfy" && !txt2img
         ? { mask_blur: comfySoftInpainting.maskBlur }
         : {}),
       ultimate_upscale: isUltimateUpscaleEnabled,
@@ -773,8 +773,7 @@ const MainForm = () => {
     (scale != 1 && !(showFullScalePass && fullScalePass));
   const showUpscaler = (txt2img && showSecondPassStrength) || !txt2img;
   const showSoftInpainting = backend === "auto" && !txt2img;
-  const modalButtonRef = useRef<HTMLButtonElement>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+
   return (
     <FormProvider {...methods}>
       <form

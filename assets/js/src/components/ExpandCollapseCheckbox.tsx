@@ -8,15 +8,20 @@ import {
 import { animated, config, useSpring } from "@react-spring/web";
 import Checkbox, { CheckboxProps } from "./Checkbox";
 import { TriangleRightIcon } from "@radix-ui/react-icons";
+import Label from "./Label";
 
 type Props = CheckboxProps & {
   defaultExpanded?: boolean;
   label: string;
+  showCheckbox: boolean;
   children: ReactElement;
 };
 
 const ExpandCollapseCheckbox = forwardRef<HTMLButtonElement, Props>(
-  ({ defaultExpanded = false, label, children, ...props }, ref) => {
+  (
+    { defaultExpanded = false, label, showCheckbox = true, children, ...props },
+    ref
+  ) => {
     const [expanded, setExpanded] = useState(defaultExpanded);
     const [prevValue, setPrevValue] = useState<boolean>();
     const contentRef = useRef<HTMLDivElement>(null);
@@ -49,9 +54,15 @@ const ExpandCollapseCheckbox = forwardRef<HTMLButtonElement, Props>(
               className={`p-0 size-8 transition-transform ${expanded ? "rotate-90" : ""}`}
             />
           </div>
-          <Checkbox ref={ref} {...props} fullWidth>
-            {label}
-          </Checkbox>
+          {showCheckbox ? (
+            <Checkbox ref={ref} {...props} fullWidth>
+              {label}
+            </Checkbox>
+          ) : (
+            <Label className="Label select-none cursor-pointer group-hover:text-neutral-200 transition-colors">
+              {label}
+            </Label>
+          )}
         </div>
 
         <animated.div style={style} className="overflow-hidden">
