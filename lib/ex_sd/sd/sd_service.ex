@@ -40,7 +40,8 @@ defmodule ExSd.Sd.SdService do
         ImageService.mask_from_alpha(
           List.first(generation_params.init_images),
           generation_params.mask,
-          invert_mask
+          invert_mask,
+          mask_blur: Map.get(attrs, "mask_blur")
         )
       end
 
@@ -563,6 +564,15 @@ defmodule ExSd.Sd.SdService do
   def get_controlnet_preprocessors(:auto), do: AutoClient.get_controlnet_preprocessors()
   @spec get_controlnet_preprocessors(:comfy) :: {:error, any} | {:ok, list(binary)}
   def get_controlnet_preprocessors(:comfy), do: ComfyClient.get_controlnet_preprocessors()
+
+  @spec get_union_controlnet_types(backend()) :: {:error, any} | {:ok, list(binary())}
+  def get_union_controlnet_types(:comfy), do: ComfyClient.get_union_controlnet_types()
+
+  @spec get_ip_adapter_models(backend()) :: {:error, any} | {:ok, list(binary())}
+  def get_ip_adapter_models(:comfy), do: ComfyClient.get_ip_adapter_models()
+
+  @spec get_ip_adapter_weight_types(backend()) :: {:error, any} | {:ok, list(binary())}
+  def get_ip_adapter_weight_types(:comfy), do: ComfyClient.get_ip_adapter_weight_types()
 
   @spec get_models(backend()) :: {:error, any} | {:ok, any}
   def get_models(:auto), do: AutoClient.get_models()

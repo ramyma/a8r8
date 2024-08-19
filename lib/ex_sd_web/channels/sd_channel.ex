@@ -110,6 +110,18 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
+  def handle_in("get_union_controlnet_types", _payload, socket) do
+    Sd.get_union_controlnet_types()
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("get_ip_adapter_models", _payload, socket) do
+    Sd.get_ip_adapter_models()
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_in("get_options", _payload, socket) do
     Sd.get_options()
     {:noreply, socket}

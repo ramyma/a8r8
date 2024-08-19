@@ -74,11 +74,13 @@ import { REGIONAL_PROMPTS_SEPARATOR, weightTypesByName } from "./constants";
 import { selectPromptRegionLayers } from "../state/promptRegionsSlice";
 import { showNotification } from "../Notifications/utils";
 import Button from "../components/Button";
-import Modal from "../components/Modal";
 import { useCustomEventListener } from "react-custom-events";
+import ComfySoftInpaintingFields from "./ComfySoftInpaintingFields";
+import { ComfySoftInpaintingArgs } from "./ComfySoftInpaintingFields/ComfySoftInpaintingFields";
 
 export type MainFormValues = Record<string, any> & {
   softInpainting: SoftInpaintingArgs;
+  comfySoftInpainting: ComfySoftInpaintingArgs;
   regionalPrompts?: Record<string, { prompt: EditorState; weight }>;
   globalPromptWeight?: number;
 };
@@ -282,13 +284,14 @@ const MainForm = () => {
       negative_prompt,
       scheduler,
       softInpainting,
+      comfySoftInpainting,
       globalPromptWeight,
+      fooocus_inpaint,
       ...rest
     } = data;
 
-    const controlnetArgs: ReturnType<typeof getControlnetArgs> = hasControlnet
-      ? getControlnetArgs()
-      : {};
+    const { controlnetArgs, iPAdapters }: ReturnType<typeof getControlnetArgs> =
+      hasControlnet ? getControlnetArgs() : {};
     const {
       basePrompt,
       processedPrompt,
@@ -604,6 +607,15 @@ const MainForm = () => {
             .filter(({ mask }) => !!mask),
           global_prompt_weight: globalPromptWeight,
         }),
+      ...(backend === "comfy" && iPAdapters?.length
+        ? { ip_adapters: iPAdapters }
+        : {}),
+      ...(backend === "comfy" && !txt2img && model?.isSdXl
+        ? { fooocus_inpaint }
+        : {}),
+      ...(backend === "comfy" && !txt2img
+        ? { mask_blur: comfySoftInpainting.maskBlur }
+        : {}),
       ultimate_upscale: isUltimateUpscaleEnabled,
       clip_skip: clipSkip,
     };
@@ -618,69 +630,102 @@ const MainForm = () => {
       session_name: sessionName,
     });
 
-    function getControlnetArgs(): { controlnet?: { args: ControlnetLayer[] } } {
+    function getControlnetArgs(): {
+      controlnetArgs: {
+        controlnet?: {
+          args: ControlnetLayer[];
+        };
+      };
+      iPAdapters?: object[];
+    } {
       const enabledControlnetArgs = controlnetLayersArgs.filter(
         ({ isEnabled }) => isEnabled
       );
+      let iPAdapters: object[] = [];
       const aggregated =
         enabledControlnetArgs.length > 0
           ? {
               controlnet: {
-                args: controlnetLayersArgs.reduce((acc, item, index) => {
-                  if (item.isEnabled) {
-                    const { weight_type, ...itemRest } = item;
-                    const effectiveRegionMask = item.isMaskEnabled
-                      ? controlnetDataUrls[index]?.maskImage
-                      : null;
-                    return [
-                      ...acc,
-                      {
-                        ...itemRest,
-                        // TODO: handle img2txt to send mask and init image or set on BE
-                        image: item.overrideBaseLayer
-                          ? controlnetDataUrls[index]?.image || null
-                          : null,
-                        ...(isA1111
-                          ? {
-                              effective_region_mask: effectiveRegionMask,
-                              mask_image: null,
-                            }
-                          : {
-                              mask_image: item.model
-                                ?.toLocaleLowerCase()
-                                .includes("inpaint")
-                                ? maskDataUrl
-                                : controlnetDataUrls[index]?.maskImage,
+                args: controlnetLayersArgs.reduce(
+                  (acc, item, index): ControlnetLayer[] => {
+                    if (item.isEnabled && !item.isIpAdapter) {
+                      const { weight_type, ...itemRest } = item;
+                      const effectiveRegionMask = item.isMaskEnabled
+                        ? controlnetDataUrls[index]?.maskImage
+                        : null;
+                      return [
+                        ...acc,
+                        {
+                          ...itemRest,
+                          // TODO: handle img2txt to send mask and init image or set on BE
+                          image: item.overrideBaseLayer
+                            ? controlnetDataUrls[index]?.image || null
+                            : null,
+                          ...(isA1111
+                            ? {
+                                effective_region_mask: effectiveRegionMask,
+                                mask_image: null,
+                              }
+                            : {
+                                mask_image: item.model
+                                  ?.toLocaleLowerCase()
+                                  .includes("inpaint")
+                                  ? maskDataUrl
+                                  : controlnetDataUrls[index]?.maskImage,
+                              }),
+                          mask: null,
+                          // ...(item.isMaskEnabled && {
+                          //   effective_region_mask:
+                          //     controlnetDataUrls[index]?.maskImage,
+                          // }),
+
+                          // mask: maskDataUrl,
+                          // mask: maskDataUrl,
+
+                          ...(weight_type &&
+                            checkIsIpAdapterControlnetModel(item.model) && {
+                              advanced_weighting: weightTypesByName[
+                                weight_type
+                              ]?.(
+                                model?.isSdXl ?? false,
+                                item.weight,
+                                item.composition_weight ?? 1
+                              ),
                             }),
-                        mask: null,
-                        // ...(item.isMaskEnabled && {
-                        //   effective_region_mask:
-                        //     controlnetDataUrls[index]?.maskImage,
-                        // }),
-
-                        // mask: maskDataUrl,
-                        // mask: maskDataUrl,
-
-                        ...(weight_type &&
-                          checkIsIpAdapterControlnetModel(item.model) && {
-                            advanced_weighting: weightTypesByName[
-                              weight_type
-                            ]?.(
-                              model?.isSdXl ?? false,
-                              item.weight,
-                              item.composition_weight ?? 1
-                            ),
-                          }),
-                      },
-                    ];
-                  }
-                  return acc;
-                }, [] as ControlnetLayer[]),
+                        },
+                      ];
+                    } else if (item.isEnabled && item.isIpAdapter) {
+                      iPAdapters = [
+                        ...iPAdapters,
+                        {
+                          //TODO: handle when not overriding base layer, ALSO check for CN with Comfy
+                          image: item.overrideBaseLayer
+                            ? controlnetDataUrls[index]?.image?.replace(
+                                /data:\S+;base64,/,
+                                ""
+                              ) || null
+                            : initImageDataUrl?.replace(/data:\S+;base64,/, ""),
+                          mask: controlnetDataUrls[index]?.maskImage?.replace(
+                            /data:\S+;base64,/,
+                            ""
+                          ),
+                          weight: item.weight,
+                          start_at: item.guidance_start,
+                          end_at: item.guidance_end,
+                          weight_type: item.iPAdapterWeightType,
+                          preset: item.iPAdapterModel,
+                        },
+                      ];
+                    }
+                    return acc;
+                  },
+                  [] as ControlnetLayer[]
+                ),
               },
             }
           : {};
 
-      return aggregated;
+      return { controlnetArgs: aggregated, iPAdapters };
     }
   };
 
@@ -728,6 +773,7 @@ const MainForm = () => {
     (scale != 1 && !(showFullScalePass && fullScalePass));
   const showUpscaler = (txt2img && showSecondPassStrength) || !txt2img;
   const showSoftInpainting = backend === "auto" && !txt2img;
+
   return (
     <FormProvider {...methods}>
       <form
@@ -757,6 +803,7 @@ const MainForm = () => {
             defaultValue={1}
           />
         </div>
+
         {!isGenerating || !isConnected ? (
           <Button
             fullWidth
@@ -861,6 +908,21 @@ const MainForm = () => {
         )}
 
         {showSoftInpainting && <SoftInpaintingFields control={control} />}
+
+        {backend === "comfy" && !txt2img && (
+          <ComfySoftInpaintingFields control={control} />
+        )}
+
+        {backend === "comfy" && model?.isSdXl && !txt2img && (
+          <Controller
+            name="fooocus_inpaint"
+            control={control}
+            defaultValue={false}
+            render={({ field }) => (
+              <Checkbox {...field}>Fooocus Inpaint</Checkbox>
+            )}
+          />
+        )}
 
         <Controller
           name="steps"

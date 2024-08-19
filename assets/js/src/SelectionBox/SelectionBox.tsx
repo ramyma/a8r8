@@ -134,8 +134,8 @@ const SelectionBox = ({
         <Rect
           x={rectX}
           y={rectY}
-          width={+(width + selectionOutlineStrokeWidth ?? 0)}
-          height={+(height + selectionOutlineStrokeWidth ?? 0)}
+          width={+(width + (selectionOutlineStrokeWidth ?? 0))}
+          height={+(height + (selectionOutlineStrokeWidth ?? 0))}
           strokeLinearGradientColorStops={strokeGradient}
           strokeLinearGradientStartPoint={{
             x: 0 - 2,

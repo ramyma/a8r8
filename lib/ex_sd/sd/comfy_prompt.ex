@@ -41,6 +41,8 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
 
+    ip_adapters = Map.get(attrs, "ip_adapters", [])
+
     # regional_prompts = Map.get(attrs, "regional_prompts")
 
     prompt =
@@ -65,7 +67,8 @@ defmodule ExSd.Sd.ComfyPrompt do
       )
       |> maybe_add_regional_prompts_with_coupling(attrs,
         width: generation_params.width,
-        height: generation_params.height
+        height: generation_params.height,
+        is_txt2img: generation_params.txt2img
       )
       |> add_empty_latent_image(
         batch_size: generation_params.batch_size,
@@ -78,20 +81,25 @@ defmodule ExSd.Sd.ComfyPrompt do
         denoise: 1,
         latent_image: node_ref("empty_latent_image", 0),
         model:
-          node_ref(
-            if(Enum.empty?(positive_loras),
-              do:
-                if(is_regional_prompting_enabled,
-                  do: "attention_couple",
-                  else: "model"
-                ),
-              else:
-                if(is_regional_prompting_enabled,
-                  do: "attention_couple",
-                  else: "positive_lora#{length(positive_loras) - 1}"
-                )
-            ),
-            0
+          if(Enum.empty?(positive_loras),
+            do:
+              if(is_regional_prompting_enabled,
+                do: node_ref("attention_couple", 0),
+                else:
+                  if(Enum.empty?(ip_adapters),
+                    do: get_base_model(generation_params.txt2img),
+                    else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
+                  )
+              ),
+            else:
+              if(is_regional_prompting_enabled,
+                do: node_ref("attention_couple", 0),
+                else:
+                  if(Enum.empty?(ip_adapters),
+                    do: node_ref("positive_lora#{length(positive_loras) - 1}", 0),
+                    else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
+                  )
+              )
           ),
         positive:
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
@@ -136,9 +144,25 @@ defmodule ExSd.Sd.ComfyPrompt do
         ),
         get_vae(attrs)
       )
-      |> add_loras(attrs)
+      |> add_loras(attrs, is_txt2img: generation_params.txt2img)
       |> add_output(node_ref("vae_decode", 0))
-      |> maybe_add_controlnet(controlnet_args, generation_params, attrs, !is_nil(controlnet_args))
+      |> maybe_add_controlnet(
+        controlnet_args,
+        generation_params,
+        attrs,
+        !is_nil(controlnet_args),
+        positive:
+          node_ref(
+            get_positive_prompt(attrs),
+            0
+          ),
+        negative:
+          node_ref(
+            "negative_prompt",
+            0
+          )
+      )
+      |> maybe_add_ip_adapters(attrs, model: node_ref("model", 0))
       |> maybe_add_scale(generation_params, generation_params.hr_scale != 1,
         attrs: attrs,
         positive_loras: positive_loras,
@@ -169,9 +193,17 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     positive_prompt_node_name = get_positive_prompt(attrs)
 
+    ip_adapters = Map.get(attrs, "ip_adapters", [])
+    fooocus_inpaint = Map.get(attrs, "fooocus_inpaint", false)
+
     prompt =
       new()
       |> add_model_loader(attrs["model"], clip_skip: Map.get(attrs, "clip_skip", 1))
+      |> add_node(
+        node("differential_diffusion", "DifferentialDiffusion", %{
+          model: node_ref("model", 0)
+        })
+      )
       |> add_clip_text_encode(
         if(Enum.empty?(positive_loras),
           do: node_ref("clip", 0),
@@ -188,7 +220,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         generation_params.prompt,
         "negative_prompt"
       )
-      |> add_loras(attrs)
+      |> add_loras(attrs, is_txt2img: generation_params.txt2img)
       |> add_vae_loader(attrs["vae"])
       |> add_image_loader(
         name: "image_input",
@@ -199,7 +231,10 @@ defmodule ExSd.Sd.ComfyPrompt do
             ""
           )
       )
-      |> add_image_scale(generation_params, "scaler",
+      |> maybe_add_image_scale(
+        generation_params,
+        "scaler",
+        generation_params.hr_scale != 1 and generation_params.hr_upscaler != "Latent",
         image:
           node_ref(
             if(generation_params.hr_upscaler == "None" or generation_params.hr_scale < 1,
@@ -223,22 +258,38 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           )
       )
-      |> add_vae_encode(
-        node_ref(
-          if(
-            has_ultimate_upscale or
-              attrs["scale"] == 1 or
-              generation_params.hr_upscaler == "Latent",
-            do: "image_input",
-            else: "scaler"
+      |> add_img2img_vae_encode(
+        pixels:
+          node_ref(
+            if(
+              has_ultimate_upscale or
+                attrs["scale"] == 1 or
+                generation_params.hr_upscaler == "Latent",
+              do: "image_input",
+              else: "scaler"
+            ),
+            0
           ),
-          0
-        ),
-        get_vae(attrs),
-        "vae_encode",
-        batch_size: generation_params.batch_size
+        vae: get_vae(attrs),
+        name: "img2img_vae_encode",
+        batch_size: generation_params.batch_size,
+        positive:
+          node_ref(
+            get_positive_prompt(attrs),
+            0
+          ),
+        negative:
+          node_ref(
+            "negative_prompt",
+            0
+          ),
+        mask:
+          node_ref(
+            "image_to_mask",
+            0
+          )
       )
-      |> add_upscale_model_loader(generation_params.hr_upscaler, :upscaler)
+      |> add_upscale_model_loader(generation_params.hr_upscaler, "upscaler")
       |> add_image_loader(
         name: "mask_base64",
         base64_image:
@@ -261,14 +312,44 @@ defmodule ExSd.Sd.ComfyPrompt do
       |> add_node(
         node("inpaint_model_conditioning", "InpaintModelConditioning", %{
           positive:
-            node_ref(
-              positive_prompt_node_name,
-              0
+            if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
+              do:
+                if(inpaint_model?(attrs),
+                  do:
+                    node_ref(
+                      "second_pass_inpaint_model_conditioning",
+                      0
+                    ),
+                  else:
+                    node_ref(
+                      positive_prompt_node_name,
+                      0
+                    )
+                ),
+              else: [
+                "cn#{length(controlnet_args) - 1}_apply_controlnet",
+                0
+              ]
             ),
           negative:
-            node_ref(
-              "negative_prompt",
-              0
+            if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
+              do:
+                if(inpaint_model?(attrs),
+                  do:
+                    node_ref(
+                      "inpaint_model_conditioning",
+                      1
+                    ),
+                  else:
+                    node_ref(
+                      "negative_prompt",
+                      0
+                    )
+                ),
+              else: [
+                "cn#{length(controlnet_args) - 1}_apply_controlnet",
+                1
+              ]
             ),
           vae: get_vae(attrs),
           pixels:
@@ -292,24 +373,47 @@ defmodule ExSd.Sd.ComfyPrompt do
       |> add_node(
         node("inpaint_latent_batch", "RepeatLatentBatch", %{
           amount: generation_params.batch_size,
-          samples: node_ref("inpaint_model_conditioning", 2)
+          samples: node_ref("img2img_vae_encode_node", 3)
         })
+      )
+      # |> add_node(
+      #   node("latent_noise_mask", "SetLatentNoiseMask", %{
+      #     samples:
+      #       node_ref(
+      #         "img2img_vae_encode",
+      #         0
+      #       ),
+      #     mask:
+      #       node_ref(
+      #         "image_to_mask",
+      #         0
+      #       )
+      #   })
+      # )
+      |> add_node(
+        node("load_fooocus_inpaint_patch", "INPAINT_LoadFooocusInpaint", %{
+          head: "fooocus_inpaint_head.pth",
+          patch: "inpaint_v26.fooocus.patch"
+        }),
+        fooocus_inpaint
       )
       |> add_node(
-        node("latent_noise_mask", "SetLatentNoiseMask", %{
-          samples:
+        node("apply_fooocus_inpaint", "INPAINT_ApplyFooocusInpaint", %{
+          model: get_base_model(generation_params.txt2img),
+          patch: node_ref("load_fooocus_inpaint_patch", 0),
+          latent:
             node_ref(
-              "vae_encode",
-              0
-            ),
-          mask:
-            node_ref(
-              "image_to_mask",
-              0
+              "img2img_vae_encode_node",
+              2
             )
-        })
+        }),
+        fooocus_inpaint
       )
-      |> add_latent_scale(generation_params, "latent_upscaler",
+      |> maybe_add_latent_scale(
+        generation_params,
+        "latent_upscaler",
+        not has_ultimate_upscale and generation_params.hr_upscaler == "Latent" and
+          attrs["scale"] != 1,
         samples:
           if(inpaint_model?(attrs),
             do:
@@ -319,14 +423,16 @@ defmodule ExSd.Sd.ComfyPrompt do
               ),
             else:
               node_ref(
-                "latent_noise_mask",
+                "inpaint_latent_batch",
                 0
               )
           )
       )
       |> maybe_add_regional_prompts_with_coupling(attrs,
+        base_prompt: node_ref("img2img_vae_encode_node", 0),
         width: generation_params.width,
-        height: generation_params.height
+        height: generation_params.height,
+        is_txt2img: generation_params.txt2img
       )
       |> add_k_sampler("sampler",
         cfg: generation_params.cfg_scale,
@@ -342,73 +448,57 @@ defmodule ExSd.Sd.ComfyPrompt do
                   "inpaint_latent_batch",
                   0
                 ],
-                else: [
-                  "latent_noise_mask",
-                  0
-                ]
+                else:
+                  node_ref(
+                    "inpaint_latent_batch",
+                    0
+                  )
               )
           ),
-        model: [
+        model:
           if(Enum.empty?(positive_loras),
             do:
               if(is_regional_prompting_enabled,
-                do: "attention_couple",
-                else: "model"
+                do: node_ref("attention_couple", 0),
+                else:
+                  if(Enum.empty?(ip_adapters),
+                    do:
+                      if(not generation_params.txt2img and fooocus_inpaint,
+                        do: node_ref("apply_fooocus_inpaint", 0),
+                        else: get_base_model(generation_params.txt2img)
+                      ),
+                    else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
+                  )
               ),
             else:
               if(is_regional_prompting_enabled,
-                do: "attention_couple",
-                else: "positive_lora#{length(positive_loras) - 1}"
+                do: node_ref("attention_couple", 0),
+                else:
+                  if(Enum.empty?(ip_adapters),
+                    do: node_ref("positive_lora#{length(positive_loras) - 1}", 0),
+                    else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
+                  )
               )
           ),
-          0
-        ],
         positive:
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
-            do:
-              if(inpaint_model?(attrs),
-                do:
-                  node_ref(
-                    "inpaint_model_conditioning",
-                    0
-                  ),
-                else:
-                  node_ref(
-                    positive_prompt_node_name,
-                    0
-                  )
-              ),
-            else: [
-              "cn#{length(controlnet_args) - 1}_apply_controlnet",
-              0
-            ]
+            do: node_ref("img2img_vae_encode_node", 0),
+            else: node_ref("cn#{length(controlnet_args) - 1}_apply_controlnet", 0)
           ),
         negative:
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
-            do:
-              if(inpaint_model?(attrs),
-                do:
-                  node_ref(
-                    "inpaint_model_conditioning",
-                    1
-                  ),
-                else:
-                  node_ref(
-                    "negative_prompt",
-                    0
-                  )
-              ),
-            else: [
-              "cn#{length(controlnet_args) - 1}_apply_controlnet",
-              1
-            ]
+            do: node_ref("img2img_vae_encode_node", 1),
+            else: node_ref("cn#{length(controlnet_args) - 1}_apply_controlnet", 1)
           ),
         sampler_name: generation_params.sampler_name,
         scheduler: attrs["scheduler"] || "karras",
         seed: generation_params.seed,
         steps: generation_params.steps
       )
-      |> add_latent_scale(generation_params, :second_pass_latent_upscaler,
+      |> maybe_add_latent_scale(
+        generation_params,
+        "second_pass_latent_upscaler",
+        generation_params.hr_upscaler == "Latent",
         samples:
           node_ref(
             "sampler",
@@ -423,7 +513,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         get_vae(attrs),
         "first_pass_vae_decode"
       )
-      |> add_image_upscale_with_model(:fullscale_upscale_with_model,
+      |> add_image_upscale_with_model("fullscale_upscale_with_model",
         upscale_model:
           node_ref(
             "upscaler",
@@ -435,7 +525,10 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           )
       )
-      |> add_image_scale(generation_params, :second_pass_scaler,
+      |> maybe_add_image_scale(
+        generation_params,
+        "second_pass_scaler",
+        true,
         image:
           node_ref(
             if(!has_full_scale_pass or generation_params.hr_upscaler == "None",
@@ -445,16 +538,41 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           )
       )
-      |> add_vae_encode(
-        node_ref(
-          "second_pass_scaler",
-          0
-        ),
-        get_vae(attrs),
-        "second_pass_vae_encode"
+      # |> add_vae_encode(
+      #   node_ref(
+      #     "second_pass_scaler",
+      #     0
+      #   ),
+      #   get_vae(attrs),
+      #   "second_pass_vae_encode"
+      # )
+      |> add_img2img_vae_encode(
+        name: "second_pass_vae_encode",
+        pixels:
+          node_ref(
+            "second_pass_scaler",
+            0
+          ),
+        vae: get_vae(attrs),
+        batch_size: generation_params.batch_size,
+        positive:
+          node_ref(
+            get_positive_prompt(attrs),
+            0
+          ),
+        negative:
+          node_ref(
+            "negative_prompt",
+            0
+          ),
+        mask:
+          node_ref(
+            "image_to_mask",
+            0
+          )
       )
       |> add_node(
-        node(:second_pass_inpaint_model_conditioning, "InpaintModelConditioning", %{
+        node("second_pass_inpaint_model_conditioning", "InpaintModelConditioning", %{
           positive:
             node_ref(
               positive_prompt_node_name,
@@ -484,7 +602,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         # TODO: for upscaler other than latent use upscale with model flow instead
         latent_image:
           if(generation_params.hr_upscaler == "Latent",
-            do: "second_pass_latent_upscaler",
+            do: node_ref("second_pass_latent_upscaler", 0),
             else:
               if(inpaint_model?(attrs),
                 do:
@@ -494,26 +612,32 @@ defmodule ExSd.Sd.ComfyPrompt do
                   ),
                 else:
                   node_ref(
-                    "second_pass_vae_encode",
-                    0
+                    "second_pass_vae_encode_node",
+                    3
                   )
               )
           ),
-        model: [
+        model:
           if(Enum.empty?(positive_loras),
             do:
               if(is_regional_prompting_enabled,
-                do: "attention_couple",
-                else: "model"
+                do: node_ref("attention_couple", 0),
+                else:
+                  if(Enum.empty?(ip_adapters),
+                    do: get_base_model(generation_params.txt2img),
+                    else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
+                  )
               ),
             else:
               if(is_regional_prompting_enabled,
-                do: "attention_couple",
-                else: "positive_lora#{length(positive_loras) - 1}"
+                do: node_ref("attention_couple", 0),
+                else:
+                  if(Enum.empty?(ip_adapters),
+                    do: node_ref("positive_lora#{length(positive_loras) - 1}", 0),
+                    else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
+                  )
               )
           ),
-          0
-        ],
         positive:
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
             do:
@@ -525,7 +649,7 @@ defmodule ExSd.Sd.ComfyPrompt do
                   ),
                 else:
                   node_ref(
-                    positive_prompt_node_name,
+                    "img2img_vae_encode_node",
                     0
                   )
               ),
@@ -545,8 +669,8 @@ defmodule ExSd.Sd.ComfyPrompt do
                   ),
                 else:
                   node_ref(
-                    "negative_prompt",
-                    0
+                    "img2img_vae_encode_node",
+                    1
                   )
               ),
             else: [
@@ -582,7 +706,29 @@ defmodule ExSd.Sd.ComfyPrompt do
           0
         )
       )
-      |> maybe_add_controlnet(controlnet_args, generation_params, attrs, !is_nil(controlnet_args))
+      |> maybe_add_controlnet(controlnet_args, generation_params, attrs, !is_nil(controlnet_args),
+        positive:
+          if(inpaint_model?(attrs),
+            do: node_ref("inpaint_model_conditioning", 0),
+            else: node_ref("img2img_vae_encode_node", 0)
+          ),
+        negative:
+          if(inpaint_model?(attrs),
+            do: node_ref("inpaint_model_conditioning", 1),
+            else: node_ref("img2img_vae_encode_node", 1)
+          )
+      )
+      |> maybe_add_ip_adapters(attrs,
+        model:
+          if(Enum.empty?(positive_loras),
+            do:
+              if(fooocus_inpaint,
+                do: node_ref("apply_fooocus_inpaint", 0),
+                else: node_ref("differential_diffusion", 0)
+              ),
+            else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+          )
+      )
       |> maybe_add_ultimate_upscale(
         generation_params,
         attrs,
@@ -653,6 +799,38 @@ defmodule ExSd.Sd.ComfyPrompt do
       node(node_name, "VAEEncode")
       |> add_node_input("pixels", pixels)
       |> add_node_input("vae", vae)
+
+    latent_batch_node =
+      node(name, "RepeatLatentBatch")
+      |> add_node_input("amount", Keyword.get(options, :batch_size, 1))
+      |> add_node_input("samples", node_ref(node_name, 0))
+
+    prompt
+    |> add_node(node)
+    |> add_node(latent_batch_node)
+  end
+
+  @spec add_img2img_vae_encode(prompt(), [
+          {:name, binary()}
+          | {:positive, binary()}
+          | {:negative, binary()}
+          | {:pixels, ref_node_value()}
+          | {:vae, ref_node_value()}
+          | {:batch_size, non_neg_integer()}
+        ]) :: prompt()
+  def add_img2img_vae_encode(prompt, options \\ []) do
+    name = Keyword.get(options, :name, "vae_encode")
+
+    node_name = "#{name}_node"
+
+    node =
+      node(node_name, "INPAINT_VAEEncodeInpaintConditioning", %{
+        positive: Keyword.get(options, :positive),
+        negative: Keyword.get(options, :negative),
+        vae: Keyword.get(options, :vae),
+        pixels: Keyword.get(options, :pixels),
+        mask: Keyword.get(options, :mask)
+      })
 
     latent_batch_node =
       node(name, "RepeatLatentBatch")
@@ -771,11 +949,15 @@ defmodule ExSd.Sd.ComfyPrompt do
     |> add_node(node)
   end
 
-  @spec add_loras(prompt(), map()) :: prompt()
+  @spec add_loras(prompt(), map(), [{:is_txt2img, boolean()}]) :: prompt()
   def add_loras(
         prompt,
-        %{"positive_loras" => positive_loras} = _attrs
+        %{"positive_loras" => positive_loras} = attrs,
+        options \\ []
       ) do
+    is_txt2img = Keyword.get(options, :is_txt2img)
+    fooocus_inpaint = Map.get(attrs, "fooocus_inpaint", false)
+
     positive_loras
     |> Enum.with_index()
     |> Enum.reduce(prompt, fn {%{name: name, value: value}, index}, acc_prompt ->
@@ -783,12 +965,13 @@ defmodule ExSd.Sd.ComfyPrompt do
       |> add_lora(
         name: "positive_lora#{index}",
         model:
-          node_ref(
-            if(index > 0,
-              do: "positive_lora#{index - 1}",
-              else: "model"
-            ),
-            0
+          if(index > 0,
+            do: node_ref("positive_lora#{index - 1}", 0),
+            else:
+              if(not is_txt2img and fooocus_inpaint,
+                do: node_ref("apply_fooocus_inpaint", 0),
+                else: get_base_model(Keyword.get(options, :is_txt2img))
+              )
           ),
         clip:
           if(index > 0,
@@ -821,6 +1004,31 @@ defmodule ExSd.Sd.ComfyPrompt do
     node =
       node(name, "ControlNetLoader", %{
         control_net_name: Keyword.get(options, :control_net_name)
+      })
+
+    add_node(prompt, node)
+  end
+
+  @spec maybe_add_set_union_controlnet_type(
+          prompt(),
+          binary(),
+          boolean(),
+          [
+            {:control_net, ref_node_value()},
+            {:type, binary()}
+          ]
+        ) :: prompt()
+  def maybe_add_set_union_controlnet_type(prompt, name, condition, options \\ [])
+
+  def maybe_add_set_union_controlnet_type(prompt, _name, false, _options) do
+    prompt
+  end
+
+  def maybe_add_set_union_controlnet_type(prompt, name, _condition, options) do
+    node =
+      node(name, "SetUnionControlNetType", %{
+        control_net: Keyword.get(options, :control_net),
+        type: Keyword.get(options, :type)
       })
 
     add_node(prompt, node)
@@ -921,13 +1129,16 @@ defmodule ExSd.Sd.ComfyPrompt do
   end
 
   # FIXME: inpaint with second layer (prompts??)
-  @spec maybe_add_controlnet(prompt(), list(), any(), any(), boolean()) :: prompt()
+  @spec maybe_add_controlnet(prompt(), list(), GenerationParams.t(), any(), boolean(), [
+          {:positive, ref_node_value()} | {:negative, ref_node_value()}
+        ]) :: prompt()
   def maybe_add_controlnet(
         prompt,
         controlnet_args,
         generation_params,
         attrs,
-        add_condition \\ true
+        add \\ true,
+        options \\ []
       )
 
   def maybe_add_controlnet(
@@ -935,7 +1146,8 @@ defmodule ExSd.Sd.ComfyPrompt do
         _controlnet_args,
         _generation_params,
         _attrs,
-        false = _add_condition
+        false = _add,
+        _options
       ) do
     prompt
   end
@@ -943,10 +1155,14 @@ defmodule ExSd.Sd.ComfyPrompt do
   def maybe_add_controlnet(
         prompt,
         controlnet_args,
-        generation_params,
-        attrs,
-        true = _add_condition
+        %GenerationParams{} = generation_params,
+        _attrs,
+        true = _add,
+        options
       ) do
+    positive = Keyword.get(options, :positive)
+    negative = Keyword.get(options, :negative)
+
     active_layers = length(controlnet_args)
 
     controlnet_args
@@ -973,7 +1189,15 @@ defmodule ExSd.Sd.ComfyPrompt do
               ""
             )
       )
-      |> add_controlnet_loader("cn#{index}_controlnet_loader", control_net_name: entry.model)
+      |> add_controlnet_loader("cn#{entry.model}_controlnet_loader",
+        control_net_name: entry.model
+      )
+      |> maybe_add_set_union_controlnet_type(
+        "cn#{index}_union_controlnet_type",
+        entry.is_union,
+        control_net: node_ref("cn#{entry.model}_controlnet_loader", 0),
+        type: entry.union_type
+      )
       |> add_controlnet_apply_advanced(
         name: "cn#{index}_apply_controlnet",
         strength: entry.weight,
@@ -986,15 +1210,7 @@ defmodule ExSd.Sd.ComfyPrompt do
                 "cn#{index - 1}_apply_controlnet",
                 0
               ),
-            else:
-              if(inpaint_model?(attrs),
-                do: node_ref("inpaint_model_conditioning", 0),
-                else:
-                  node_ref(
-                    get_positive_prompt(attrs),
-                    0
-                  )
-              )
+            else: positive
           ),
         negative:
           if(active_layers > 1 and index > 0,
@@ -1003,19 +1219,15 @@ defmodule ExSd.Sd.ComfyPrompt do
                 "cn#{index - 1}_apply_controlnet",
                 1
               ),
-            else:
-              if(inpaint_model?(attrs),
-                do: node_ref("inpaint_model_conditioning", 1),
-                else:
-                  node_ref(
-                    "negative_prompt",
-                    0
-                  )
-              )
+            else: negative
           ),
+        # TODO: reuse loaded models to avoid loading a model more than once for different layers
         control_net:
           node_ref(
-            "cn#{index}_controlnet_loader",
+            if(entry.is_union,
+              do: "cn#{index}_union_controlnet_type",
+              else: "cn#{entry.model}_controlnet_loader"
+            ),
             0
           ),
         image:
@@ -1031,7 +1243,12 @@ defmodule ExSd.Sd.ComfyPrompt do
       )
       |> maybe_add_controlnet_preprocessor(index, entry.module,
         name: "cn#{index}_preprocessor",
-        add_condition: entry.module != "None"
+        add_condition: entry.module != "None",
+        resolution:
+          if(entry.pixel_perfect,
+            do: min(generation_params.width, generation_params.height),
+            else: entry.processor_res
+          )
       )
     end)
   end
@@ -1116,7 +1333,10 @@ defmodule ExSd.Sd.ComfyPrompt do
   end
 
   @spec maybe_add_regional_prompts_with_coupling(prompt(), map(), [
-          {:width, non_neg_integer()} | {:height, non_neg_integer()}
+          {:base_prompt, ref_node_value()}
+          | {:width, non_neg_integer()}
+          | {:height, non_neg_integer()}
+          | {:is_txt2img, boolean()}
         ]) :: prompt()
   def maybe_add_regional_prompts_with_coupling(prompt, attrs, options \\ []) do
     is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
@@ -1125,6 +1345,8 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     if is_regional_prompting_enabled && regional_prompts && not Enum.empty?(regional_prompts) do
       positive_loras = Map.get(attrs, "positive_loras")
+      ip_adapters = Map.get(attrs, "ip_adapters", [])
+      fooocus_inpaint = Map.get(attrs, "fooocus_inpaint", false)
 
       {new_prompt, attention_couple_regions} =
         Enum.reduce(
@@ -1202,21 +1424,27 @@ defmodule ExSd.Sd.ComfyPrompt do
           %{
             global_prompt_weight: global_prompt_weight,
             model:
-              node_ref(
-                if(Enum.empty?(positive_loras),
-                  do: "model",
-                  else: "positive_lora#{length(positive_loras) - 1}"
-                ),
-                0
+              if(Enum.empty?(ip_adapters),
+                do:
+                  if(Enum.empty?(positive_loras),
+                    do:
+                      if(fooocus_inpaint,
+                        do: node_ref("apply_fooocus_inpaint", 0),
+                        else: get_base_model(Keyword.get(options, :is_txt2img, true))
+                      ),
+                    else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+                  ),
+                else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
               ),
-            base_prompt: node_ref("positive_prompt", 0),
+            base_prompt: Keyword.get(options, :base_prompt, node_ref("positive_prompt", 0)),
             width: Keyword.get(options, :width),
             height: Keyword.get(options, :height),
             regions:
               node_ref(
                 "attention_couple_regions_#{max(0, ceil(length(attention_couple_regions) / 10) - 1)}",
                 0
-              )
+              ),
+            ip_adapter_active: not Enum.empty?(ip_adapters)
           }
         )
       )
@@ -1297,7 +1525,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           prompt(),
           non_neg_integer(),
           binary(),
-          [{:add_condition, boolean()}]
+          [{:add_condition, boolean()} | {:name, binary()} | {:resolution, non_neg_integer()}]
         ) ::
           prompt()
   def maybe_add_controlnet_preprocessor(prompt, index, class_type, options) do
@@ -1311,7 +1539,9 @@ defmodule ExSd.Sd.ComfyPrompt do
     end
   end
 
-  @spec controlnet_preprocessor(non_neg_integer(), binary(), [{:name, binary()}]) :: comfy_node()
+  @spec controlnet_preprocessor(non_neg_integer(), binary(), [
+          {:name, binary()} | {:resolution, non_neg_integer()}
+        ]) :: comfy_node()
   def controlnet_preprocessor(index, class_type, options \\ [])
 
   def controlnet_preprocessor(index, "CannyEdgePreprocessor", options) do
@@ -1323,7 +1553,8 @@ defmodule ExSd.Sd.ComfyPrompt do
         node_ref(
           "cn#{index}_image",
           0
-        )
+        ),
+      resolution: Keyword.get(options, :resolution, 512)
     })
   end
 
@@ -1335,7 +1566,8 @@ defmodule ExSd.Sd.ComfyPrompt do
         node_ref(
           "cn#{index}_image",
           0
-        )
+        ),
+      resolution: Keyword.get(options, :resolution, 512)
     })
   end
 
@@ -1347,7 +1579,8 @@ defmodule ExSd.Sd.ComfyPrompt do
         node_ref(
           "cn#{index}_image",
           0
-        )
+        ),
+      resolution: Keyword.get(options, :resolution, 512)
     })
   end
 
@@ -1384,7 +1617,8 @@ defmodule ExSd.Sd.ComfyPrompt do
           "cn#{index}_image",
           0
         ),
-      preprocessor: preprocessor
+      preprocessor: preprocessor,
+      resolution: Keyword.get(options, :resolution, 512)
     })
   end
 
@@ -1413,7 +1647,10 @@ defmodule ExSd.Sd.ComfyPrompt do
       is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
 
       prompt
-      |> add_latent_scale(generation_params, "hires_latent_scaler",
+      |> maybe_add_latent_scale(
+        generation_params,
+        "hires_latent_scaler",
+        generation_params.hr_upscaler == "Latent",
         samples:
           node_ref(
             "sampler",
@@ -1421,7 +1658,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           )
       )
       |> add_vae_decode(node_ref("sampler", 0), get_vae(attrs), "first_pass_vae_decode")
-      |> add_image_scale(generation_params, "scaler",
+      |> maybe_add_image_scale(generation_params, "scaler", true,
         image:
           node_ref(
             if(generation_params.hr_upscaler == "None" or generation_params.hr_scale < 1,
@@ -1458,20 +1695,17 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           ),
         model:
-          node_ref(
-            if(Enum.empty?(positive_loras),
-              do:
-                if(is_regional_prompting_enabled,
-                  do: "attention_couple",
-                  else: "model"
-                ),
-              else:
-                if(is_regional_prompting_enabled,
-                  do: "attention_couple",
-                  else: "positive_lora#{length(positive_loras) - 1}"
-                )
-            ),
-            0
+          if(Enum.empty?(positive_loras),
+            do:
+              if(is_regional_prompting_enabled,
+                do: node_ref("attention_couple", 0),
+                else: get_base_model(generation_params.txt2img)
+              ),
+            else:
+              if(is_regional_prompting_enabled,
+                do: node_ref("attention_couple", 0),
+                else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+              )
           ),
         positive:
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
@@ -1509,13 +1743,27 @@ defmodule ExSd.Sd.ComfyPrompt do
     end
   end
 
-  @spec add_latent_scale(prompt(), GenerationParams.t(), binary(), [
-          {:samples, ref_node_value()},
-          {:width, non_neg_integer()},
-          {:height, non_neg_integer()}
-        ]) ::
+  @spec maybe_add_latent_scale(
+          prompt(),
+          GenerationParams.t(),
+          binary(),
+          boolean(),
+          [
+            {:samples, ref_node_value()}
+            | {:width, non_neg_integer()}
+            | {:height, non_neg_integer()}
+          ]
+        ) ::
           prompt()
-  def add_latent_scale(prompt, %GenerationParams{} = generation_params, name, options \\ []) do
+  def maybe_add_latent_scale(prompt, generation_params, name, add_condition, options \\ [])
+
+  def maybe_add_latent_scale(
+        prompt,
+        %GenerationParams{} = generation_params,
+        name,
+        true = _add_condition,
+        options
+      ) do
     node =
       node(name, "LatentUpscale", %{
         samples: Keyword.get(options, :samples),
@@ -1549,13 +1797,149 @@ defmodule ExSd.Sd.ComfyPrompt do
     |> add_node(node)
   end
 
-  @spec add_image_scale(prompt(), GenerationParams.t(), binary(), [
+  def maybe_add_latent_scale(
+        prompt,
+        _generation_params,
+        _name,
+        _add_condition,
+        _options
+      ) do
+    prompt
+  end
+
+  @spec add_ip_adapter_unified_loader(prompt(), binary(), [
+          {:model, ref_node_value()}
+          | {:ipadapter, ref_node_value()}
+          | {:preset, binary()}
+        ]) ::
+          prompt()
+  def add_ip_adapter_unified_loader(
+        prompt,
+        name,
+        options \\ []
+      ) do
+    node =
+      node(name, "IPAdapterUnifiedLoader", %{
+        model: Keyword.get(options, :model),
+        ipadapter: Keyword.get(options, :ipadapter),
+        preset: Keyword.get(options, :preset)
+      })
+
+    prompt
+    |> add_node(node)
+  end
+
+  @spec add_ip_adapter(prompt(), binary(), [
+          {:model, ref_node_value()}
+          | {:ipadapter, ref_node_value()}
+          | {:image, ref_node_value()}
+          | {:image_negative, ref_node_value()}
+          | {:attn_mask, ref_node_value()}
+          | {:weight, float()}
+          | {:weight_type, binary()}
+          | {:start_at, float()}
+          | {:end_at, float()}
+        ]) ::
+          prompt()
+  def add_ip_adapter(prompt, name, options \\ []) do
+    node =
+      node(name, "IPAdapterAdvanced", %{
+        model: Keyword.get(options, :model),
+        ipadapter: Keyword.get(options, :ipadapter),
+        image: Keyword.get(options, :image),
+        image_negative: Keyword.get(options, :image_negative),
+        attn_mask: Keyword.get(options, :attn_mask),
+        weight: Keyword.get(options, :weight),
+        weight_type: Keyword.get(options, :weight_type),
+        start_at: Keyword.get(options, :start_at),
+        end_at: Keyword.get(options, :end_at),
+        combine_embeds: "average",
+        embeds_scaling: "V only"
+      })
+
+    prompt
+    |> add_node(node)
+  end
+
+  @spec maybe_add_ip_adapters(prompt(), map(), [{:model, ref_node_value()}]) :: prompt()
+  def maybe_add_ip_adapters(prompt, attrs, options \\ []) do
+    ip_adapters = Map.get(attrs, "ip_adapters", [])
+
+    model = Keyword.get(options, :model)
+
+    ip_adapters
+    |> Enum.with_index()
+    |> Enum.reduce(prompt, fn {ip_adapter, index}, acc_prompt ->
+      preset = Map.get(ip_adapter, "preset")
+
+      acc_prompt
+      |> add_ip_adapter_unified_loader("unified_ip_adapter_loader_#{preset}",
+        model: model,
+        preset: preset
+      )
+      |> add_image_loader(
+        name: "ip_adapter_#{index}_image_loader",
+        base64_image: Map.get(ip_adapter, "image")
+      )
+      |> add_mask_image_loader(
+        name: "ip_adapter_#{index}_mask_loader",
+        base64_image: Map.get(ip_adapter, "mask")
+      )
+      |> add_ip_adapter("ip_adapter_#{index}",
+        model:
+          node_ref(
+            if(index === 0,
+              do: "unified_ip_adapter_loader_#{preset}",
+              else: "ip_adapter_#{index - 1}"
+            ),
+            0
+          ),
+        ipadapter: node_ref("unified_ip_adapter_loader_#{preset}", 1),
+        image:
+          if(Map.get(ip_adapter, "image"),
+            do: node_ref("ip_adapter_#{index}_image_loader", 0),
+            else: node_ref("image_input", 0)
+          ),
+        attn_mask:
+          if(Map.get(ip_adapter, "mask"),
+            do: node_ref("ip_adapter_#{index}_mask_loader", 0),
+            else: nil
+          ),
+        weight: Map.get(ip_adapter, "weight"),
+        start_at: Map.get(ip_adapter, "start_at"),
+        end_at: Map.get(ip_adapter, "end_at"),
+        weight_type: Map.get(ip_adapter, "weight_type")
+      )
+    end)
+  end
+
+  @spec maybe_add_image_scale(prompt(), GenerationParams.t(), binary(), boolean(), [
           {:image, ref_node_value()},
           {:width, non_neg_integer()},
           {:height, non_neg_integer()}
         ]) ::
           prompt()
-  def add_image_scale(prompt, %GenerationParams{} = generation_params, name, options \\ []) do
+  @spec maybe_add_image_scale(
+          %{prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}},
+          ExSd.Sd.GenerationParams.t(),
+          binary(),
+          boolean()
+        ) :: %{prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}}
+  def maybe_add_image_scale(
+        prompt,
+        generation_params,
+        name,
+        add_condition,
+        options \\ []
+      )
+
+  def maybe_add_image_scale(
+        prompt,
+        %GenerationParams{} = generation_params,
+        name,
+        true = _add_condition,
+        options
+      ) do
     node =
       node(name, "ImageScale", %{
         # "nearest-exact",
@@ -1588,6 +1972,16 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     prompt
     |> add_node(node)
+  end
+
+  def maybe_add_image_scale(
+        prompt,
+        _generation_params,
+        _name,
+        _add_condition,
+        _options
+      ) do
+    prompt
   end
 
   @spec add_image_upscale_with_model(prompt(), binary(), [
@@ -1635,6 +2029,8 @@ defmodule ExSd.Sd.ComfyPrompt do
 
       positive_loras = Map.get(attrs, "positive_loras")
 
+      ip_adapters = Map.get(attrs, "ip_adapters", [])
+
       node =
         node(Keyword.get(options, :name, :ultimate_upscale), "UltimateSDUpscaleNoUpscale", %{
           seed: generation_params.seed,
@@ -1661,20 +2057,25 @@ defmodule ExSd.Sd.ComfyPrompt do
               0
             ),
           model:
-            node_ref(
-              if(Enum.empty?(positive_loras),
-                do:
-                  if(is_regional_prompting_enabled,
-                    do: "attention_couple",
-                    else: "model"
-                  ),
-                else:
-                  if(is_regional_prompting_enabled,
-                    do: "attention_couple",
-                    else: "positive_lora#{length(positive_loras) - 1}"
-                  )
-              ),
-              0
+            if(Enum.empty?(positive_loras),
+              do:
+                if(is_regional_prompting_enabled,
+                  do: node_ref("attention_couple", 0),
+                  else:
+                    if(Enum.empty?(ip_adapters),
+                      do: get_base_model(generation_params.txt2img),
+                      else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
+                    )
+                ),
+              else:
+                if(is_regional_prompting_enabled,
+                  do: node_ref("attention_couple", 0),
+                  else:
+                    if(Enum.empty?(ip_adapters),
+                      do: node_ref("positive_lora#{length(positive_loras) - 1}", 0),
+                      else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
+                    )
+                )
             ),
           positive:
             if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
@@ -1739,6 +2140,15 @@ defmodule ExSd.Sd.ComfyPrompt do
     model_name
     |> String.downcase()
     |> String.contains?("inpaint")
+  end
+
+  defp get_base_model(true = _txt2img) do
+    node_ref("model", 0)
+  end
+
+  defp get_base_model(false = _txt2img) do
+    # TODO: make differential_diffusion configurable
+    node_ref("differential_diffusion", 0)
   end
 
   defp sd_xl_model?(%{"model" => model_name} = _attrs) do

@@ -49,6 +49,11 @@ type ControlnetUi = {
   maskColor?: string;
   weight_type?: keyof typeof weightTypesByName;
   composition_weight?: number;
+  isIpAdapter: boolean;
+  is_union: boolean;
+  iPAdapterModel?: string;
+  iPAdapterWeightType?: string;
+  union_type?: string;
 };
 export type ControlnetLayer = {
   id?: string;
@@ -90,6 +95,9 @@ const controlnetLayerInitialState: ControlnetLayer = {
   pixel_perfect: true,
   control_mode: "Balanced",
   maskColor: "#FFFFFF",
+  isIpAdapter: false,
+  is_union: false,
+  union_type: "auto",
 };
 const initialState: ControlnetState = {
   layers: [

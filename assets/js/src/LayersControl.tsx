@@ -57,6 +57,7 @@ import { selectInvertMask, toggleInvertMask } from "./state/canvasSlice";
 import {
   emitClearBaseImages,
   emitClearLayerLines,
+  emitImageDropEvent,
 } from "./Canvas/hooks/useCustomEventsListener";
 import useScripts from "./hooks/useScripts";
 import { selectBackend } from "./state/optionsSlice";
@@ -76,6 +77,7 @@ import {
 import Button from "./components/Button";
 import { weightTypesByName } from "./MainForm/constants";
 import { checkIsIpAdapterControlnetModel } from "./utils";
+import Switch from "./Switch";
 
 const WEIGHT_TYPES = Object.keys(weightTypesByName);
 
@@ -144,8 +146,7 @@ const LayerItem = ({
     visibilityActionCreator &&
       dispatch(visibilityActionCreator(visibilityActionCreatorPayload));
   };
-  const toggleIsEnabled = (e: MouseEvent) => {
-    e?.stopPropagation();
+  const toggleIsEnabled = (_event: MouseEvent) => {
     isEnabledActionCreator &&
       dispatch(isEnabledActionCreator(isEnabledActionCreatorPayload));
   };
@@ -185,7 +186,9 @@ const LayerItem = ({
             if (e.target) {
               const dataUrl = e.target.result;
               if (typeof dataUrl === "string") {
-                // dataUrl
+                if (type === "base") {
+                  emitImageDropEvent({ imageDataUrl: dataUrl });
+                }
                 if (type === "controlnet")
                   dispatch(
                     updateControlnetLayer({
@@ -440,26 +443,49 @@ const LayersControl = () => {
 
   const controlnetArgs = useAppSelector(selectControlnetLayers);
 
-  const { controlnet_models, controlnet_preprocessors, controlnetDetect } =
-    useControlnet();
+  const {
+    controlnet_models,
+    controlnet_preprocessors,
+    controlnetDetect,
+    ip_adapter_models,
+    ip_adapter_weight_types,
+    unionControlnetTypes,
+  } = useControlnet();
 
   // const { register, handleSubmit, setValue } = useForm();
 
   const controlnetLayers: LayerProps[] = useMemo(
     () =>
       controlnetArgs.map(
-        ({ isEnabled, isVisible, module, model, id }, index) => ({
+        (
+          {
+            isEnabled,
+            isVisible,
+            module,
+            model,
+            id,
+            isIpAdapter,
+            iPAdapterModel,
+            iPAdapterWeightType,
+          },
+          index
+        ) => ({
           id: `controlnet${id as string}`,
           isEnabled,
-          name: `Controlnet ${index + 1}`,
+          name:
+            backend === "comfy" && isIpAdapter
+              ? `IP Adpater ${index + 1}`
+              : `Controlnet ${index + 1}`,
           type: "controlnet",
           subId: id,
           subtitle: `${
-            module?.toLowerCase() != "none"
-              ? module
-              : model?.toLowerCase() != "none"
-                ? model
-                : ""
+            backend === "comfy" && isIpAdapter
+              ? iPAdapterWeightType ?? iPAdapterModel
+              : module?.toLowerCase() != "none"
+                ? module
+                : model?.toLowerCase() != "none"
+                  ? model
+                  : ""
           }`,
           isEnabledActionCreator: updateControlnetLayer,
           isEnabledActionCreatorPayload: {
@@ -499,7 +525,7 @@ const LayersControl = () => {
           ],
         })
       ),
-    [controlnetArgs, dispatch]
+    [backend, controlnetArgs, dispatch]
   );
 
   const promptRegions = useAppSelector(selectPromptRegionLayers);
@@ -687,7 +713,7 @@ const LayersControl = () => {
   };
 
   const handleControlnetAttrsChange = (
-    name: string,
+    name: keyof ControlnetLayer,
     value: number | boolean | string,
     layerId: ControlnetLayer["id"]
   ) => {
@@ -779,44 +805,6 @@ const LayersControl = () => {
 
   return (
     <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[20vw] p-4 pe-0 rounded backdrop-blur-sm select-none overflow-hidden transition-all">
-      {/* <div className="flex flex-row gap-4">
-        <div className="flex gap-2">
-          <Label htmlFor="mode">Mode</label>
-          <select
-            name="mode"
-            id="mode"
-            value={mode}
-            onChange={handleModeChange}
-          >
-            <option value="selection">Selection</option>
-            <option value="paint">Paint</option>
-          </select>
-        </div>
-        <div className="flex gap-2">
-          <Label htmlFor="tool">Tool</label>
-          <select
-            name="tool"
-            id="tool"
-            value={tool}
-            onChange={handleToolChange}
-          >
-            <option value="brush">Brush</option>
-            <option value="eraser">Eraser</option>
-          </select>
-        </div>
-      </div> */}
-
-      {/* <Label htmlFor="toggleControlentLayer">
-        Controlnet Layer
-        <input
-          className="ml-2"
-          type="checkbox"
-          name="toggleControlentLayer"
-          id="toggleControlentLayer"
-          onChange={handleControlnetLayerToggle}
-          checked={isControlnetLayerVisible}
-        />
-      </Label> */}
       <div className="flex justify-between pt-2">
         <h3 className="sm:flex-1 lg:flex-[3] text-sm font-bold">Layers</h3>
         <div className="flex flex-1 gap-4 sticky top-0 mt-[-8px] pe-1">
@@ -900,128 +888,155 @@ const LayersControl = () => {
               >
                 Override Base Layer
               </Checkbox>
-              <div className="flex gap-2 flex-col">
-                <Label htmlFor={`module${activeControlnetLayer?.id}`}>
-                  Controlnet Preprocessor
-                </Label>
-                {/* <select
-                  className="p-2 rounded"
-                  name="module"
-                  id={`module${activeControlnetLayer?.id}`}
-                  onChange={async (e) =>
-                    handleControlnetChange(
-                      e,
-                      +activeLayerId.replace("controlnet", "") - 1
-                    )
-                  }
-                  value={activeControlnetLayer?.module}
-                >
-                  {controlnet_preprocessors?.map((controlnet_module) => (
-                    <option
-                      key={controlnet_module.name}
-                      value={controlnet_module.name}
-                    >
-                      {controlnet_module.name}
-                    </option>
-                  ))}
-                </select> */}
-                <Select
-                  name="module"
-                  items={controlnet_preprocessors}
-                  textAttr="name"
-                  valueAttr="name"
-                  value={activeControlnetLayer?.module}
-                  onChange={(value) =>
-                    handleControlnetSelectChange({
-                      name: "module",
-                      type: "text",
-                      value,
-                      layerId: activeControlnetLayer.id,
-                    })
-                  }
-                />
-              </div>
-              <div className="flex gap-2 h-full flex-col">
-                <Label htmlFor={`model${activeControlnetLayer?.id}`}>
-                  Controlnet Model
-                </Label>
-                {/* <select
-                  className="p-2 rounded"
-                  name="model"
-                  id={`model${activeControlnetLayer?.id}`}
-                  onChange={(e) =>
-                    handleControlnetChange(
-                      e,
-                      +activeLayerId.replace("controlnet", "") - 1
-                    )
-                  }
-                  value={activeControlnetLayer?.model}
-                >
-                  <option value="none">none</option>
-                  {controlnet_models?.map((controlnet_model) => (
-                    <option key={controlnet_model} value={controlnet_model}>
-                      {controlnet_model}
-                    </option>
-                  ))}
-                </select> */}
-                <Select
-                  name="model"
-                  id={`model${activeControlnetLayer?.id}`}
-                  items={controlnet_models ?? []}
-                  value={activeControlnetLayer?.model}
-                  onChange={(value) =>
-                    handleControlnetSelectChange({
-                      name: "model",
-                      type: "text",
-                      value,
-                      layerId: activeControlnetLayer.id,
-                    })
-                  }
-                />
-              </div>
 
-              {/* <div className="flex gap-2"> */}
-              {/* <Label htmlFor={`weight${activeControlnetLayer?.id}`}>
-                    Controlnet Weight
-                  </Label> */}
-              {/* <input
-                name="weight"
-                id={`weight${activeControlnetLayer?.id}`}
-                type="number"
-                step={0.01}
-                onChange={(e) =>
-                  handleControlnetChange(
-                    e,
-                    +activeLayerId.replace("controlnet", "") - 1
+              {/* TODO: show only when IP Adapter nodes are available on Comfy */}
+              {backend === "comfy" && (
+                <Checkbox
+                  checked={activeControlnetLayer?.isIpAdapter}
+                  value={activeControlnetLayer?.isIpAdapter}
+                  onChange={(value) =>
+                    handleControlnetAttrsChange(
+                      "isIpAdapter",
+                      value,
+                      activeControlnetLayer.id
                     )
                   }
-                  value={activeControlnetLayer?.weight}
-                /> */}
-              {/* </div> */}
+                >
+                  IP Adapter
+                </Checkbox>
+              )}
+
+              {backend === "comfy" && !activeControlnetLayer?.isIpAdapter && (
+                <Checkbox
+                  checked={activeControlnetLayer?.is_union}
+                  value={activeControlnetLayer?.is_union}
+                  onChange={(value) =>
+                    handleControlnetAttrsChange(
+                      "is_union",
+                      value,
+                      activeControlnetLayer.id
+                    )
+                  }
+                >
+                  Union Controlnet
+                </Checkbox>
+              )}
+
+              {backend === "comfy" && activeControlnetLayer?.isIpAdapter ? (
+                <>
+                  <div className="flex gap-2 h-full flex-col">
+                    <Label htmlFor={`model${activeControlnetLayer?.id}`}>
+                      IP Adapter Model
+                    </Label>
+                    <Select
+                      name="model"
+                      id={`iPAdapterModel${activeControlnetLayer?.id}`}
+                      items={ip_adapter_models ?? []}
+                      value={activeControlnetLayer?.iPAdapterModel}
+                      onChange={(value) =>
+                        handleControlnetSelectChange({
+                          name: "iPAdapterModel",
+                          type: "text",
+                          value,
+                          layerId: activeControlnetLayer.id,
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="flex gap-2 flex-col">
+                    <Label htmlFor={`weightType${activeControlnetLayer?.id}`}>
+                      IP Adpater Weight Type
+                    </Label>
+                    <Select
+                      name="module"
+                      items={ip_adapter_weight_types}
+                      textAttr="name"
+                      valueAttr="name"
+                      value={activeControlnetLayer?.iPAdapterWeightType}
+                      onChange={(value) =>
+                        handleControlnetSelectChange({
+                          name: "iPAdapterWeightType",
+                          type: "text",
+                          value,
+                          layerId: activeControlnetLayer.id,
+                        })
+                      }
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex gap-2 h-full flex-col">
+                    <Label htmlFor={`model${activeControlnetLayer?.id}`}>
+                      Controlnet Model
+                    </Label>
+                    <Select
+                      name="model"
+                      id={`model${activeControlnetLayer?.id}`}
+                      items={controlnet_models ?? []}
+                      value={activeControlnetLayer?.model}
+                      onChange={(value) =>
+                        handleControlnetSelectChange({
+                          name: "model",
+                          type: "text",
+                          value,
+                          layerId: activeControlnetLayer.id,
+                        })
+                      }
+                    />
+                  </div>
+                  {backend === "comfy" && activeControlnetLayer?.is_union && (
+                    <div className="flex gap-2 flex-col">
+                      <Label
+                        htmlFor={`module${activeControlnetLayer?.union_type}`}
+                      >
+                        Union Type
+                      </Label>
+                      <Select
+                        name="union_type"
+                        items={unionControlnetTypes}
+                        value={activeControlnetLayer?.union_type}
+                        onChange={(value) =>
+                          handleControlnetSelectChange({
+                            name: "union_type",
+                            type: "text",
+                            value,
+                            layerId: activeControlnetLayer.id,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
+                  <div className="flex gap-2 flex-col">
+                    <Label htmlFor={`module${activeControlnetLayer?.id}`}>
+                      Controlnet Preprocessor
+                    </Label>
+                    <Select
+                      name="module"
+                      //FIXME: fix type
+                      items={controlnet_preprocessors}
+                      textAttr="name"
+                      valueAttr="name"
+                      value={activeControlnetLayer?.module}
+                      onChange={(value) =>
+                        handleControlnetSelectChange({
+                          name: "module",
+                          type: "text",
+                          value,
+                          layerId: activeControlnetLayer.id,
+                        })
+                      }
+                    />
+                  </div>
+                </>
+              )}
+
               {backend === "auto" &&
                 !/ip\S*adapter/gi.test(activeControlnetLayer.module) && (
                   <div className="flex gap-2 flex-col">
                     <Label htmlFor={`mode${activeControlnetLayer?.id}`}>
                       Control Mode
                     </Label>
-                    {/* <select
-                  className="p-2 rounded"
-                  name="control_mode"
-                  id={`module${activeControlnetLayer?.id}`}
-                  onChange={async (e) =>
-                    handleControlnetChange(
-                      e,
-                      +activeLayerId.replace("controlnet", "") - 1
-                    )
-                  }
-                  value={activeControlnetLayer?.control_mode}
-                >
-                  {CONTROL_MODES?.map(({ value, label }) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select> */}
 
                     <Select
                       name="control_mode"
@@ -1067,7 +1082,11 @@ const LayersControl = () => {
                 )}
 
               <Slider
-                label="Controlnet Weight"
+                label={
+                  backend === "comfy" && activeControlnetLayer.isIpAdapter
+                    ? "IP Adapter Weight"
+                    : "Controlnet Weight"
+                }
                 min={0}
                 max={2}
                 step={0.01}
@@ -1287,33 +1306,35 @@ const LayersControl = () => {
                 checked={activeControlnetLayer?.overrideBaseLayer}
               />
             </div> */}
+
+              {backend !== "comfy" && activeControlnetLayer?.isIpAdapter && (
+                <Checkbox
+                  checked={activeControlnetLayer?.pixel_perfect}
+                  onChange={(value) =>
+                    handleControlnetAttrsChange(
+                      "pixel_perfect",
+                      value,
+                      activeControlnetLayer.id
+                    )
+                  }
+                >
+                  Pixel Perfect
+                </Checkbox>
+              )}
+
               {backend === "auto" && (
-                <>
-                  <Checkbox
-                    checked={activeControlnetLayer?.pixel_perfect}
-                    onChange={(value) =>
-                      handleControlnetAttrsChange(
-                        "pixel_perfect",
-                        value,
-                        activeControlnetLayer.id
-                      )
-                    }
-                  >
-                    Pixel Perfect
-                  </Checkbox>
-                  <Checkbox
-                    checked={activeControlnetLayer?.low_vram}
-                    onChange={(value) =>
-                      handleControlnetAttrsChange(
-                        "low_vram",
-                        value,
-                        activeControlnetLayer.id
-                      )
-                    }
-                  >
-                    Low VRAM
-                  </Checkbox>
-                </>
+                <Checkbox
+                  checked={activeControlnetLayer?.low_vram}
+                  onChange={(value) =>
+                    handleControlnetAttrsChange(
+                      "low_vram",
+                      value,
+                      activeControlnetLayer.id
+                    )
+                  }
+                >
+                  Low VRAM
+                </Checkbox>
               )}
 
               {backend === "auto" && (

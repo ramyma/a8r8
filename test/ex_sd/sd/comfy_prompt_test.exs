@@ -213,11 +213,12 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      control_net: ["cn0_controlnet_loader", 0],
                      end_percent: 1.0,
                      image: ["cn0_image", 0],
-                     negative: ["negative_prompt", 0],
-                     positive: ["positive_prompt", 0],
+                     negative: ["img2img_vae_encode_node", 1],
+                     positive: ["img2img_vae_encode_node", 0],
                      start_percent: 0,
                      strength: 1,
-                     mask_optional: ["cn0_mask", 0]
+                     # ["cn0_mask", 0]
+                     mask_optional: nil
                    }
                  },
                  "cn0_controlnet_loader" => %{
@@ -238,7 +239,8 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      control_net: ["cn1_controlnet_loader", 0],
                      start_percent: 0.3,
                      strength: 0.5,
-                     mask_optional: ["cn1_mask", 0]
+                     # ["cn1_mask", 0]
+                     mask_optional: nil
                    }
                  },
                  "cn1_controlnet_loader" => %{
@@ -248,7 +250,12 @@ defmodule ExSd.Sd.ComfyPromptTest do
                  "cn1_image" => %{class_type: "Base64ImageInput", inputs: %{base64_image: ""}},
                  "cn1_preprocessor" => %{
                    class_type: "CannyEdgePreprocessor",
-                   inputs: %{image: ["cn1_image", 0], high_threshold: 200, low_threshold: 100}
+                   inputs: %{
+                     image: ["cn1_image", 0],
+                     high_threshold: 200,
+                     low_threshold: 100,
+                     resolution: 512
+                   }
                  },
                  "cn0_mask" => %{
                    class_type: "ImageToMask",
@@ -256,7 +263,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                  },
                  "cn0_mask_image_loader" => %{
                    class_type: "Base64ImageInput",
-                   inputs: %{base64_image: ""}
+                   inputs: %{base64_image: nil}
                  },
                  "cn1_mask" => %{
                    class_type: "ImageToMask",
@@ -264,7 +271,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                  },
                  "cn1_mask_image_loader" => %{
                    class_type: "Base64ImageInput",
-                   inputs: %{base64_image: ""}
+                   inputs: %{base64_image: nil}
                  }
                }
              }
@@ -489,7 +496,8 @@ defmodule ExSd.Sd.ComfyPromptTest do
 
     assert ComfyPrompt.maybe_add_regional_prompts_with_coupling(ComfyPrompt.new(), attrs,
              width: 768,
-             height: 512
+             height: 512,
+             is_txt2img: false
            ) ==
              %{
                prompt: %{
@@ -540,7 +548,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                      width: 768,
                      height: 512,
                      model: [
-                       "model",
+                       "differential_diffusion",
                        0
                      ],
                      base_prompt: [
@@ -574,6 +582,100 @@ defmodule ExSd.Sd.ComfyPromptTest do
                "region 2",
                "attention_couple_region_2_prompt"
              )
+  end
+
+  test "maybe_add_ip_adapters" do
+    attrs = %{
+      "ip_adapters" => [
+        %{
+          "end_at" => 1,
+          "image" => "test_image",
+          "mask" => "test_mask",
+          "preset" => "ip_adapter_preset",
+          "start_at" => 0,
+          "weight" => 1,
+          "weight_type" => "linear"
+        },
+        %{
+          "end_at" => 1,
+          "image" => "test_image2",
+          "mask" => "test_mask2",
+          "preset" => "ip_adapter_preset",
+          "start_at" => 0,
+          "weight" => 1,
+          "weight_type" => "linear"
+        }
+      ]
+    }
+
+    assert ComfyPrompt.maybe_add_ip_adapters(ComfyPrompt.new(), attrs) == %{
+             prompt: %{
+               "ip_adapter_0" => %{
+                 inputs: %{
+                   image: ["ip_adapter_0_image_loader", 0],
+                   model: ["unified_ip_adapter_loader_ip_adapter_preset", 0],
+                   ipadapter: ["unified_ip_adapter_loader_ip_adapter_preset", 1],
+                   image_negative: nil,
+                   weight: 1,
+                   weight_type: "linear",
+                   start_at: 0,
+                   end_at: 1,
+                   combine_embeds: "average",
+                   attn_mask: ["ip_adapter_0_mask_loader", 0],
+                   embeds_scaling: "V only"
+                 },
+                 class_type: "IPAdapterAdvanced"
+               },
+               "ip_adapter_0_image_loader" => %{
+                 inputs: %{base64_image: "test_image"},
+                 class_type: "Base64ImageInput"
+               },
+               "ip_adapter_0_mask_loader_image_loader" => %{
+                 class_type: "Base64ImageInput",
+                 inputs: %{base64_image: "test_mask"}
+               },
+               "ip_adapter_0_mask_loader" => %{
+                 class_type: "ImageToMask",
+                 inputs: %{image: ["ip_adapter_0_mask_loader_image_loader", 0], channel: "red"}
+               },
+               "unified_ip_adapter_loader_ip_adapter_preset" => %{
+                 class_type: "IPAdapterUnifiedLoader",
+                 inputs: %{
+                   ipadapter: nil,
+                   model: ["apply_fooocus_inpaint", 0],
+                   preset: "ip_adapter_preset"
+                 }
+               },
+               "ip_adapter_1" => %{
+                 class_type: "IPAdapterAdvanced",
+                 inputs: %{
+                   image: ["ip_adapter_1_image_loader", 0],
+                   model: ["ip_adapter_0", 0],
+                   weight: 1,
+                   ipadapter: ["unified_ip_adapter_loader_ip_adapter_preset", 1],
+                   image_negative: nil,
+                   weight_type: "linear",
+                   start_at: 0,
+                   end_at: 1,
+                   combine_embeds: "average",
+                   attn_mask: ["ip_adapter_1_mask_loader", 0],
+                   embeds_scaling: "V only"
+                 }
+               },
+               "ip_adapter_1_image_loader" => %{
+                 class_type: "Base64ImageInput",
+                 inputs: %{base64_image: "test_image2"}
+               },
+               "ip_adapter_1_mask_loader" => %{
+                 class_type: "ImageToMask",
+                 inputs: %{image: ["ip_adapter_1_mask_loader_image_loader", 0], channel: "red"}
+               },
+               "ip_adapter_1_mask_loader_image_loader" => %{
+                 class_type: "Base64ImageInput",
+                 inputs: %{base64_image: "test_mask2"}
+               }
+             }
+           }
   end
 
   test "txt2img" do
@@ -722,7 +824,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                    inputs: %{
                      clip: ["clip", 0],
                      lora_name: "lora1.safetensors",
-                     model: ["model", 0],
+                     model: ["differential_diffusion", 0],
                      strength_clip: 1,
                      strength_model: 1
                    }
@@ -740,14 +842,15 @@ defmodule ExSd.Sd.ComfyPromptTest do
                  "cn0_apply_controlnet" => %{
                    class_type: "ACN_AdvancedControlNetApply",
                    inputs: %{
-                     positive: ["positive_prompt", 0],
+                     positive: ["img2img_vae_encode_node", 0],
                      image: ["cn0_preprocessor", 0],
                      control_net: ["cn0_controlnet_loader", 0],
                      end_percent: 1.0,
-                     negative: ["negative_prompt", 0],
+                     negative: ["img2img_vae_encode_node", 1],
                      start_percent: 0.0,
                      strength: 1.0,
-                     mask_optional: ["cn0_mask", 0]
+                     # ["cn0_mask", 0]
+                     mask_optional: nil
                    }
                  },
                  "cn0_controlnet_loader" => %{
@@ -757,7 +860,11 @@ defmodule ExSd.Sd.ComfyPromptTest do
                  "cn0_image" => %{class_type: "Base64ImageInput", inputs: %{base64_image: ""}},
                  "cn0_preprocessor" => %{
                    class_type: "AIO_Preprocessor",
-                   inputs: %{image: ["cn0_image", 0], preprocessor: "module1"}
+                   inputs: %{
+                     image: ["cn0_image", 0],
+                     preprocessor: "module1",
+                     resolution: 512
+                   }
                  },
                  "clip" => %{
                    class_type: "CLIPSetLastLayer",
@@ -769,7 +876,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                  },
                  "cn0_mask_image_loader" => %{
                    class_type: "Base64ImageInput",
-                   inputs: %{base64_image: ""}
+                   inputs: %{base64_image: nil}
                  },
                  "second_pass_vae_encode_node" => %{
                    class_type: "VAEEncode",
