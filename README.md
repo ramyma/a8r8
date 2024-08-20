@@ -126,6 +126,8 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      6. Install <https://github.com/Acly/comfyui-inpaint-nodes> and follow steps on to download required models
+      7. Install <https://github.com/cubiq/ComfyUI_IPAdapter_plus> and follow steps on to download required models
 
 &nbsp;
 
@@ -158,6 +160,8 @@ You can define the default backend selected on startup by setting `DEFAULT_BACKE
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      6. Install <https://github.com/Acly/comfyui-inpaint-nodes> and follow steps on to download required model
+      7. Install <https://github.com/cubiq/ComfyUI_IPAdapter_plus> and follow steps on to download required model
 
 &nbsp;
 
@@ -192,6 +196,8 @@ Start the SD backend of your choice
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      6. Install <https://github.com/Acly/comfyui-inpaint-nodes> and follow steps on to download required model
+      7. Install <https://github.com/cubiq/ComfyUI_IPAdapter_plus> and follow steps on to download required model
 
 &nbsp;
 
@@ -222,6 +228,8 @@ Start the SD backend of your choice
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      6. Install <https://github.com/Acly/comfyui-inpaint-nodes> and follow steps on to download required model
+      7. Install <https://github.com/cubiq/ComfyUI_IPAdapter_plus> and follow steps on to download required model
 
 &nbsp;
 
