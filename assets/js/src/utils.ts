@@ -703,6 +703,9 @@ export const debugImage = function (url, label, height = 100) {
 export const checkIsSdXlModel = (modelName: string): boolean =>
   modelName?.toLowerCase()?.includes("xl");
 
+export const checkIsSdFluxModel = (modelName: string): boolean =>
+  /flux/i.test(modelName);
+
 export const checkIsIpAdapterControlnetModel = (
   modelName: string = ""
 ): boolean => /ip\Sadapter/i.test(modelName);

@@ -578,6 +578,12 @@ defmodule ExSd.Sd.SdService do
   def get_models(:auto), do: AutoClient.get_models()
   def get_models(:comfy), do: ComfyClient.get_models()
 
+  @spec get_unets(backend()) :: {:error, any} | {:ok, list(:binary)}
+  def get_unets(:comfy), do: ComfyClient.get_unets()
+
+  @spec get_clips_models(backend()) :: {:error, any} | {:ok, list(binary())}
+  def get_clips_models(:comfy), do: ComfyClient.get_clips_models()
+
   @spec get_vaes(backend()) :: {:error, any} | {:ok, any}
   def get_vaes(:auto), do: AutoClient.get_vaes()
   def get_vaes(:comfy), do: ComfyClient.get_vaes()

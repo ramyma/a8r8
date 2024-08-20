@@ -24,7 +24,11 @@ import ScrollArea from "./components/ScrollArea";
 import useHistoryManager from "./hooks/useHistoryManager";
 import useScripts from "./hooks/useScripts";
 import { useAppDispatch, useAppSelector } from "./hooks";
-import { OptionsState, selectBackend } from "./state/optionsSlice";
+import {
+  OptionsState,
+  selectBackend,
+  selectSelectedModel,
+} from "./state/optionsSlice";
 import useBackend from "./hooks/useBackend";
 import useSchedulers from "./hooks/useSchedulers";
 import { ActionCreators as UndoActionCreators } from "redux-undo";
@@ -32,6 +36,7 @@ import { useCustomEventListener } from "react-custom-events";
 import { HistoryItem } from "./state/historySlice";
 import Button from "./components/Button";
 import BatchImageResults from "./BatchImageResults";
+import ClipModelSelect from "./MainForm/ClipModelSelect";
 
 function App() {
   const { refetch: refetchOptions } = useOptions({ fetchPolicy: "eager" });
@@ -76,17 +81,21 @@ function App() {
     models,
     setModel,
     setVae,
+    setClipModel,
+    setClipModel2,
     selectedModel,
     selectedVae,
+    selectedClipModel,
+    selectedClipModel2,
     fetchData: refetchModels,
     fetchVaes: refetchVaes,
     vaes,
+    clipModels,
   } = useModels({
     fetchPolicy: "eager",
   });
 
   useIsConnected();
-
   // const panelRef = useRef<HTMLDivElement>(null);
   // const { width } = useResize({ container: panelRef });
 
@@ -133,6 +142,20 @@ function App() {
                 isVaeLoading={isVaeLoading}
                 isModelLoading={isModelLoading}
               />
+              {selectedModel?.isFlux && (
+                <>
+                  <ClipModelSelect
+                    clipModels={clipModels}
+                    setClipModel={setClipModel}
+                    selectedClipModel={selectedClipModel}
+                  />
+                  <ClipModelSelect
+                    clipModels={clipModels}
+                    setClipModel={setClipModel2}
+                    selectedClipModel={selectedClipModel2}
+                  />
+                </>
+              )}
             </div>
             <MainForm />
           </ScrollArea>
@@ -244,6 +267,7 @@ const VaeSelect = ({
   isModelLoading: boolean;
 }) => {
   const backend = useAppSelector(selectBackend);
+  const selectedModel = useAppSelector(selectSelectedModel);
 
   const handleVaeChange: SelectProps["onChange"] = useCallback(
     (value) => {
@@ -261,7 +285,10 @@ const VaeSelect = ({
   const title = "Select VAE";
   const name = "vae";
 
-  const vaeList = useMemo(() => ["Automatic", ...(vaes ?? [])], [vaes]);
+  const vaeList = useMemo(
+    () => [...(!selectedModel?.isFlux ? ["Automatic"] : []), ...(vaes ?? [])],
+    [selectedModel, vaes]
+  );
 
   return (
     <>

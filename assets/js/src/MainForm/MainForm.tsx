@@ -61,6 +61,8 @@ import {
 import useScripts from "../hooks/useScripts";
 import {
   selectBackend,
+  selectSelectedClipModel,
+  selectSelectedClipModel2,
   selectSelectedModel,
   selectSelectedVae,
 } from "../state/optionsSlice";
@@ -171,6 +173,9 @@ const MainForm = () => {
   const model = useAppSelector(selectSelectedModel);
   const vae = useAppSelector(selectSelectedVae);
 
+  const clipModel = useAppSelector(selectSelectedClipModel);
+  const clipModel2 = useAppSelector(selectSelectedClipModel2);
+
   const isConnected = useAppSelector(selectIsConnected);
 
   const isBatchDisabled =
@@ -231,14 +236,14 @@ const MainForm = () => {
   useEffect(() => {
     // Update scale if either width of height go below 512
     if (width && height) {
-      const referenceDim = model.isSdXl ? 1024 : 512;
+      const referenceDim = model.isSdXl || model.isFlux ? 1024 : 512;
 
       const minDimension = Math.min(+width, +height);
 
       if (minDimension < referenceDim) {
         const newScale = Math.min(
           10,
-          (model.isSdXl ? 1024 : 516.5) / minDimension
+          (model?.isSdXl || model?.isFlux ? 1024 : 516.5) / minDimension
         ).toFixed(2);
         setValue("scale", +newScale);
       } else if (
@@ -341,7 +346,7 @@ const MainForm = () => {
           ? processedPrompt
           : basePrompt,
       negative_prompt:
-        typeof negative_prompt === "string"
+        typeof (negative_prompt ?? "") === "string"
           ? prompt
           : editorJsonToText((negative_prompt as EditorState).doc.toJSON()),
       scheduler,
@@ -349,7 +354,8 @@ const MainForm = () => {
       ...(!isSeedPinned && { seed: -1 }),
       mask: txt2img ? "" : maskDataUrl,
       init_images: txt2img
-        ? controlnetArgs.controlnet?.args.some(
+        ? hasControlnet &&
+          controlnetArgs.controlnet?.args.some(
             ({ overrideBaseLayer }) => !overrideBaseLayer
           )
           ? [initImageDataUrl]
@@ -387,9 +393,9 @@ const MainForm = () => {
             //_
             null,
             //tile_width,
-            model?.isSdXl ? 1024 : 512,
+            model?.isSdXl || model?.isFlux ? 1024 : 512,
             //tile_height
-            model?.isSdXl ? 1024 : 512,
+            model?.isSdXl || model?.isFlux ? 1024 : 512,
             //mask_blur
             8,
             // padding,
@@ -591,6 +597,8 @@ const MainForm = () => {
       invert_mask: invertMask,
       model: model?.name,
       vae,
+      clip_model: clipModel,
+      clip_model_2: clipModel2,
       ...((backend === "comfy" || schedulers?.length > 0) && {
         scheduler,
       }),
@@ -781,28 +789,30 @@ const MainForm = () => {
         className="flex flex-col p-4 px-6 pt-1 pb-10 gap-8  w-full"
         ref={formRef}
       >
-        <div className="flex place-items-center gap-3 justify-between">
-          <Label htmlFor="clip_skip" className="whitespace-nowrap">
-            Clip Skip
-          </Label>
-          <Controller
-            name="clip_skip"
-            control={control}
-            render={({ field }) => (
-              <Input
-                id="clip_skip"
-                className="text-center max-w-16"
-                type="number"
-                step={1}
-                min={1}
-                max={10}
-                {...field}
-                onChange={(event) => field.onChange(+event.target.value)}
-              />
-            )}
-            defaultValue={1}
-          />
-        </div>
+        {!model.isFlux && (
+          <div className="flex place-items-center gap-3 justify-between">
+            <Label htmlFor="clip_skip" className="whitespace-nowrap">
+              Clip Skip
+            </Label>
+            <Controller
+              name="clip_skip"
+              control={control}
+              render={({ field }) => (
+                <Input
+                  id="clip_skip"
+                  className="text-center max-w-16"
+                  type="number"
+                  step={1}
+                  min={1}
+                  max={10}
+                  {...field}
+                  onChange={(event) => field.onChange(+event.target.value)}
+                />
+              )}
+              defaultValue={1}
+            />
+          </div>
+        )}
 
         {!isGenerating || !isConnected ? (
           <Button
@@ -835,18 +845,21 @@ const MainForm = () => {
           />
         </div>
         {hasRegionalPrompting && <RegionalPromptsFields />}
-        <div className="flex flex-col gap-2">
-          <Label>Negative Prompt</Label>
+        {backend !== "comfy" ||
+          (!model.isFlux && (
+            <div className="flex flex-col gap-2">
+              <Label>Negative Prompt</Label>
 
-          <Controller
-            name="negative_prompt"
-            control={control}
-            render={({ field }) => (
-              <Editor placeholder="Negative Prompt" {...field} />
-            )}
-            defaultValue=""
-          />
-        </div>
+              <Controller
+                name="negative_prompt"
+                control={control}
+                render={({ field }) => (
+                  <Editor placeholder="Negative Prompt" {...field} />
+                )}
+                defaultValue=""
+              />
+            </div>
+          ))}
 
         <Controller
           name="txt2img"
@@ -951,15 +964,39 @@ const MainForm = () => {
             defaultValue={0.7}
           />
         )}
-        <Controller
-          name="cfg_scale"
-          control={control}
-          defaultValue={7}
-          // rules={{ required: true }}
-          render={({ field }) => (
-            <Slider step={0.1} min={1} max={30} label="CFG Scale" {...field} />
-          )}
-        />
+        {backend !== "comfy" || !model.isFlux ? (
+          <Controller
+            name="cfg_scale"
+            control={control}
+            defaultValue={7}
+            // rules={{ required: true }}
+            render={({ field }) => (
+              <Slider
+                step={0.1}
+                min={1}
+                max={30}
+                label="CFG Scale"
+                {...field}
+              />
+            )}
+          />
+        ) : (
+          <Controller
+            name="flux_guidance"
+            control={control}
+            defaultValue={3.5}
+            // rules={{ required: true }}
+            render={({ field }) => (
+              <Slider
+                step={0.1}
+                min={1}
+                max={30}
+                label="Flux Guidnace"
+                {...field}
+              />
+            )}
+          />
+        )}
         {/* TODO: Show image_cfg_scale only with ip2p */}
         {/* {true && (
         <Controller

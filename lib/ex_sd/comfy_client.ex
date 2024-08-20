@@ -15,7 +15,11 @@ defmodule ExSd.ComfyClient do
     |> Logger.info()
 
     generation_params =
-      ComfyPrompt.txt2img(generation_params, attrs)
+      if Regex.match?(~r/flux/i, attrs["model"]) do
+        ComfyPrompt.flux_txt2img(generation_params, attrs)
+      else
+        ComfyPrompt.txt2img(generation_params, attrs)
+      end
       |> Map.merge(%{client_id: client_id})
 
     with {:ok, response} <-
@@ -266,12 +270,42 @@ defmodule ExSd.ComfyClient do
   def get_models() do
     with response <- get("/object_info/CheckpointLoader"),
          {:ok, body} <- handle_response(response) do
-      loras =
+      models =
         body
         |> get_in(["CheckpointLoader", "input", "required", "ckpt_name"])
         |> List.first()
 
-      {:ok, loras}
+      {:ok, models}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  def get_unets() do
+    with response <- get("/object_info/UnetLoaderGGUF"),
+         {:ok, body} <- handle_response(response) do
+      unets =
+        body
+        |> get_in(["UnetLoaderGGUF", "input", "required", "unet_name"])
+        |> List.first()
+
+      {:ok, unets}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  def get_clips_models() do
+    with response <- get("/object_info/DualCLIPLoader"),
+         {:ok, body} <- handle_response(response) do
+      clip_models =
+        body
+        |> get_in(["DualCLIPLoader", "input", "required", "clip_name1"])
+        |> List.first()
+
+      {:ok, clip_models}
     else
       {:error, _error} = res ->
         res

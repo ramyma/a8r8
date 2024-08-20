@@ -173,6 +173,94 @@ defmodule ExSd.Sd.ComfyPrompt do
     prompt
   end
 
+  @spec flux_txt2img(GenerationParams.t(), map()) :: prompt()
+  def flux_txt2img(%GenerationParams{} = generation_params, attrs) do
+    positive_loras = Map.get(attrs, "positive_loras")
+
+    prompt =
+      new()
+      |> add_vae_loader(attrs["vae"])
+      |> add_loras(attrs, is_txt2img: generation_params.txt2img)
+      |> add_node(
+        node("clip", "DualCLIPLoader", %{
+          clip_name1: attrs["clip_model"],
+          clip_name2: attrs["clip_model_2"],
+          type: "flux"
+        })
+      )
+      |> add_node(
+        node("model", "UnetLoaderGGUF", %{
+          unet_name: attrs["model"]
+        })
+      )
+      |> add_clip_text_encode(
+        if(Enum.empty?(positive_loras),
+          do: node_ref("clip", 0),
+          else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
+        ),
+        generation_params.prompt,
+        "prompt"
+      )
+      |> add_node(
+        node("flux_guidance", "FluxGuidance", %{
+          conditioning: node_ref("prompt", 0),
+          guidance: generation_params.flux_guidance
+        })
+      )
+      |> add_node(
+        node("basic_guider", "BasicGuider", %{
+          model:
+            if(Enum.empty?(positive_loras),
+              do: node_ref("model", 0),
+              else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+            ),
+          conditioning: node_ref("flux_guidance", 0)
+        })
+      )
+      |> add_node(
+        node("basic_scheduler", "BasicScheduler", %{
+          model:
+            if(Enum.empty?(positive_loras),
+              do: node_ref("model", 0),
+              else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+            ),
+          scheduler: generation_params.scheduler,
+          steps: generation_params.steps,
+          denoise: 1.0
+        })
+      )
+      |> add_node(
+        node("noise", "RandomNoise", %{
+          noise_seed: generation_params.seed,
+          control_after_generate: "fixed"
+        })
+      )
+      |> add_node(
+        node("sampler", "KSamplerSelect", %{
+          sampler_name: generation_params.sampler_name
+        })
+      )
+      |> add_empty_latent_image(
+        name: "latent_image",
+        width: generation_params.width,
+        height: generation_params.height,
+        batch_size: generation_params.batch_size
+      )
+      |> add_node(
+        node("sampler_advanced", "SamplerCustomAdvanced", %{
+          noise: node_ref("noise", 0),
+          sampler: node_ref("sampler", 0),
+          guider: node_ref("basic_guider", 0),
+          sigmas: node_ref("basic_scheduler", 0),
+          latent_image: node_ref("latent_image", 0)
+        })
+      )
+      |> add_vae_decode(node_ref("sampler_advanced", 1), node_ref("vae", 0), "vae_decode")
+      |> add_output(node_ref("vae_decode", 0))
+
+    prompt
+  end
+
   @spec img2img(GenerationParams.t(), map()) :: prompt()
   def img2img(%GenerationParams{} = generation_params, attrs) do
     full_scale_pass = Map.get(attrs, "full_scale_pass", false)

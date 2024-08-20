@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { Scripts } from "../App.d";
 import useData, { FetchPolicy } from "./useData";
 import { useAppSelector } from "../hooks";
-import { selectBackend } from "../state/optionsSlice";
+import { selectBackend, selectSelectedModel } from "../state/optionsSlice";
 
 type Props = {
   fetchPolicy?: FetchPolicy;
@@ -28,6 +28,9 @@ const useScripts = ({ fetchPolicy }: Props = {}): Return => {
   });
 
   const backend = useAppSelector(selectBackend);
+  const selectedModel = useAppSelector(selectSelectedModel);
+
+  const isFlux = selectedModel?.isFlux;
 
   const hasScript = useCallback(
     (scriptName: string) => {
@@ -52,8 +55,8 @@ const useScripts = ({ fetchPolicy }: Props = {}): Return => {
     [backend, hasScript]
   );
   const hasControlnet = useMemo(
-    () => (backend === "auto" ? hasScript("controlnet") : true),
-    [backend, hasScript]
+    () => (backend === "auto" ? hasScript("controlnet") : !isFlux),
+    [backend, hasScript, isFlux]
   );
   const hasSelfAttentionGuidance = useMemo(
     () => (backend === "auto" ? hasScript("self attention guidance") : false),
@@ -86,7 +89,7 @@ const useScripts = ({ fetchPolicy }: Props = {}): Return => {
     hasControlnet,
     hasSelfAttentionGuidance,
     hasSoftInpainting,
-    hasRegionalPrompting: hasForgeCouple || backend === "comfy",
+    hasRegionalPrompting: hasForgeCouple || (backend === "comfy" && !isFlux),
     hasNeverOutOfMemory,
     hasMultidiffusionIntegrated,
   };

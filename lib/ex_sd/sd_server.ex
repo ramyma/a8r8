@@ -27,6 +27,7 @@ defmodule ExSd.SdServer do
        schedulers: [],
        models: [],
        vaes: [],
+       clip_models: [],
        upscalers: [],
        loras: [],
        embeddings: [],
@@ -498,6 +499,30 @@ defmodule ExSd.SdServer do
   end
 
   @impl true
+  def handle_cast(:unets, state) do
+    new_state = state |> refresh_and_put_unets
+    Sd.broadcast_data("unets", new_state.unets)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast(:clip_models, state) do
+    new_state = state |> put_clips_models()
+    Sd.broadcast_data("clip_models", new_state.clip_models)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_cast(:clips_models, state) do
+    new_state = state |> put_clips_models
+    Sd.broadcast_data("clips_models", new_state.clips_models)
+
+    {:noreply, state}
+  end
+
+  @impl true
   def handle_cast(:vaes, state) do
     new_state = state |> put_vaes()
 
@@ -626,6 +651,8 @@ defmodule ExSd.SdServer do
     |> put_progress()
     |> put_samplers()
     |> put_models()
+    |> put_unets()
+    |> put_clips_models()
     |> put_vaes()
     |> put_upscalers()
     |> put_loras()
@@ -728,9 +755,35 @@ defmodule ExSd.SdServer do
   end
 
   defp put_models(%{backend: :comfy} = state) do
-    case SdService.get_models(:comfy) do
-      {:ok, models} ->
-        state |> Map.put(:models, models |> Enum.sort())
+    with {:ok, models} <- SdService.get_models(:comfy),
+         {:ok, unets} <- SdService.get_unets(:comfy) do
+      state
+      |> Map.put(
+        :models,
+        Enum.concat(models, unets |> Enum.sort() |> Enum.filter(&String.match?(&1, ~r/flux/i)))
+        |> Enum.sort()
+      )
+    else
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_unets(%{backend: :comfy} = state) do
+    case SdService.get_unets(:comfy) do
+      {:ok, unets} ->
+        state
+        |> Map.put(:unets, unets |> Enum.sort() |> Enum.filter(&String.match?(&1, ~r/flux/i)))
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_clips_models(%{backend: :comfy} = state) do
+    case SdService.get_clips_models(:comfy) do
+      {:ok, clips_models} ->
+        state |> Map.put(:clip_models, clips_models |> Enum.sort())
 
       {:error, _} ->
         state
@@ -783,6 +836,10 @@ defmodule ExSd.SdServer do
 
   defp refresh_and_put_models(%{backend: :comfy} = state) do
     state |> put_models()
+  end
+
+  defp refresh_and_put_unets(%{backend: :comfy} = state) do
+    state |> put_unets()
   end
 
   defp put_schedulers(%{backend: backend} = state) do
@@ -1040,6 +1097,16 @@ defmodule ExSd.SdServer do
   @spec get_models :: {:ok, list()}
   def get_models() do
     GenServer.cast(__MODULE__, :models)
+  end
+
+  @spec get_unets :: {:ok, list()}
+  def get_unets() do
+    GenServer.cast(__MODULE__, :unets)
+  end
+
+  @spec get_clip_models :: {:ok, list()}
+  def get_clip_models() do
+    GenServer.cast(__MODULE__, :clip_models)
   end
 
   @spec get_vaes :: {:ok, list()}

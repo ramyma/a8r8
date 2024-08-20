@@ -38,6 +38,12 @@ defmodule ExSd.Sd do
   @spec get_models :: {:ok, list()}
   defdelegate get_models(), to: SdServer
 
+  @spec get_clip_models :: {:ok, list(binary())}
+  defdelegate get_clip_models(), to: SdServer
+
+  @spec get_unets :: {:ok, list()}
+  defdelegate get_unets(), to: SdServer
+
   @spec get_vaes :: {:ok, list()}
   defdelegate get_vaes(), to: SdServer
 

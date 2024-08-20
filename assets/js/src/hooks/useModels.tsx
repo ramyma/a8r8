@@ -3,15 +3,19 @@ import { Model, Vae } from "../App.d";
 import { useAppDispatch, useAppSelector } from "../hooks";
 import {
   selectBackend,
+  selectSelectedClipModel,
+  selectSelectedClipModel2,
   selectSelectedModel,
   selectSelectedVae,
+  setSelectedClipModel,
+  setSelectedClipModel2,
   setSelectedModel,
   setSelectedVae,
 } from "../state/optionsSlice";
 import useData, { FetchPolicy } from "./useData";
 import useSocket from "./useSocket";
 import { selectIsConnected } from "../state/statsSlice";
-import { checkIsSdXlModel } from "../utils";
+import { checkIsSdFluxModel, checkIsSdXlModel } from "../utils";
 
 type Props = {
   fetchPolicy?: FetchPolicy;
@@ -22,6 +26,8 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
   const isConnected = useAppSelector(selectIsConnected);
   const selectedModel = useAppSelector(selectSelectedModel);
   const selectedVae = useAppSelector(selectSelectedVae);
+  const selectedClipModel = useAppSelector(selectSelectedClipModel);
+  const selectedClipModel2 = useAppSelector(selectSelectedClipModel2);
   const backend = useAppSelector(selectBackend);
   const dispatch = useAppDispatch();
   //FIXME: remove useState and redux instead to sync across multiple usages
@@ -35,6 +41,11 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
 
   const { fetchData: fetchVaes, data: vaes } = useData<Vae[]>({
     name: "vaes",
+    fetchPolicy,
+  });
+
+  const { fetchData: fetchClipModels, data: clipModels } = useData<string[]>({
+    name: "clip_models",
     fetchPolicy,
   });
 
@@ -52,6 +63,7 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
               hash: modelObj.sha256,
               name: modelObj.model_name,
               isSdXl: checkIsSdXlModel(modelObj.model_name),
+              isFlux: checkIsSdFluxModel(modelObj.model_name),
             })
           );
         } else {
@@ -64,6 +76,7 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
           setSelectedModel({
             name: model,
             isSdXl: checkIsSdXlModel(model),
+            isFlux: checkIsSdFluxModel(model),
           })
         );
       }
@@ -83,6 +96,12 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
       }
     }
   };
+
+  const setClipModel = (clipModel: string) =>
+    dispatch(setSelectedClipModel(clipModel));
+
+  const setClipModel2 = (clipModel: string) =>
+    dispatch(setSelectedClipModel2(clipModel));
 
   useEffect(() => {
     if (channel) {
@@ -112,10 +131,16 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
     vaes,
     setModel,
     setVae,
+    setClipModel,
+    setClipModel2,
     fetchData,
     selectedModel,
     selectedVae,
+    selectedClipModel,
+    selectedClipModel2,
     fetchVaes,
+    fetchClipModels,
+    clipModels,
   };
 };
 

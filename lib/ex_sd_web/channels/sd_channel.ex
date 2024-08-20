@@ -50,6 +50,18 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
+  def handle_in("get_unets", _payload, socket) do
+    Sd.get_unets()
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("get_clip_models", _payload, socket) do
+    Sd.get_clip_models()
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_in("get_vaes", _payload, socket) do
     Sd.get_vaes()
     {:noreply, socket}
