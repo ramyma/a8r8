@@ -40,7 +40,11 @@ defmodule ExSd.ComfyClient do
     Logger.debug(attrs)
 
     generation_params =
-      ComfyPrompt.img2img(generation_params, attrs)
+      if Regex.match?(~r/flux/i, attrs["model"]) do
+        ComfyPrompt.flux_img2img(generation_params, attrs)
+      else
+        ComfyPrompt.img2img(generation_params, attrs)
+      end
       |> Map.merge(%{client_id: client_id})
 
     with {:ok, response} <-
@@ -298,11 +302,11 @@ defmodule ExSd.ComfyClient do
   end
 
   def get_clips_models() do
-    with response <- get("/object_info/DualCLIPLoader"),
+    with response <- get("/object_info/DualCLIPLoaderGGUF"),
          {:ok, body} <- handle_response(response) do
       clip_models =
         body
-        |> get_in(["DualCLIPLoader", "input", "required", "clip_name1"])
+        |> get_in(["DualCLIPLoaderGGUF", "input", "required", "clip_name1"])
         |> List.first()
 
       {:ok, clip_models}

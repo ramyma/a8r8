@@ -182,7 +182,7 @@ defmodule ExSd.Sd.ComfyPrompt do
       |> add_vae_loader(attrs["vae"])
       |> add_loras(attrs, is_txt2img: generation_params.txt2img)
       |> add_node(
-        node("clip", "DualCLIPLoader", %{
+        node("clip", "DualCLIPLoaderGGUF", %{
           clip_name1: attrs["clip_model"],
           clip_name2: attrs["clip_model_2"],
           type: "flux"
@@ -828,6 +828,164 @@ defmodule ExSd.Sd.ComfyPrompt do
     prompt
   end
 
+  @spec flux_img2img(GenerationParams.t(), map()) :: prompt()
+  def flux_img2img(%GenerationParams{} = generation_params, attrs) do
+    positive_loras = Map.get(attrs, "positive_loras")
+
+    has_ultimate_upscale = Map.get(attrs, "ultimate_upscale", false)
+
+    prompt =
+      new()
+      |> add_vae_loader(attrs["vae"])
+      |> add_loras(attrs, is_txt2img: generation_params.txt2img)
+      |> add_node(
+        node("clip", "DualCLIPLoaderGGUF", %{
+          clip_name1: attrs["clip_model"],
+          clip_name2: attrs["clip_model_2"],
+          type: "flux"
+        })
+      )
+      |> add_node(
+        node("model", "UnetLoaderGGUF", %{
+          unet_name: attrs["model"]
+        })
+      )
+      |> add_node(
+        node("differential_diffusion", "DifferentialDiffusion", %{
+          model: node_ref("model", 0)
+        })
+      )
+      |> add_clip_text_encode(
+        if(Enum.empty?(positive_loras),
+          do: node_ref("clip", 0),
+          else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
+        ),
+        generation_params.prompt,
+        "positive_prompt"
+      )
+      |> add_node(
+        node("flux_guidance", "FluxGuidance", %{
+          conditioning: node_ref("positive_prompt", 0),
+          guidance: generation_params.flux_guidance
+        })
+      )
+      |> add_node(
+        node("basic_guider", "BasicGuider", %{
+          model:
+            if(Enum.empty?(positive_loras),
+              do: node_ref("model", 0),
+              else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+            ),
+          conditioning: node_ref("img2img_vae_encode_node", 0)
+        })
+      )
+      |> add_node(
+        node("basic_scheduler", "BasicScheduler", %{
+          model:
+            if(Enum.empty?(positive_loras),
+              do: node_ref("differential_diffusion", 0),
+              else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+            ),
+          scheduler: generation_params.scheduler,
+          steps: generation_params.steps,
+          denoise: generation_params.denoising_strength
+        })
+      )
+      |> add_node(
+        node("noise", "RandomNoise", %{
+          noise_seed: generation_params.seed,
+          control_after_generate: "fixed"
+        })
+      )
+      |> add_node(
+        node("sampler", "KSamplerSelect", %{
+          sampler_name: generation_params.sampler_name
+        })
+      )
+      |> add_image_loader(
+        name: "image_input",
+        base64_image:
+          String.replace(
+            List.first(generation_params.init_images),
+            ~r/data:image\S+;base64,/i,
+            ""
+          )
+      )
+      |> maybe_add_image_scale(
+        generation_params,
+        "scaler",
+        generation_params.hr_scale != 1 and generation_params.hr_upscaler != "Latent",
+        image:
+          node_ref(
+            if(generation_params.hr_upscaler == "None" or generation_params.hr_scale < 1,
+              do: "image_input",
+              else: "upscale_with_model"
+            ),
+            0
+          ),
+        width: generation_params.width,
+        height: generation_params.height
+      )
+      |> add_mask_image_loader(
+        name: "mask",
+        base64_image:
+          String.replace(
+            generation_params.mask,
+            ~r/data:image\S+;base64,/i,
+            ""
+          )
+      )
+      |> add_node(
+        node("negative_prompt", "ConditioningZeroOut", %{
+          conditioning: node_ref("flux_guidance", 0)
+        })
+      )
+      |> add_img2img_vae_encode(
+        pixels:
+          node_ref(
+            if(
+              has_ultimate_upscale or
+                attrs["scale"] == 1 or
+                generation_params.hr_upscaler == "Latent",
+              do: "image_input",
+              else: "scaler"
+            ),
+            0
+          ),
+        vae: node_ref("vae", 0),
+        name: "img2img_vae_encode",
+        batch_size: generation_params.batch_size,
+        positive:
+          node_ref(
+            "flux_guidance",
+            0
+          ),
+        negative:
+          node_ref(
+            "negative_prompt",
+            0
+          ),
+        mask:
+          node_ref(
+            "mask",
+            0
+          )
+      )
+      |> add_node(
+        node("sampler_advanced", "SamplerCustomAdvanced", %{
+          noise: node_ref("noise", 0),
+          sampler: node_ref("sampler", 0),
+          guider: node_ref("basic_guider", 0),
+          sigmas: node_ref("basic_scheduler", 0),
+          latent_image: node_ref("img2img_vae_encode", 0)
+        })
+      )
+      |> add_vae_decode(node_ref("sampler_advanced", 1), node_ref("vae", 0), "vae_decode")
+      |> add_output(node_ref("vae_decode", 0))
+
+    prompt
+  end
+
   @spec add_node_input(map(), atom() | binary(), node_value()) :: map()
   def add_node_input(node, input_name, value) do
     node_name = node_name(node)
@@ -923,7 +1081,7 @@ defmodule ExSd.Sd.ComfyPrompt do
     latent_batch_node =
       node(name, "RepeatLatentBatch")
       |> add_node_input("amount", Keyword.get(options, :batch_size, 1))
-      |> add_node_input("samples", node_ref(node_name, 0))
+      |> add_node_input("samples", node_ref(node_name, 3))
 
     prompt
     |> add_node(node)
