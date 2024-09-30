@@ -1,8 +1,8 @@
 import { Control, Controller } from "react-hook-form";
 import { comfySoftPaintingFields } from "./constants";
 import Slider from "../../components/Slider";
-import { MainFormValues } from "../MainForm";
 import ExpandCollapseCheckbox from "../../components/ExpandCollapseCheckbox";
+import { MainFormValues } from "../MainForm";
 
 export type ComfySoftInpaintingArgs = {
   maskBlur: number;

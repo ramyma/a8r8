@@ -1,5 +1,6 @@
 defmodule ExSdWeb.SdChannel do
   use ExSdWeb, :channel
+  alias ExSd.ConfigManager
   alias ExSd.Sd
   # @impl true
   # def join("sd:lobby", payload, socket) do
@@ -167,6 +168,12 @@ defmodule ExSdWeb.SdChannel do
   def handle_in("controlnet_detect", params, socket) do
     Sd.controlnet_detect(params)
     {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("get_config", _payload, socket) do
+    config = ConfigManager.get_config()
+    {:reply, {:ok, config}, socket}
   end
 
   # @impl true

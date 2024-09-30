@@ -3,6 +3,7 @@ import { useCallback, useMemo } from "react";
 
 const DEFAULT_OPTIONS = {
   includeScore: true,
+  threshold: 0.5,
 };
 
 type Props<T> = { filter?: string; options?: IFuseOptions<T> } | undefined;

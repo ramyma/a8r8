@@ -13,7 +13,7 @@ import Label from "./Label";
 type Props = CheckboxProps & {
   defaultExpanded?: boolean;
   label: string;
-  showCheckbox: boolean;
+  showCheckbox?: boolean;
   children: ReactElement;
 };
 

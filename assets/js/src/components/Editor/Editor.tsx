@@ -49,7 +49,7 @@ import { AttentionExtension } from "./AttentionExtension";
 // ];
 interface Props {
   onChange: (state: EditorState) => void;
-  value: string;
+  value: string | EditorState;
   placeholder?: string;
   autofocus?: boolean;
 }

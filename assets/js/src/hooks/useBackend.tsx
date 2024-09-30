@@ -25,8 +25,8 @@ const useBackend = ({ fetchPolicy }: Props = {}) => {
     }
   }, [backend, dispatch, fetchPolicy]);
 
-  const changeBackend = (backend) => {
-    sendMessage("set_backend", backend);
+  const changeBackend = (newBackend) => {
+    backend !== newBackend && sendMessage("set_backend", newBackend);
   };
 
   return { backend, fetchData, changeBackend };

@@ -23,6 +23,7 @@ import Toolbar from "./components/Toolbar";
 import ScrollArea from "./components/ScrollArea";
 import useHistoryManager from "./hooks/useHistoryManager";
 import useScripts from "./hooks/useScripts";
+import useConfig, { AppConfig } from "./hooks/useConfig";
 import { useAppDispatch, useAppSelector } from "./hooks";
 import {
   OptionsState,
@@ -71,7 +72,7 @@ function App() {
     fetchPolicy: "eager",
   });
 
-  useBackend({
+  const { backend } = useBackend({
     fetchPolicy: "eager",
   });
 
@@ -96,6 +97,23 @@ function App() {
   });
 
   useIsConnected();
+
+  useConfig({
+    fetchPolicy: "eager",
+  });
+
+  useCustomEventListener(
+    "apply-preset",
+    (params: AppConfig["last_gen_config"]) => {
+      if (backend === "comfy") {
+        params?.model && setModel(params.model);
+        params?.vae && setVae(params.vae);
+        params?.clip_model && setClipModel(params.clip_model);
+        params?.clip_model_2 && setClipModel2(params.clip_model_2);
+      }
+    }
+  );
+
   // const panelRef = useRef<HTMLDivElement>(null);
   // const { width } = useResize({ container: panelRef });
 
@@ -203,7 +221,7 @@ const ModelSelect = ({
 
   const handleModelRefreshClick = (e: MouseEvent) => {
     e.preventDefault();
-    if (backend === "auto") refetchOptions();
+    if (backend === "auto" || backend === "forge") refetchOptions();
     refetchModels();
   };
 
@@ -213,7 +231,7 @@ const ModelSelect = ({
   return (
     <>
       <div className="inline-flex w-full">
-        {backend === "auto" ? (
+        {backend === "auto" || backend === "forge" ? (
           <Select
             id="auto_model"
             items={models}
@@ -235,6 +253,20 @@ const ModelSelect = ({
             value={selectedModel?.model_name || selectedModel?.name}
             onChange={handleModelChange}
             title={title}
+            groups={[
+              {
+                name: "Flux",
+                matcher: (itemName) => /.*flux.*/i.test(itemName),
+              },
+              {
+                name: "Pony",
+                matcher: (itemName) => /.*pony.*/i.test(itemName),
+              },
+              {
+                name: "SDXL",
+                matcher: (itemName) => /.*(sd)?(\S)*xl.*/i.test(itemName),
+              },
+            ]}
           />
         )}
         <Button
@@ -293,7 +325,7 @@ const VaeSelect = ({
   return (
     <>
       <div className="inline-flex w-full">
-        {backend === "auto" ? (
+        {backend === "auto" || backend === "forge" ? (
           <Select
             id="auto_vae"
             items={vaeList}

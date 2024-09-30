@@ -1,6 +1,7 @@
 defmodule ExSd.Sd.SdService do
   require Logger
 
+  alias ExSd.ForgeClient
   alias ExSd.Sd.AlwaysOnScripts
   alias ExSd.ComfyGenerationServer
   alias ExSd.ComfyClient
@@ -9,7 +10,7 @@ defmodule ExSd.Sd.SdService do
   alias ExSd.AutoClient
   alias ExSd.Sd.ImageService
 
-  @type backend :: :auto | :comfy
+  @type backend :: :auto | :comfy | :forge
 
   def generate_image(
         %GenerationParams{
@@ -90,8 +91,9 @@ defmodule ExSd.Sd.SdService do
           txt2img: txt2img
         } = generation_params,
         %{"scale" => scale, "invert_mask" => invert_mask} = attrs,
-        backend: :auto
-      ) do
+        backend: backend
+      )
+      when backend in [:auto, :forge] do
     full_scale_pass = Map.get(attrs, "full_scale_pass", false)
     original_dimensions = %{width: width, height: height}
     # mask = fill_mask(generation_params.mask)
@@ -141,6 +143,7 @@ defmodule ExSd.Sd.SdService do
     result =
       generate_and_receive(
         first_pass_generation_params,
+        backend,
         attrs,
         if(has_second_pass,
           do: %{width: generation_params.width, height: generation_params.height},
@@ -170,6 +173,7 @@ defmodule ExSd.Sd.SdService do
               inpainting_fill: 1,
               txt2img: false
             }),
+            backend,
             attrs,
             original_dimensions,
             mask_image,
@@ -184,6 +188,7 @@ defmodule ExSd.Sd.SdService do
 
   @spec generate_and_receive(
           ExSd.Sd.GenerationParams.t(),
+          backend(),
           map(),
           %{:height => pos_integer(), :width => pos_integer()},
           any(),
@@ -194,6 +199,7 @@ defmodule ExSd.Sd.SdService do
           | {:error, binary() | map()}
   def generate_and_receive(
         %GenerationParams{} = generation_params,
+        backend,
         attrs,
         %{width: width, height: height},
         mask_image,
@@ -205,7 +211,9 @@ defmodule ExSd.Sd.SdService do
     Logger.info("Second Pass: #{inspect(second_pass)}")
     generation_params = put_denoising_strength(generation_params, attrs, second_pass)
 
-    case AutoClient.generate_image(generation_params) do
+    client = if(backend == :auto, do: AutoClient, else: ForgeClient)
+
+    case client.generate_image(generation_params) do
       %{images: images, seed: seed} ->
         images_base64 = images
         Logger.info(length(images_base64))
@@ -545,6 +553,7 @@ defmodule ExSd.Sd.SdService do
 
   @spec interrupt(backend()) :: {:ok, any}
   def interrupt(:auto), do: AutoClient.interrupt()
+  def interrupt(:forge), do: ForgeClient.interrupt()
   def interrupt(:comfy), do: ComfyClient.interrupt()
 
   @spec free_memory(backend()) :: {:ok, any}
@@ -554,14 +563,18 @@ defmodule ExSd.Sd.SdService do
 
   @spec get_samplers(backend()) :: {:error, any} | {:ok, list}
   def get_samplers(:auto), do: AutoClient.get_samplers()
+  def get_samplers(:forge), do: ForgeClient.get_samplers()
   def get_samplers(:comfy), do: ComfyClient.get_samplers()
 
   @spec get_controlnet_models(backend()) :: {:error, any} | {:ok, any}
   def get_controlnet_models(:auto), do: AutoClient.get_controlnet_models()
+  def get_controlnet_models(:forge), do: ForgeClient.get_controlnet_models()
   def get_controlnet_models(:comfy), do: ComfyClient.get_controlnet_models()
 
   @spec get_controlnet_preprocessors(:auto) :: {:error, any} | {:ok, list(binary), any}
   def get_controlnet_preprocessors(:auto), do: AutoClient.get_controlnet_preprocessors()
+  @spec get_controlnet_preprocessors(:forge) :: {:error, any} | {:ok, list(binary), any}
+  def get_controlnet_preprocessors(:forge), do: ForgeClient.get_controlnet_preprocessors()
   @spec get_controlnet_preprocessors(:comfy) :: {:error, any} | {:ok, list(binary)}
   def get_controlnet_preprocessors(:comfy), do: ComfyClient.get_controlnet_preprocessors()
 
@@ -576,6 +589,7 @@ defmodule ExSd.Sd.SdService do
 
   @spec get_models(backend()) :: {:error, any} | {:ok, any}
   def get_models(:auto), do: AutoClient.get_models()
+  def get_models(:forge), do: ForgeClient.get_models()
   def get_models(:comfy), do: ComfyClient.get_models()
 
   @spec get_unets(backend()) :: {:error, any} | {:ok, list(:binary)}
@@ -586,10 +600,12 @@ defmodule ExSd.Sd.SdService do
 
   @spec get_vaes(backend()) :: {:error, any} | {:ok, any}
   def get_vaes(:auto), do: AutoClient.get_vaes()
+  def get_vaes(:forge), do: ForgeClient.get_vaes()
   def get_vaes(:comfy), do: ComfyClient.get_vaes()
 
   @spec get_schedulers(backend()) :: {:error, any} | {:ok, any}
   def get_schedulers(:auto), do: AutoClient.get_schedulers()
+  def get_schedulers(:forge), do: ForgeClient.get_schedulers()
   def get_schedulers(:comfy), do: ComfyClient.get_schedulers()
 
   @spec refresh_models() :: {:error, any} | {:ok, any}
@@ -600,10 +616,12 @@ defmodule ExSd.Sd.SdService do
 
   @spec get_upscalers(backend()) :: {:error, any} | {:ok, any}
   def get_upscalers(:auto), do: AutoClient.get_upscalers()
+  def get_upscalers(:forge), do: ForgeClient.get_upscalers()
   def get_upscalers(:comfy), do: ComfyClient.get_upscalers()
 
   @spec get_loras(backend()) :: {:error, any} | {:ok, any}
   def get_loras(:auto), do: AutoClient.get_loras()
+  def get_loras(:forge), do: ForgeClient.get_loras()
   def get_loras(:comfy), do: ComfyClient.get_loras()
 
   @spec get_embeddings(backend()) :: {:error, any} | {:ok, list()}
@@ -620,7 +638,7 @@ defmodule ExSd.Sd.SdService do
     end
   end
 
-  def get_embeddings(:comfy) do
+  def get_embeddings(_backend) do
     {:ok, []}
   end
 
@@ -635,11 +653,13 @@ defmodule ExSd.Sd.SdService do
 
   @spec get_progress(backend()) :: {:error, any} | {:ok, any}
   def get_progress(:auto), do: AutoClient.get_progress()
+  def get_progress(:forge), do: ForgeClient.get_progress()
   # def get_progress(:comfy), do: ComfyClient.get_progress()
 
   @spec get_memory_usage(backend()) :: {:error, any} | {:ok, any}
   def get_memory_usage(:comfy), do: ComfyClient.get_memory_usage()
   def get_memory_usage(:auto), do: AutoClient.get_memory_usage()
+  def get_memory_usage(:forge), do: ForgeClient.get_memory_usage()
 
   @spec post_active_model(binary()) :: {:error, any} | {:ok, any}
   defdelegate post_active_model(model_title), to: AutoClient

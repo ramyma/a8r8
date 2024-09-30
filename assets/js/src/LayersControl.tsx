@@ -60,7 +60,7 @@ import {
   emitImageDropEvent,
 } from "./Canvas/hooks/useCustomEventsListener";
 import useScripts from "./hooks/useScripts";
-import { selectBackend } from "./state/optionsSlice";
+import { selectBackend, selectSelectedModel } from "./state/optionsSlice";
 import ImageUploader from "./components/ImageUploader";
 import ColorPicker, { ColorPickerProps } from "./ColorPicker";
 import {
@@ -434,6 +434,7 @@ const LayersControl = () => {
 
   const invertMask = useAppSelector(selectInvertMask);
   const backend = useAppSelector(selectBackend);
+  const selectedModel = useAppSelector(selectSelectedModel);
 
   const { hasControlnet, hasRegionalPrompting } = useScripts();
   // const isControlnetLayerVisible = useAppSelector(
@@ -855,7 +856,7 @@ const LayersControl = () => {
               onChange={(e) => handleControlnetChange(e, i)}
             />
           </Label> */}
-        {activeControlnetLayer && (
+        {!selectedModel.isFlux && activeControlnetLayer && (
           <ScrollArea className="pe-2 mb-2">
             <div className="flex gap-5 flex-col mt-2 h-[45vh]  pt-1 pr-2.5">
               <div>
@@ -1031,55 +1032,57 @@ const LayersControl = () => {
                 </>
               )}
 
-              {backend === "auto" &&
-                !/ip\S*adapter/gi.test(activeControlnetLayer.module) && (
-                  <div className="flex gap-2 flex-col">
-                    <Label htmlFor={`mode${activeControlnetLayer?.id}`}>
-                      Control Mode
-                    </Label>
+              {backend === "auto" ||
+                (backend == "forge" &&
+                  !/ip\S*adapter/gi.test(activeControlnetLayer.module) && (
+                    <div className="flex gap-2 flex-col">
+                      <Label htmlFor={`mode${activeControlnetLayer?.id}`}>
+                        Control Mode
+                      </Label>
 
-                    <Select
-                      name="control_mode"
-                      id={`mode${activeControlnetLayer?.id}`}
-                      items={CONTROL_MODES}
-                      value={activeControlnetLayer?.control_mode}
-                      onChange={(value) =>
-                        handleControlnetSelectChange({
-                          name: "control_mode",
-                          type: "object",
-                          value,
-                          layerId: activeControlnetLayer.id,
-                        })
-                      }
-                    />
-                  </div>
-                )}
+                      <Select
+                        name="control_mode"
+                        id={`mode${activeControlnetLayer?.id}`}
+                        items={CONTROL_MODES}
+                        value={activeControlnetLayer?.control_mode}
+                        onChange={(value) =>
+                          handleControlnetSelectChange({
+                            name: "control_mode",
+                            type: "object",
+                            value,
+                            layerId: activeControlnetLayer.id,
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
 
-              {backend === "auto" &&
-                checkIsIpAdapterControlnetModel(
-                  activeControlnetLayer?.model
-                ) && (
-                  <div className="flex gap-2 flex-col">
-                    <Label htmlFor={`mode${activeControlnetLayer?.id}`}>
-                      Weight Type
-                    </Label>
+              {backend === "auto" ||
+                (backend == "forge" &&
+                  checkIsIpAdapterControlnetModel(
+                    activeControlnetLayer?.model
+                  ) && (
+                    <div className="flex gap-2 flex-col">
+                      <Label htmlFor={`mode${activeControlnetLayer?.id}`}>
+                        Weight Type
+                      </Label>
 
-                    <Select
-                      name="weight_type"
-                      id={`weight_type${activeControlnetLayer?.id}`}
-                      items={WEIGHT_TYPES}
-                      value={activeControlnetLayer?.weight_type}
-                      onChange={(value) =>
-                        handleControlnetSelectChange({
-                          name: "weight_type",
-                          type: "string",
-                          value,
-                          layerId: activeControlnetLayer.id,
-                        })
-                      }
-                    />
-                  </div>
-                )}
+                      <Select
+                        name="weight_type"
+                        id={`weight_type${activeControlnetLayer?.id}`}
+                        items={WEIGHT_TYPES}
+                        value={activeControlnetLayer?.weight_type}
+                        onChange={(value) =>
+                          handleControlnetSelectChange({
+                            name: "weight_type",
+                            type: "string",
+                            value,
+                            layerId: activeControlnetLayer.id,
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
 
               <Slider
                 label={
@@ -1100,27 +1103,28 @@ const LayersControl = () => {
                 value={activeControlnetLayer?.weight}
               />
 
-              {backend === "auto" &&
-                (activeControlnetLayer?.weight_type ===
-                  "Style and Composition" ||
-                  activeControlnetLayer?.weight_type ===
-                    "Strong Style and Composition") && (
-                  <Slider
-                    label="Composition Weight"
-                    min={0}
-                    max={2}
-                    step={0.01}
-                    value={activeControlnetLayer?.composition_weight ?? 1}
-                    onChange={(value) =>
-                      handleControlnetSelectChange({
-                        name: "composition_weight",
-                        type: "number",
-                        value,
-                        layerId: activeControlnetLayer.id,
-                      })
-                    }
-                  />
-                )}
+              {backend === "auto" ||
+                (backend == "forge" &&
+                  (activeControlnetLayer?.weight_type ===
+                    "Style and Composition" ||
+                    activeControlnetLayer?.weight_type ===
+                      "Strong Style and Composition") && (
+                    <Slider
+                      label="Composition Weight"
+                      min={0}
+                      max={2}
+                      step={0.01}
+                      value={activeControlnetLayer?.composition_weight ?? 1}
+                      onChange={(value) =>
+                        handleControlnetSelectChange({
+                          name: "composition_weight",
+                          type: "number",
+                          value,
+                          layerId: activeControlnetLayer.id,
+                        })
+                      }
+                    />
+                  ))}
               {/* <div className="flex gap-2"> */}
               {/* <Label htmlFor={`guidanceStart${activeControlnetLayer?.id}`}>
                 Guidance Start
@@ -1322,31 +1326,33 @@ const LayersControl = () => {
                 </Checkbox>
               )}
 
-              {backend === "auto" && (
-                <Checkbox
-                  checked={activeControlnetLayer?.low_vram}
-                  onChange={(value) =>
-                    handleControlnetAttrsChange(
-                      "low_vram",
-                      value,
-                      activeControlnetLayer.id
-                    )
-                  }
-                >
-                  Low VRAM
-                </Checkbox>
-              )}
+              {backend === "auto" ||
+                (backend == "forge" && (
+                  <Checkbox
+                    checked={activeControlnetLayer?.low_vram}
+                    onChange={(value) =>
+                      handleControlnetAttrsChange(
+                        "low_vram",
+                        value,
+                        activeControlnetLayer.id
+                      )
+                    }
+                  >
+                    Low VRAM
+                  </Checkbox>
+                ))}
 
-              {backend === "auto" && (
-                <Button
-                  variant="filled"
-                  className="sticky bottom-0 z-2 text-sm shadow-md shadow-black/30"
-                  fullWidth
-                  onClick={handleControlnetDetect}
-                >
-                  Detect
-                </Button>
-              )}
+              {backend === "auto" ||
+                (backend == "forge" && (
+                  <Button
+                    variant="filled"
+                    className="sticky bottom-0 z-2 text-sm shadow-md shadow-black/30"
+                    fullWidth
+                    onClick={handleControlnetDetect}
+                  >
+                    Detect
+                  </Button>
+                ))}
             </div>
           </ScrollArea>
         )}

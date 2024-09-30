@@ -16,6 +16,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <SocketProvider>
         <RefsContext.Provider
           value={{
+            canvasContainerRef: createRef(),
             controlnetLayerRef: createRef(),
             imageLayerRef: createRef(),
             maskCompositeRectRef: createRef(),

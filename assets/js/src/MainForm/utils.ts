@@ -13,7 +13,7 @@ export const processPrompt = ({
   isRegionalPromptingEnabled,
   promptRegions,
 }: {
-  prompt: string;
+  prompt: MainFormValues["prompt"];
   regionalPrompts: MainFormValues["regionalPrompts"];
   isRegionalPromptingEnabled: boolean;
   promptRegions: ReturnType<typeof selectPromptRegionLayers>;

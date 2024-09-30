@@ -7,7 +7,6 @@ import React, {
   useEffect,
   useMemo,
   useRef,
-  useState,
 } from "react";
 import { Controller, SubmitHandler, useForm, useWatch } from "react-hook-form";
 // import { DevTool } from "@hookform/devtools";
@@ -38,9 +37,9 @@ import useDragAndDrop from "../hooks/useDragAndDrop";
 import {
   editorJsonToText,
   getLayers,
-  checkIsSdXlModel,
   roundToClosestMultipleOf8Down,
   checkIsIpAdapterControlnetModel,
+  roundToClosestMultipleOf8,
 } from "../utils";
 import Editor from "../components/Editor";
 
@@ -78,20 +77,53 @@ import { showNotification } from "../Notifications/utils";
 import Button from "../components/Button";
 import { useCustomEventListener } from "react-custom-events";
 import ComfySoftInpaintingFields from "./ComfySoftInpaintingFields";
-import { ComfySoftInpaintingArgs } from "./ComfySoftInpaintingFields/ComfySoftInpaintingFields";
+import { ComfySoftInpaintingArgs } from "./ComfySoftInpaintingFields";
+import SkimmedCfgFields from "./SkimmedCfgFields";
+import { SkimmedCfgArgs } from "./SkimmedCfgFields/SkimmedCfgFields";
+import SplitRenderFields from "./SplitRenderFields";
+import { SplitRenderArgs } from "./SplitRenderFields/SplitRenderFields";
 
 export type MainFormValues = Record<string, any> & {
+  clip_skip: number;
+  prompt: string | EditorState;
+  negative_prompt: string | EditorState;
+  sampler_name: string;
+  scheduler: string;
+  denoising_strength?: number;
+  width: number;
+  height: number;
+  scale: number;
+  steps: number;
+  seed: number;
+  isSeedPinned: boolean;
+  inpainting_fill?: string;
+  fooocus_inpaint?: boolean;
+  isSelfAttentionGuidanceEnabled?: boolean;
+  upscaler?: string;
+  batch_size: number;
   softInpainting: SoftInpaintingArgs;
   comfySoftInpainting: ComfySoftInpaintingArgs;
+  sp_denoising_strength?: number;
   regionalPrompts?: Record<string, { prompt: EditorState; weight }>;
   globalPromptWeight?: number;
+  skimmedCfg: SkimmedCfgArgs;
+  splitRender: SplitRenderArgs;
+  cfg_scale: number;
+  flux_guidance: number;
+  isTiledDiffusionEnabled: boolean;
+  isRegionalPromptingEnabled: boolean;
+  txt2img: boolean;
+  isUltimateUpscaleEnabled: boolean;
+  isMultidiffusionEnabled: boolean;
+  full_scale_pass: boolean;
+  use_scaled_dimensions: boolean;
 };
 
 const MainForm = () => {
   const { channel, sendMessage } = useSocket();
   const backend = useAppSelector(selectBackend);
   const batchImageResults = useAppSelector(selectBatchImageResults);
-  const methods = useForm<MainFormValues>();
+  const methods = useForm<MainFormValues>({ shouldUnregister: true });
   const { control, handleSubmit, setValue } = methods;
   const formRef = useRef<HTMLFormElement>(null);
   const scale = useWatch({ name: "scale", control, defaultValue: 1 });
@@ -99,6 +131,7 @@ const MainForm = () => {
   const height = useWatch({ name: "height", control });
   const txt2img = useWatch({ name: "txt2img", control, defaultValue: true });
   const isSeedPinned = useWatch({ name: "isSeedPinned", control });
+  const seed = useWatch({ name: "seed", control });
   const batchSize = useWatch({ name: "batch_size", control, defaultValue: 1 });
 
   const fullScalePass = useWatch({
@@ -148,6 +181,7 @@ const MainForm = () => {
   } = useScripts();
 
   const isA1111 = backend === "auto" && !hasMultidiffusionIntegrated;
+  const isForge = backend === "forge";
 
   const { upscalers } = useUpscalers();
 
@@ -213,7 +247,39 @@ const MainForm = () => {
   useDragAndDrop({ handleAddImage });
 
   const refs = useContext(RefsContext);
-  const { selectionBoxRef } = refs;
+  const { selectionBoxRef, canvasContainerRef } = refs;
+
+  // apply last gen config
+  useCustomEventListener("apply-preset", (params: Partial<MainFormValues>) => {
+    params?.clip_skip && setValue("clip_skip", params.clip_skip);
+    params?.cfg_scale && setValue("cfg_scale", params.cfg_scale);
+    params?.flux_guidance && setValue("flux_guidance", params.flux_guidance);
+    params?.sampler_name && setValue("sampler_name", params.sampler_name);
+    params?.scheduler && setValue("scheduler", params.scheduler);
+    params?.steps && setValue("steps", params.steps);
+
+    params?.width &&
+      params?.height &&
+      dispatch(
+        updateSelectionBox({
+          width: params.width,
+          height: params.height,
+          ...(canvasContainerRef?.current && {
+            x: roundToClosestMultipleOf8(
+              Math.floor(
+                canvasContainerRef?.current.clientWidth / 2 - params.width / 2
+              )
+            ),
+            y: roundToClosestMultipleOf8(
+              Math.floor(
+                canvasContainerRef?.current.clientHeight / 2 - params.height / 2
+              )
+            ),
+          }),
+        })
+      );
+    params?.scale && setValue("scale", params.scale);
+  });
 
   const selectionBox = useAppSelector(selectSelectionBox);
   const dispatch = useAppDispatch();
@@ -292,11 +358,17 @@ const MainForm = () => {
       comfySoftInpainting,
       globalPromptWeight,
       fooocus_inpaint,
+      splitRender,
+      skimmedCfg,
       ...rest
     } = data;
 
-    const { controlnetArgs, iPAdapters }: ReturnType<typeof getControlnetArgs> =
-      hasControlnet ? getControlnetArgs() : {};
+    const {
+      controlnetArgs,
+      iPAdapters,
+    }: Partial<ReturnType<typeof getControlnetArgs>> = hasControlnet
+      ? getControlnetArgs()
+      : {};
     const {
       basePrompt,
       processedPrompt,
@@ -312,7 +384,7 @@ const MainForm = () => {
 
     // Show validation warning if prompt is not set with regional prompts
     if (
-      backend === "auto" &&
+      (backend === "auto" || backend === "forge") &&
       hasRegionalPrompting &&
       !basePrompt &&
       isRegionalPromptingEnabled
@@ -342,7 +414,9 @@ const MainForm = () => {
 
     const image = {
       prompt:
-        hasRegionalPrompting && isRegionalPromptingEnabled && backend === "auto"
+        hasRegionalPrompting &&
+        isRegionalPromptingEnabled &&
+        (backend === "auto" || backend === "forge")
           ? processedPrompt
           : basePrompt,
       negative_prompt:
@@ -355,7 +429,7 @@ const MainForm = () => {
       mask: txt2img ? "" : maskDataUrl,
       init_images: txt2img
         ? hasControlnet &&
-          controlnetArgs.controlnet?.args.some(
+          controlnetArgs?.controlnet?.args.some(
             ({ overrideBaseLayer }) => !overrideBaseLayer
           )
           ? [initImageDataUrl]
@@ -363,14 +437,14 @@ const MainForm = () => {
         : [initImageDataUrl],
       enable_hr: scale > 1,
       hr_upscaler:
-        backend == "auto" && upscaler === "Latent"
+        (backend === "auto" || backend === "forge") && upscaler === "Latent"
           ? "Latent (nearest-exact)"
           : upscaler,
       hr_scale: scale,
       // seed_resize_from_w: rest.width,
       // seed_resize_from_h: rest.height,
       batch_size: isBatchDisabled ? 1 : batchSize,
-      ...(backend === "auto" && {
+      ...((backend === "auto" || backend === "forge") && {
         override_settings: {
           ...(!isTiledDiffusionEnabled &&
             !isUltimateUpscaleEnabled && {
@@ -432,7 +506,7 @@ const MainForm = () => {
       // TODO: consider moving this logic to BE and send raw params
       alwayson_scripts: {
         ...controlnetArgs,
-        ...(backend === "auto" &&
+        ...((backend === "auto" || backend === "forge") &&
           !txt2img &&
           hasSoftInpainting &&
           softInpainting?.isSoftInpaintingEnabled && {
@@ -559,7 +633,7 @@ const MainForm = () => {
               ],
             },
           }),
-        ...(backend === "auto" &&
+        ...((backend === "auto" || backend === "forge") &&
           hasRegionalPrompting &&
           isRegionalPromptingEnabled && {
             "forge couple": {
@@ -623,6 +697,17 @@ const MainForm = () => {
         : {}),
       ...(backend === "comfy" && !txt2img
         ? { mask_blur: comfySoftInpainting.maskBlur }
+        : {}),
+      ...(backend === "comfy" && skimmedCfg?.is_enabled
+        ? { skimmed_cfg: skimmedCfg }
+        : {}),
+      ...(backend === "comfy" && splitRender?.is_enabled
+        ? {
+            split_render: {
+              ...splitRender,
+              split_ratio: 1 - splitRender.split_ratio,
+            },
+          }
         : {}),
       ultimate_upscale: isUltimateUpscaleEnabled,
       clip_skip: clipSkip,
@@ -741,9 +826,11 @@ const MainForm = () => {
     (e) => {
       if (e.key === "Enter" && e.ctrlKey && !isGenerating && isConnected) {
         formRef.current?.requestSubmit();
+      } else if (e.key.toLowerCase() === "l" && e.ctrlKey && e.shiftKey) {
+        seed && seed != -1 && setValue("isSeedPinned", !isSeedPinned);
       }
     },
-    [isConnected, isGenerating]
+    [isConnected, isGenerating, isSeedPinned, seed, setValue]
   );
 
   useGlobalKeydown({ handleKeydown, override: true });
@@ -763,7 +850,7 @@ const MainForm = () => {
     };
   }, [channel, dispatch, isSeedPinned, setValue, batchSize, isBatchDisabled]);
 
-  useCustomEventListener("updateSeed", (seed) => {
+  useCustomEventListener("updateSeed", (seed: MainFormValues["seed"]) => {
     !isSeedPinned && setValue("seed", seed);
   });
 
@@ -780,7 +867,8 @@ const MainForm = () => {
     (txt2img && showFullScalePass && !fullScalePass) ||
     (scale != 1 && !(showFullScalePass && fullScalePass));
   const showUpscaler = (txt2img && showSecondPassStrength) || !txt2img;
-  const showSoftInpainting = backend === "auto" && !txt2img;
+  const showSoftInpainting =
+    (backend === "auto" || backend === "forge") && !txt2img;
 
   return (
     <FormProvider {...methods}>
@@ -887,7 +975,7 @@ const MainForm = () => {
           </div>
         )}
 
-        {!txt2img && backend === "auto" && (
+        {!txt2img && (backend === "auto" || backend === "forge") && (
           <div className="flex flex-col gap-2">
             <Label /*htmlFor="inpainting_fill"*/>Fill Method</Label>
             <Controller
@@ -964,38 +1052,38 @@ const MainForm = () => {
             defaultValue={0.7}
           />
         )}
-        {backend !== "comfy" || !model.isFlux ? (
-          <Controller
-            name="cfg_scale"
-            control={control}
-            defaultValue={7}
-            // rules={{ required: true }}
-            render={({ field }) => (
-              <Slider
-                step={0.1}
-                min={1}
-                max={30}
-                label="CFG Scale"
-                {...field}
+        <Controller
+          name="cfg_scale"
+          control={control}
+          defaultValue={model.isFlux ? 1 : 7}
+          // rules={{ required: true }}
+          render={({ field }) => (
+            <Slider step={0.1} min={1} max={32} label="CFG Scale" {...field} />
+          )}
+        />
+
+        {backend === "comfy" && (
+          <>
+            {model?.isFlux && (
+              <Controller
+                name="flux_guidance"
+                control={control}
+                defaultValue={3.5}
+                // rules={{ required: true }}
+                render={({ field }) => (
+                  <Slider
+                    step={0.1}
+                    min={0}
+                    max={30}
+                    label="Flux Guidnace"
+                    {...field}
+                  />
+                )}
               />
             )}
-          />
-        ) : (
-          <Controller
-            name="flux_guidance"
-            control={control}
-            defaultValue={3.5}
-            // rules={{ required: true }}
-            render={({ field }) => (
-              <Slider
-                step={0.1}
-                min={1}
-                max={30}
-                label="Flux Guidnace"
-                {...field}
-              />
-            )}
-          />
+            <SkimmedCfgFields control={control} />
+            {model?.isFlux && <SplitRenderFields control={control} />}
+          </>
         )}
         {/* TODO: Show image_cfg_scale only with ip2p */}
         {/* {true && (

@@ -1,8 +1,8 @@
 import { Control, Controller, useWatch } from "react-hook-form";
 import { softPaintingFields } from "./constants";
 import Slider from "../../components/Slider";
-import { MainFormValues } from "../MainForm";
 import ExpandCollapseCheckbox from "../../components/ExpandCollapseCheckbox";
+import { MainFormValues } from "../MainForm";
 
 export type SoftInpaintingArgs = {
   isSoftInpaintingEnabled?: boolean;

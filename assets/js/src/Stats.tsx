@@ -28,7 +28,8 @@ const Stats = () => {
       <Select
         className="!w-fit"
         items={[
-          { label: "A1111 / Forge", value: "auto" },
+          { label: "A1111", value: "auto" },
+          { label: "Forge", value: "forge" },
           { label: "Comfy", value: "comfy" },
         ]}
         title="Select Backend"

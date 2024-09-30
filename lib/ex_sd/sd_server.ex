@@ -7,6 +7,7 @@ defmodule ExSd.SdServer do
   alias ExSd.Sd.SdService
   alias ExSd.Sd.{MemoryStats, GenerationParams}
   alias ExSd.Sd
+  alias ExSd.ConfigManager
 
   def start_link(init_args) do
     # you may want to register your server with `name: __MODULE__`
@@ -57,7 +58,7 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_info(:status, state) do
-    Process.send_after(self(), :status, 100)
+    Process.send_after(self(), :status, 500)
 
     new_state = state |> put_memory_usage() |> put_progress()
 
@@ -320,9 +321,9 @@ defmodule ExSd.SdServer do
   @impl true
   def handle_info(
         {:DOWN, ref, :process, _, :normal},
-        %{backend: :auto} = state
+        %{backend: backend} = state
       )
-      when state.task.ref == ref do
+      when state.task.ref == ref and backend in [:auto, :forge] do
     {:noreply, %{state | task: nil, generating_session_name: nil, is_generating: false}}
   end
 
@@ -379,11 +380,34 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_cast(
-        {:generate, generation_params, attrs, session_name},
+        {:generate, %GenerationParams{} = generation_params, attrs, session_name},
         %{backend: backend} = state
       ) do
     task =
       Task.async(fn -> SdService.generate_image(generation_params, attrs, backend: backend) end)
+
+    ConfigManager.set_config(%{
+      "prompt" => generation_params.prompt,
+      "negative_prompt" => generation_params.negative_prompt,
+      "scheduler" => generation_params.scheduler,
+      "txt2img" => generation_params.txt2img,
+      "sampler_name" => generation_params.sampler_name,
+      "steps" => generation_params.steps,
+      "cfg_scale" => generation_params.cfg_scale,
+      "width" => generation_params.width,
+      "height" => generation_params.height,
+      "seed" => generation_params.seed,
+      "flux_guidance" => generation_params.flux_guidance,
+      "batch_size" => generation_params.batch_size,
+      "scale" => attrs["scale"],
+      "use_scaled_dimensions" => attrs["use_scaled_dimensions"],
+      "full_scale_pass" => attrs["full_scale_pass"],
+      "model" => attrs["model"],
+      "vae" => attrs["vae"],
+      "clip_skip" => attrs["clip_skip"],
+      "clip_model" => attrs["clip_model"],
+      "clip_model_2" => attrs["clip_model_2"]
+    })
 
     {:noreply, %{state | task: task, generating_session_name: session_name, is_generating: true}}
   end
@@ -492,7 +516,7 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_cast(:models, state) do
-    new_state = state |> refresh_and_put_models
+    new_state = state |> refresh_and_put_models()
     Sd.broadcast_data("models", new_state.models)
 
     {:noreply, state}
@@ -500,7 +524,7 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_cast(:unets, state) do
-    new_state = state |> refresh_and_put_unets
+    new_state = state |> refresh_and_put_unets()
     Sd.broadcast_data("unets", new_state.unets)
 
     {:noreply, state}
@@ -684,8 +708,9 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp put_controlnet_preprocessors(%{backend: :auto} = state) do
-    case SdService.get_controlnet_preprocessors(:auto) do
+  defp put_controlnet_preprocessors(%{backend: backend} = state)
+       when backend in [:auto, :forge] do
+    case SdService.get_controlnet_preprocessors(backend) do
       {:ok, controlnet_preprocessors, controlnet_module_detail} ->
         mapped_modules =
           controlnet_preprocessors
@@ -728,6 +753,10 @@ defmodule ExSd.SdServer do
     end
   end
 
+  defp put_controlnet_types(%{backend: _backend} = state) do
+    state
+  end
+
   defp put_ip_adapter_models(%{backend: :comfy} = state) do
     with {:ok, ip_adapter_models} <- SdService.get_ip_adapter_models(:comfy),
          {:ok, ip_adapter_weight_types} <- SdService.get_ip_adapter_weight_types(:comfy) do
@@ -746,6 +775,16 @@ defmodule ExSd.SdServer do
 
   defp put_models(%{backend: :auto} = state) do
     case SdService.get_models(:auto) do
+      {:ok, models} ->
+        state |> Map.put(:models, models |> Enum.sort_by(& &1["model_name"]))
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_models(%{backend: :forge} = state) do
+    case SdService.get_models(:forge) do
       {:ok, models} ->
         state |> Map.put(:models, models |> Enum.sort_by(& &1["model_name"]))
 
@@ -780,6 +819,10 @@ defmodule ExSd.SdServer do
     end
   end
 
+  defp put_unets(state) do
+    state
+  end
+
   defp put_clips_models(%{backend: :comfy} = state) do
     case SdService.get_clips_models(:comfy) do
       {:ok, clips_models} ->
@@ -790,8 +833,26 @@ defmodule ExSd.SdServer do
     end
   end
 
+  defp put_clips_models(state) do
+    state
+  end
+
   defp put_vaes(%{backend: :auto} = state) do
     case SdService.get_vaes(:auto) do
+      {:ok, vaes} ->
+        state
+        |> Map.put(
+          :vaes,
+          vaes |> Enum.map(& &1["model_name"]) |> Enum.sort()
+        )
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_vaes(%{backend: :forge} = state) do
+    case SdService.get_vaes(:forge) do
       {:ok, vaes} ->
         state
         |> Map.put(
@@ -838,8 +899,16 @@ defmodule ExSd.SdServer do
     state |> put_models()
   end
 
+  defp refresh_and_put_models(%{backend: _backend} = state) do
+    state
+  end
+
   defp refresh_and_put_unets(%{backend: :comfy} = state) do
     state |> put_unets()
+  end
+
+  defp refresh_and_put_unets(%{backend: _backend} = state) do
+    state
   end
 
   defp put_schedulers(%{backend: backend} = state) do
@@ -852,10 +921,10 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp put_upscalers(%{backend: :auto} = state) do
+  defp put_upscalers(%{backend: backend} = state) when backend in [:auto, :forge] do
     # upscalers = Sd.load_upscalers()
     # state |> Map.put(:upscalers, upscalers)
-    case SdService.get_upscalers(:auto) do
+    case SdService.get_upscalers(backend) do
       {:ok, upscalers} ->
         state
         |> Map.put(
@@ -961,7 +1030,8 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp maybe_put_options(%{backend: :auto} = state) do
+  defp maybe_put_options(%{backend: backend} = state)
+       when backend in [:auto, :forge] do
     case SdService.get_options() do
       {:ok, options} ->
         state |> Map.put(:options, options)

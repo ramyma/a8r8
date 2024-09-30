@@ -19,12 +19,12 @@ const useOptions = ({ fetchPolicy }: Props = {}) => {
   const { data: options, fetchData } = useData<Options>({
     name: "options",
     fetchPolicy,
-    condition: backend === "auto",
+    condition: backend === "auto" || backend == "forge",
   });
   const updateSelectedModel = useCallback(
     (options: Options) => {
       // console.log(options);
-      if (backend === "auto") {
+      if (backend === "auto" || backend == "forge") {
         const model = models?.find(
           (model) => model?.sha256 === options?.sd_checkpoint_hash
         );

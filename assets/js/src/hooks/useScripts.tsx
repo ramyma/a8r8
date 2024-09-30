@@ -51,15 +51,24 @@ const useScripts = ({ fetchPolicy }: Props = {}): Return => {
     [backend, hasScript]
   );
   const hasUltimateUpscale = useMemo(
-    () => (backend === "auto" ? hasScript("ultimate sd upscale") : true),
+    () =>
+      backend === "auto" || backend === "forge"
+        ? hasScript("ultimate sd upscale")
+        : true,
     [backend, hasScript]
   );
   const hasControlnet = useMemo(
-    () => (backend === "auto" ? hasScript("controlnet") : !isFlux),
+    () =>
+      backend === "auto" || backend === "forge"
+        ? hasScript("controlnet")
+        : !isFlux,
     [backend, hasScript, isFlux]
   );
   const hasSelfAttentionGuidance = useMemo(
-    () => (backend === "auto" ? hasScript("self attention guidance") : false),
+    () =>
+      backend === "auto" || backend === "forge"
+        ? hasScript("self attention guidance")
+        : false,
     [backend, hasScript]
   );
 
@@ -68,15 +77,19 @@ const useScripts = ({ fetchPolicy }: Props = {}): Return => {
     [backend, hasScript]
   );
   const hasForgeCouple = useMemo(
-    () => (backend === "auto" ? hasScript("forge couple") : false),
+    () =>
+      backend === "auto" || backend === "forge"
+        ? hasScript("forge couple")
+        : false,
     [backend, hasScript]
   );
   const hasNeverOutOfMemory = useMemo(
-    () => (backend === "auto" ? hasScript("never oom integrated") : false),
+    () => (backend === "forge" ? hasScript("never oom integrated") : false),
     [backend, hasScript]
   );
   const hasMultidiffusionIntegrated = useMemo(
-    () => (backend === "auto" ? hasScript("multidiffusion integrated") : false),
+    () =>
+      backend === "forge" ? hasScript("multidiffusion integrated") : false,
     [backend, hasScript]
   );
 

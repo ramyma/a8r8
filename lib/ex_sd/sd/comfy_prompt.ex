@@ -6,7 +6,7 @@ defmodule ExSd.Sd.ComfyPrompt do
   @type ref_node_value :: [node_name: binary(), output_id: non_neg_integer()]
   @type comfy_node :: %{binary() => %{class_type: binary(), inputs: node_inputs()}}
   @type node_value :: number() | binary() | ref_node_value()
-  @type node_inputs :: %{(atom() | binary()) => node_value}
+  @type node_inputs :: %{(atom() | binary() | number() | boolean()) => node_value}
   @type prompt :: %{prompt: comfy_node()}
 
   @spec new(comfy_node()) :: prompt()
@@ -43,6 +43,8 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     ip_adapters = Map.get(attrs, "ip_adapters", [])
 
+    is_skimmed_cfg_enabled = get_in(attrs, ["skimmed_cfg", "is_enabled"]) || false
+
     # regional_prompts = Map.get(attrs, "regional_prompts")
 
     prompt =
@@ -64,6 +66,18 @@ defmodule ExSd.Sd.ComfyPrompt do
         ),
         generation_params.negative_prompt,
         "negative_prompt"
+      )
+      |> maybe_add_skimmed_cfg(
+        name: "skimmed_cfg",
+        model:
+          if(Enum.empty?(positive_loras),
+            do: node_ref("model", 0),
+            else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+          ),
+        skimming_cfg: get_in(attrs, ["skimmed_cfg", "skimming_cfg"]) || 6,
+        full_skim_negative: get_in(attrs, ["skimmed_cfg", "full_skim_negative"]),
+        disable_flipping_filter: get_in(attrs, ["skimmed_cfg", "disable_flipping_filter"]),
+        add: is_skimmed_cfg_enabled
       )
       |> maybe_add_regional_prompts_with_coupling(attrs,
         width: generation_params.width,
@@ -87,7 +101,11 @@ defmodule ExSd.Sd.ComfyPrompt do
                 do: node_ref("attention_couple", 0),
                 else:
                   if(Enum.empty?(ip_adapters),
-                    do: get_base_model(generation_params.txt2img),
+                    do:
+                      if(is_skimmed_cfg_enabled,
+                        do: node_ref("skimmed_cfg", 0),
+                        else: get_base_model(generation_params.txt2img)
+                      ),
                     else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
                   )
               ),
@@ -96,7 +114,11 @@ defmodule ExSd.Sd.ComfyPrompt do
                 do: node_ref("attention_couple", 0),
                 else:
                   if(Enum.empty?(ip_adapters),
-                    do: node_ref("positive_lora#{length(positive_loras) - 1}", 0),
+                    do:
+                      if(is_skimmed_cfg_enabled,
+                        do: node_ref("skimmed_cfg", 0),
+                        else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+                      ),
                     else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
                   )
               )
@@ -177,10 +199,13 @@ defmodule ExSd.Sd.ComfyPrompt do
   def flux_txt2img(%GenerationParams{} = generation_params, attrs) do
     positive_loras = Map.get(attrs, "positive_loras")
 
+    is_split_render = get_in(attrs, ["split_render", "is_enabled"]) || false
+    is_skimmed_cfg_enabled = get_in(attrs, ["skimmed_cfg", "is_enabled"]) || false
+
     prompt =
       new()
       |> add_vae_loader(attrs["vae"])
-      |> add_loras(attrs, is_txt2img: generation_params.txt2img)
+      |> add_loras(attrs, is_txt2img: generation_params.txt2img, model: node_ref("model", 0))
       |> add_node(
         node("clip", "DualCLIPLoaderGGUF", %{
           clip_name1: attrs["clip_model"],
@@ -208,26 +233,86 @@ defmodule ExSd.Sd.ComfyPrompt do
         })
       )
       |> add_node(
-        node("basic_guider", "BasicGuider", %{
-          model:
-            if(Enum.empty?(positive_loras),
-              do: node_ref("model", 0),
-              else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
-            ),
+        node("negative_prompt", "ConditioningZeroOut", %{
           conditioning: node_ref("flux_guidance", 0)
         })
       )
+      |> maybe_add_skimmed_cfg(
+        name: "skimmed_cfg",
+        model:
+          if(Enum.empty?(positive_loras),
+            do: node_ref("model", 0),
+            else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+          ),
+        skimming_cfg: get_in(attrs, ["skimmed_cfg", "skimming_cfg"]) || 6,
+        full_skim_negative: get_in(attrs, ["skimmed_cfg", "full_skim_negative"]),
+        disable_flipping_filter: get_in(attrs, ["skimmed_cfg", "disable_flipping_filter"]),
+        add: is_skimmed_cfg_enabled
+      )
+      |> add_node(
+        node("cfg_guider", "CFGGuider", %{
+          model:
+            if(is_skimmed_cfg_enabled,
+              do: node_ref("skimmed_cfg", 0),
+              else:
+                if(Enum.empty?(positive_loras),
+                  do: node_ref("model", 0),
+                  else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+                )
+            ),
+          positive: node_ref("flux_guidance", 0),
+          negative: node_ref("negative_prompt", 0),
+          cfg: generation_params.cfg_scale
+        })
+      )
+      |> add_node(
+        node("cfg_guider_split", "CFGGuider", %{
+          model:
+            if(is_skimmed_cfg_enabled,
+              do: node_ref("skimmed_cfg", 0),
+              else:
+                if(Enum.empty?(positive_loras),
+                  do: node_ref("model", 0),
+                  else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+                )
+            ),
+          positive: node_ref("flux_guidance", 0),
+          negative: node_ref("negative_prompt", 0),
+          cfg: generation_params.cfg_scale
+        })
+      )
+      # |> add_node(
+      #   node("basic_guider", "BasicGuider", %{
+      #     model:
+      #       if(Enum.empty?(positive_loras),
+      #         do: node_ref("model", 0),
+      #         else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+      #       ),
+      #     conditioning: node_ref("flux_guidance", 0)
+      #   })
+      # )
       |> add_node(
         node("basic_scheduler", "BasicScheduler", %{
           model:
-            if(Enum.empty?(positive_loras),
-              do: node_ref("model", 0),
-              else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+            if(is_skimmed_cfg_enabled,
+              do: node_ref("skimmed_cfg", 0),
+              else:
+                if(Enum.empty?(positive_loras),
+                  do: node_ref("model", 0),
+                  else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+                )
             ),
           scheduler: generation_params.scheduler,
           steps: generation_params.steps,
           denoise: 1.0
         })
+      )
+      |> add_node(
+        node("split_sigmas_denoise", "SplitSigmasDenoise", %{
+          sigmas: node_ref("basic_scheduler", 0),
+          denoise: get_in(attrs, ["split_render", "split_ratio"]) || 0.45
+        }),
+        is_split_render
       )
       |> add_node(
         node("noise", "RandomNoise", %{
@@ -250,13 +335,49 @@ defmodule ExSd.Sd.ComfyPrompt do
         node("sampler_advanced", "SamplerCustomAdvanced", %{
           noise: node_ref("noise", 0),
           sampler: node_ref("sampler", 0),
-          guider: node_ref("basic_guider", 0),
-          sigmas: node_ref("basic_scheduler", 0),
+          guider: node_ref("cfg_guider", 0),
+          sigmas:
+            if(is_split_render,
+              do: node_ref("split_sigmas_denoise", 0),
+              else: node_ref("basic_scheduler", 0)
+            ),
           latent_image: node_ref("latent_image", 0)
         })
       )
-      |> add_vae_decode(node_ref("sampler_advanced", 1), node_ref("vae", 0), "vae_decode")
+      |> add_node(
+        node("inject_noise", "InjectLatentNoise+", %{
+          latent: node_ref("sampler_advanced", 0),
+          noise_seed: 1,
+          noise_strength: get_in(attrs, ["split_render", "noise_injection_strength"]),
+          normalize: "false"
+        })
+      )
+      |> add_node(node("disable_noise", "DisableNoise"), is_split_render)
+      |> add_node(
+        node(
+          "sampler_advanced_split",
+          "SamplerCustomAdvanced",
+          %{
+            noise: node_ref("disable_noise", 0),
+            sampler: node_ref("sampler", 0),
+            guider: node_ref("cfg_guider_split", 0),
+            sigmas: node_ref("split_sigmas_denoise", 1),
+            latent_image: node_ref("inject_noise", 0)
+          }
+        ),
+        is_split_render
+      )
+      |> add_vae_decode(
+        if(is_split_render,
+          do: node_ref("sampler_advanced_split", 1),
+          else: node_ref("sampler_advanced", 1)
+        ),
+        node_ref("vae", 0),
+        "vae_decode"
+      )
       |> add_output(node_ref("vae_decode", 0))
+
+    # File.write!("./prompt.json", Jason.encode!(prompt, pretty: true))
 
     prompt
   end
@@ -834,10 +955,16 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     has_ultimate_upscale = Map.get(attrs, "ultimate_upscale", false)
 
+    is_split_render = get_in(attrs, ["split_render", "is_enabled"]) || false
+    is_skimmed_cfg_enabled = get_in(attrs, ["skimmed_cfg", "is_enabled"]) || false
+
     prompt =
       new()
       |> add_vae_loader(attrs["vae"])
-      |> add_loras(attrs, is_txt2img: generation_params.txt2img)
+      |> add_loras(attrs,
+        is_txt2img: generation_params.txt2img,
+        model: node_ref("differential_diffusion", 0)
+      )
       |> add_node(
         node("clip", "DualCLIPLoaderGGUF", %{
           clip_name1: attrs["clip_model"],
@@ -870,20 +997,57 @@ defmodule ExSd.Sd.ComfyPrompt do
         })
       )
       |> add_node(
-        node("basic_guider", "BasicGuider", %{
-          model:
-            if(Enum.empty?(positive_loras),
-              do: node_ref("model", 0),
-              else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
-            ),
-          conditioning: node_ref("img2img_vae_encode_node", 0)
+        node("negative_prompt", "ConditioningZeroOut", %{
+          conditioning: node_ref("flux_guidance", 0)
         })
       )
+      |> maybe_add_skimmed_cfg(
+        name: "skimmed_cfg",
+        model:
+          if(Enum.empty?(positive_loras),
+            do: node_ref("model", 0),
+            else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+          ),
+        skimming_cfg: get_in(attrs, ["skimmed_cfg", "skimming_cfg"]) || 6,
+        full_skim_negative: get_in(attrs, ["skimmed_cfg", "full_skim_negative"]),
+        disable_flipping_filter: get_in(attrs, ["skimmed_cfg", "disable_flipping_filter"]),
+        add: is_skimmed_cfg_enabled
+      )
+      |> add_node(
+        node("cfg_guider", "CFGGuider", %{
+          model:
+            if(Enum.empty?(positive_loras),
+              do:
+                if(is_skimmed_cfg_enabled,
+                  do: node_ref("skimmed_cfg", 0),
+                  else: node_ref("model", 0)
+                ),
+              else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+            ),
+          positive: node_ref("flux_guidance", 0),
+          negative: node_ref("negative_prompt", 0),
+          cfg: generation_params.cfg_scale
+        })
+      )
+      # |> add_node(
+      #   node("basic_guider", "BasicGuider", %{
+      #     model:
+      #       if(Enum.empty?(positive_loras),
+      #         do: node_ref("model", 0),
+      #         else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+      #       ),
+      #     conditioning: node_ref("img2img_vae_encode_node", 0)
+      #   })
+      # )
       |> add_node(
         node("basic_scheduler", "BasicScheduler", %{
           model:
             if(Enum.empty?(positive_loras),
-              do: node_ref("differential_diffusion", 0),
+              do:
+                if(is_skimmed_cfg_enabled,
+                  do: node_ref("skimmed_cfg", 0),
+                  else: node_ref("differential_diffusion", 0)
+                ),
               else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
             ),
           scheduler: generation_params.scheduler,
@@ -975,13 +1139,41 @@ defmodule ExSd.Sd.ComfyPrompt do
         node("sampler_advanced", "SamplerCustomAdvanced", %{
           noise: node_ref("noise", 0),
           sampler: node_ref("sampler", 0),
-          guider: node_ref("basic_guider", 0),
-          sigmas: node_ref("basic_scheduler", 0),
+          guider: node_ref("cfg_guider", 0),
+          sigmas:
+            if(is_split_render,
+              do: node_ref("split_sigmas_denoise", 0),
+              else: node_ref("basic_scheduler", 0)
+            ),
           latent_image: node_ref("img2img_vae_encode", 0)
         })
       )
-      |> add_vae_decode(node_ref("sampler_advanced", 1), node_ref("vae", 0), "vae_decode")
+      |> add_node(node("disable_noise", "DisableNoise"), is_split_render)
+      |> add_node(
+        node(
+          "sampler_advanced_split",
+          "SamplerCustomAdvanced",
+          %{
+            noise: node_ref("disable_noise", 0),
+            sampler: node_ref("sampler", 0),
+            guider: node_ref("cfg_guider", 0),
+            sigmas: node_ref("split_sigmas_denoise", 1),
+            latent_image: node_ref("sampler_advanced", 0)
+          }
+        ),
+        is_split_render
+      )
+      |> add_vae_decode(
+        if(is_split_render,
+          do: node_ref("sampler_advanced_split", 1),
+          else: node_ref("sampler_advanced", 1)
+        ),
+        node_ref("vae", 0),
+        "vae_decode"
+      )
       |> add_output(node_ref("vae_decode", 0))
+
+    # File.write!("./prompt.json", Jason.encode!(prompt, pretty: true))
 
     prompt
   end
@@ -1195,7 +1387,11 @@ defmodule ExSd.Sd.ComfyPrompt do
     |> add_node(node)
   end
 
-  @spec add_loras(prompt(), map(), [{:is_txt2img, boolean()}]) :: prompt()
+  @spec add_loras(prompt(), map(), [
+          {:is_txt2img, boolean()}
+          | {:model, ref_node_value()}
+        ]) ::
+          prompt()
   def add_loras(
         prompt,
         %{"positive_loras" => positive_loras} = attrs,
@@ -1214,9 +1410,13 @@ defmodule ExSd.Sd.ComfyPrompt do
           if(index > 0,
             do: node_ref("positive_lora#{index - 1}", 0),
             else:
-              if(not is_txt2img and fooocus_inpaint,
-                do: node_ref("apply_fooocus_inpaint", 0),
-                else: get_base_model(Keyword.get(options, :is_txt2img))
+              Keyword.get(
+                options,
+                :model,
+                if(not is_txt2img and fooocus_inpaint,
+                  do: node_ref("apply_fooocus_inpaint", 0),
+                  else: get_base_model(Keyword.get(options, :is_txt2img))
+                )
               )
           ),
         clip:
@@ -1689,8 +1889,7 @@ defmodule ExSd.Sd.ComfyPrompt do
               node_ref(
                 "attention_couple_regions_#{max(0, ceil(length(attention_couple_regions) / 10) - 1)}",
                 0
-              ),
-            ip_adapter_active: not Enum.empty?(ip_adapters)
+              )
           }
         )
       )
@@ -2354,6 +2553,32 @@ defmodule ExSd.Sd.ComfyPrompt do
 
       prompt
       |> add_node(node)
+    else
+      prompt
+    end
+  end
+
+  @spec maybe_add_skimmed_cfg(prompt(), [
+          {:name, binary()}
+          | {:model, ref_node_value()}
+          | {:skimming_cfg, non_neg_integer()}
+          | {:full_skim_negative, boolean()}
+          | {:disable_flipping_filter, boolean()}
+          | {:add, boolean()}
+        ]) :: prompt()
+  def maybe_add_skimmed_cfg(prompt, options) do
+    add = Keyword.get(options, :add, true)
+
+    if add do
+      prompt
+      |> add_node(
+        node(Keyword.get(options, :name, "skimmed_cfg"), "Skimmed CFG", %{
+          model: Keyword.get(options, :model),
+          Skimming_CFG: Keyword.get(options, :skimming_cfg),
+          full_skim_negative: Keyword.get(options, :full_skim_negative, false),
+          disable_flipping_filter: Keyword.get(options, :disable_flipping_filter, false)
+        })
+      )
     else
       prompt
     end

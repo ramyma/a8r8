@@ -78,8 +78,11 @@ const MIN_SCALE = 0.11;
 
 export default function Canvas() {
   const { broadcastSelectionBoxUpdate } = useSocket();
-  const { stageRef, selectionBoxRef } = useContext(RefsContext);
-  const ref = useRef<HTMLDivElement | null>(null);
+  const {
+    stageRef,
+    selectionBoxRef,
+    canvasContainerRef: ref,
+  } = useContext(RefsContext);
   // const stageRef = useRef<StageType | null>(null);
   const { imageLayerRef } = useContext(RefsContext);
   const [dimensions, setDimensions] = useState<CanvasDimensions>();
@@ -152,9 +155,9 @@ export default function Canvas() {
   const getControlnetLayerLines = useCallback(
     () =>
       typeof activeControlnetLayerId === "string"
-        ? (activeLayer.endsWith("mask")
+        ? ((activeLayer.endsWith("mask")
             ? tempControlnetMaskLines[activeControlnetLayerId]
-            : tempControlnetLines[activeControlnetLayerId]) ?? []
+            : tempControlnetLines[activeControlnetLayerId]) ?? [])
         : [],
     [
       activeControlnetLayerId,
@@ -253,7 +256,7 @@ export default function Canvas() {
   const getRegionMaskLayerLines = useCallback(
     () =>
       typeof activeRegionMaskLayerId === "string"
-        ? tempRegionMaskLines[activeRegionMaskLayerId] ?? []
+        ? (tempRegionMaskLines[activeRegionMaskLayerId] ?? [])
         : [],
     [activeRegionMaskLayerId, tempRegionMaskLines]
   );

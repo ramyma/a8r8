@@ -4,6 +4,7 @@ import React, {
   MouseEventHandler,
   SelectHTMLAttributes,
   forwardRef,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -19,15 +20,55 @@ import ScrollArea from "./ScrollArea";
 import useFuzzySearch from "../hooks/useFuzzySearch";
 import { twMerge } from "tailwind-merge";
 
-const uFuzzyObj = new uFuzzy({
-  intraMode: 1,
-  intraIns: 1,
-  intraChars: ".",
-  interChars: ".",
-  intraSub: 1,
-  intraTrn: 1,
-  intraDel: 1,
-});
+const UNGROUPED_NAME = "Other";
+
+type Group = Record<string, GroupItem[]>;
+
+type GroupItem = {
+  item: unknown;
+  index: number;
+  groupItemIndex: number;
+};
+
+const getItemLabel = ({ item, textAttr }) => {
+  if (typeof item === "object") {
+    return item[textAttr];
+  } else {
+    return item;
+  }
+};
+
+const getItemValue = ({ item, valueAttr }) => {
+  if (typeof item === "object") {
+    return item[valueAttr];
+  }
+  return item;
+};
+
+const getSelectedItemIndex = ({
+  value,
+  itemsByGroup = {},
+  valueAttr,
+}: {
+  value: unknown;
+  itemsByGroup: Group;
+  valueAttr: string;
+}): number => {
+  const groups = Object.values(itemsByGroup);
+  let countIdx = 0;
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+    const items = groups[groupIndex];
+    for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+      const groupItem = items[itemIndex];
+      if (getItemValue({ item: groupItem.item, valueAttr }) === value) {
+        return countIdx;
+      }
+      countIdx += 1;
+    }
+  }
+  return -1;
+};
+
 export interface SelectProps<
   T = string | number | { value: string | number; label: string },
 > extends Omit<SelectHTMLAttributes<HTMLSelectElement>, "onChange" | "value"> {
@@ -48,6 +89,10 @@ export interface SelectProps<
   value?: T;
   onChange: (value: SelectProps["value"]) => void;
   shouldSetDefaultValue?: boolean;
+  groups?: {
+    name: string;
+    matcher: (name: string) => boolean;
+  }[];
 }
 
 const Select = forwardRef(
@@ -63,6 +108,7 @@ const Select = forwardRef(
       onChange,
       title,
       shouldSetDefaultValue = true,
+      groups,
       ...rest
     }: SelectProps,
     _ref
@@ -80,6 +126,11 @@ const Select = forwardRef(
     const [search, setSearch] = useState("");
     const [activeItem, setActiveItem] = useState(0);
 
+    const initializedGroups = useMemo(
+      () => [...(groups ?? []), { name: UNGROUPED_NAME, matcher: () => true }],
+      [groups]
+    );
+
     //TODO:add loading state
 
     const { searchItems } = useFuzzySearch(items ?? [], {
@@ -87,45 +138,103 @@ const Select = forwardRef(
       options: { keys: [textAttr] },
     });
 
-    const filteredItems = useMemo(() => {
-      if (!search) {
-        setActiveItem(0);
-        return items;
-      }
-      // const haystack = items?.map((item) =>
-      //   typeof item === "string" ? item : item?.[textAttr]
-      // );
-      // if (haystack?.length > 0) {
-      //   const idxs = uFuzzyObj.filter(haystack, search);
+    const getItemsByGroups: (
+      items: SelectProps["items"],
+      groups: SelectProps["groups"]
+    ) => Group = useCallback(
+      (items, groups = []) => {
+        const itemsByGroups = items?.reduce((acc, item) => {
+          for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+            const group = groups?.[groupIndex];
 
-      //   const filtered = items?.filter((_, index) => idxs?.includes(index));
-      //   setActiveItem(0);
-      //   return filtered;
-      // }
-      const resultItems = searchItems(search);
-      return resultItems;
-      // return [];
-    }, [items, search]);
+            if (
+              group.name !== UNGROUPED_NAME &&
+              group?.matcher(getItemLabel({ item, textAttr }))
+            ) {
+              const groupItems: unknown[] = acc[group.name] ?? [];
+              return {
+                ...acc,
+                [group["name"]]: [...groupItems, item],
+              };
+            } else if (group.name === UNGROUPED_NAME) {
+              const groupItems: unknown[] = acc[UNGROUPED_NAME] ?? [];
+              return {
+                ...acc,
+                [UNGROUPED_NAME]: [...groupItems, item],
+              };
+            }
+          }
+          return acc;
+        }, {});
+        let itemsIdx = 0;
 
-    const selectedItemIdx: number = filteredItems?.findIndex(
-      (item) => (typeof item === "object" ? item[valueAttr] : item) === value
+        return Object.entries(itemsByGroups)
+          .toSorted(([groupNameA], [groupNameB]) =>
+            groupNameA === UNGROUPED_NAME
+              ? 1
+              : groupNameB === UNGROUPED_NAME
+                ? -1
+                : groupNameA <= groupNameB
+                  ? -1
+                  : 1
+          )
+          .reduce((acc, [groupName, items]) => {
+            return {
+              ...acc,
+              [groupName]: (items as unknown[]).map((item, groupItemIndex) => ({
+                item,
+                index: itemsIdx++,
+                groupItemIndex,
+              })),
+            };
+          }, {});
+      },
+      [textAttr]
     );
 
-    if (prevIsOpen !== isOpen) {
-      const selectedBBox = activeItemRef.current?.getBoundingClientRect();
-      const scrollContainerBBox =
-        scrollContainerRef.current?.getBoundingClientRect();
-      if (selectedBBox && scrollContainerBBox) {
-        if (selectedBBox.top > scrollContainerBBox.bottom) {
-          scrollContainerRef.current?.scrollBy(
-            0,
-            selectedBBox.bottom - scrollContainerBBox.bottom
-          );
+    const [filteredItems, groupedFilteredItems = {}] = useMemo(() => {
+      if (!search) {
+        if (!items) {
+          return [undefined, undefined];
         }
+        return [items, getItemsByGroups(items, initializedGroups)];
       }
-      isOpen && setActiveItem(selectedItemIdx);
-      setPrevIsOpen(isOpen);
-    }
+
+      const resultItems = searchItems(search);
+      const groupedResultItems = getItemsByGroups(
+        resultItems,
+        initializedGroups
+      );
+      return [resultItems, groupedResultItems];
+      // return [];
+    }, [getItemsByGroups, initializedGroups, items, rest.name, search]);
+
+    const selectedItemIdx = getSelectedItemIndex({
+      value,
+      itemsByGroup: groupedFilteredItems,
+      valueAttr,
+    });
+
+    useLayoutEffect(() => {
+      if (prevIsOpen !== isOpen) {
+        isOpen && searchInputRef.current?.focus();
+
+        const selectedBBox = activeItemRef.current?.getBoundingClientRect();
+        const scrollContainerBBox =
+          scrollContainerRef.current?.getBoundingClientRect();
+        if (isOpen && selectedBBox && scrollContainerBBox) {
+          if (selectedBBox.top > scrollContainerBBox.bottom) {
+            scrollContainerRef.current?.scrollBy(
+              0,
+              selectedBBox.bottom - scrollContainerBBox.bottom
+            );
+          }
+        }
+
+        isOpen && setActiveItem(selectedItemIdx);
+        setPrevIsOpen(isOpen);
+      }
+    }, [isOpen, prevIsOpen, selectedItemIdx]);
 
     const [pos, setPos] = useState({ x: 0, y: 0, yDir: "bottom" });
 
@@ -171,15 +280,12 @@ const Select = forwardRef(
     }, [isOpen, filteredItems]);
 
     useEffect(() => {
-      isOpen && searchInputRef.current?.focus();
-    }, [isOpen]);
-
-    useEffect(() => {
       const itemRef =
         selectedItemIdx === activeItem
           ? activeItemRef.current
           : selectedItemRef.current;
       if (itemRef) {
+        const offset = (initializedGroups?.length ?? 0) > 1 ? 32 : 0;
         const bbox = itemRef.getBoundingClientRect();
         const scrollContainerBbox =
           scrollContainerRef.current?.getBoundingClientRect();
@@ -189,18 +295,18 @@ const Select = forwardRef(
               0,
               bbox.bottom - scrollContainerBbox.bottom
             );
-          } else if (bbox.bottom <= scrollContainerBbox.top) {
+          } else if (bbox.bottom - offset <= scrollContainerBbox.top) {
             scrollContainerRef.current?.scrollBy(
               0,
-              bbox.top - scrollContainerBbox.top
+              bbox.top - scrollContainerBbox.top - offset
             );
           }
         }
       }
-    }, [activeItem, selectedItemIdx]);
+    }, [activeItem, initializedGroups, selectedItemIdx]);
 
     const selectedItem = items?.find(
-      (item) => (typeof item === "object" ? item[valueAttr] : item) === value
+      (item) => getItemValue({ item, valueAttr }) === value
     );
 
     const handleOpen = (open: boolean) => {
@@ -224,13 +330,13 @@ const Select = forwardRef(
 
     const decrementSelectedItemIdx = () => {
       setActiveItem((activeItem) =>
-        activeItem - 1 < 0 ? filteredItems.length - 1 : activeItem - 1
+        activeItem - 1 < 0 ? (filteredItems?.length ?? 1) - 1 : activeItem - 1
       );
     };
 
     const incrementSelectedItemIdx = () => {
       setActiveItem((activeItem) =>
-        activeItem + 1 > filteredItems.length - 1 ? 0 : activeItem + 1
+        activeItem + 1 > (filteredItems?.length ?? 1) - 1 ? 0 : activeItem + 1
       );
     };
 
@@ -286,17 +392,19 @@ const Select = forwardRef(
 
     const handleClearSearchClick: MouseEventHandler = () => {
       setSearch("");
+      setActiveItem(0);
+      searchInputRef.current?.focus();
     };
 
-    const setValue = (index?: string) => {
+    const setValue = (groupItemIndex?: number, groupName?: string) => {
       const selectedItem =
-        filteredItems[index ?? activeItem ?? selectedItemIdx];
-      selectedItem &&
-        onChange(
-          typeof selectedItem === "object"
-            ? selectedItem[valueAttr]
-            : selectedItem
-        );
+        groupName && groupItemIndex !== undefined
+          ? groupedFilteredItems[groupName ?? UNGROUPED_NAME][groupItemIndex]
+              .item
+          : Object.values(groupedFilteredItems)
+              .flat()
+              .find(({ index }) => index === activeItem)?.item;
+      selectedItem && onChange(getItemValue({ item: selectedItem, valueAttr }));
       isOpen && toggleOpen();
     };
 
@@ -347,10 +455,6 @@ const Select = forwardRef(
             <div
               className="absolute shadow-md shadow-black/50 mx-auto max-w-md z-50 border-neutral-700 bg-neutral-900/0 border-[1px] rounded-md border-solid text-sm select-none backdrop-blur-sm"
               style={{ [pos.yDir]: pos.y, left: pos.x }}
-              onMouseUp={(e) => {
-                if (e.target !== searchInputRef.current)
-                  searchInputRef.current?.focus();
-              }}
               ref={selectContentRef}
             >
               <div className="relative flex align-middle">
@@ -377,43 +481,81 @@ const Select = forwardRef(
                 />
               </div>
               <ScrollArea type="auto" ref={scrollContainerRef}>
-                <div className="max-h-72  " ref={scrollContainerRef}>
-                  <ul className="relative flex flex-col overflow-x-hidden bg-neutral-900/90">
-                    {filteredItems?.map((item, index) => (
-                      <li
-                        // role="listitem"
-                        ref={
-                          selectedItemIdx === index
-                            ? activeItemRef
-                            : index === activeItem
-                              ? selectedItemRef
-                              : undefined
-                        }
-                        key={
-                          (rest?.name ?? "") +
-                          (typeof item === "object" ? item[idAttr] : item) +
-                          index
-                        }
-                        className={
-                          "p-2 first:rounded-t-none last:rounded-b-md transition-colors duration-75 truncate " +
-                          (index === selectedItemIdx && activeItem === index
-                            ? "bg-neutral-100"
-                            : index === selectedItemIdx
-                              ? "bg-neutral-800/50"
-                              : activeItem === index
-                                ? "bg-neutral-100 text-neutral-900"
-                                : "hover:bg-neutral-900/70") +
-                          (selectedItemIdx === index ? " text-primary" : "")
-                        }
-                        title={typeof item === "object" ? item[textAttr] : item}
-                        onClick={() => setValue("" + index)}
-                        onMouseUp={() => setValue("" + index)}
-                        onMouseEnter={() => setActiveItem(index)}
-                      >
-                        {typeof item === "object" ? item[textAttr] : item}
-                      </li>
-                    ))}
-                  </ul>
+                <div
+                  className="max-h-72 bg-neutral-900/90"
+                  ref={scrollContainerRef}
+                >
+                  {initializedGroups?.map(({ name: groupName }) => (
+                    <div key={groupName} className="h-full">
+                      {(groupName !== UNGROUPED_NAME ||
+                        groupName === UNGROUPED_NAME) &&
+                        (initializedGroups?.length ?? 0) > 1 &&
+                        groupedFilteredItems?.[groupName]?.length > 0 && (
+                          <div className="font-bold text-lg px-2 text-neutral-200 bg-neutral-900/90 w-[calc(100%_-_8px)] h-full sticky top-0 z-10 pt-1">
+                            {groupName}
+                          </div>
+                        )}
+                      <ul className="relative flex flex-col overflow-x-hidden bg-neutral-900/90">
+                        {groupedFilteredItems?.[groupName]?.map(
+                          (
+                            { item, index: itemIndex, groupItemIndex },
+                            index
+                          ) => {
+                            itemIndex ??= index;
+                            return (
+                              <li
+                                // role="listitem"
+                                ref={
+                                  selectedItemIdx === itemIndex
+                                    ? activeItemRef
+                                    : itemIndex === activeItem
+                                      ? selectedItemRef
+                                      : undefined
+                                }
+                                key={
+                                  (rest?.name ?? "") +
+                                  (typeof item === "object"
+                                    ? item?.[idAttr]
+                                    : item) +
+                                  index
+                                }
+                                className={
+                                  "flex justify-between p-2 first:rounded-t-none last:rounded-b-md transition-colors duration-75 truncate " +
+                                  (itemIndex === selectedItemIdx &&
+                                  activeItem === itemIndex
+                                    ? "bg-neutral-100"
+                                    : itemIndex === selectedItemIdx
+                                      ? "bg-neutral-800/50"
+                                      : activeItem === itemIndex
+                                        ? "bg-neutral-100 text-neutral-900"
+                                        : "hover:bg-neutral-900/70") +
+                                  (selectedItemIdx === itemIndex
+                                    ? " text-primary"
+                                    : "")
+                                }
+                                title={
+                                  typeof item === "object"
+                                    ? item?.[textAttr]
+                                    : item
+                                }
+                                onClick={() =>
+                                  setValue(groupItemIndex, groupName)
+                                }
+                                onMouseUp={() =>
+                                  setValue(groupItemIndex, groupName)
+                                }
+                                onMouseEnter={() => setActiveItem(itemIndex)}
+                              >
+                                {typeof item === "object"
+                                  ? item?.[textAttr]
+                                  : item}
+                              </li>
+                            );
+                          }
+                        )}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
               </ScrollArea>
             </div>

@@ -2,7 +2,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Model } from "../App.d";
 import { RootState } from "../store";
 
-export type Backend = "auto" | "comfy";
+export type Backend = "auto" | "comfy" | "forge";
 export type OptionsState = {
   selectedModel: {
     hash?: Model["sha256"];

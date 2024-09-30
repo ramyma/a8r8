@@ -66,6 +66,7 @@ const useControlnet = ({ fetchPolicy }: Props = {}) => {
     useData<string[]>({
       name: "union_controlnet_types",
       fetchPolicy,
+      condition: backend === "comfy",
     });
 
   const {

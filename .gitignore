@@ -46,3 +46,5 @@ user.sh
 
 /assets/stories
 /assets/.storybook
+
+/app_config/*

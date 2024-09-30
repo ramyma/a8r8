@@ -8,6 +8,7 @@ import { Group as GroupType } from "konva/lib/Group";
 import { Image as ImageType } from "konva/lib/shapes/Image";
 
 export type RefsContextProps = {
+  canvasContainerRef: RefObject<HTMLDivElement> | null;
   selectionBoxRef: RefObject<RectType> | null;
   selectionBoxLayerRef: RefObject<LayerType> | null;
   maskGroupRef: RefObject<GroupType> | null;
@@ -21,6 +22,7 @@ export type RefsContextProps = {
   batchResultPreviewImageRef: RefObject<ImageType> | null;
 };
 const RefsContext = createContext<RefsContextProps>({
+  canvasContainerRef: null,
   controlnetLayerRef: null,
   imageLayerRef: null,
   maskCompositeRectRef: null,

@@ -29,6 +29,11 @@ export default defineConfig(({ command }: any) => {
       environment: "jsdom", //"happy-dom", //"jsdom",
       globals: true,
       // setupFiles: "src/setupTests.js",
+      browser: {
+        provider: "playwright", // or 'webdriverio'
+        enabled: true,
+        name: "chromium", // browser name is required
+      },
     },
     server: {
       host: "0.0.0.0",

@@ -1,4 +1,4 @@
-defmodule ExSd.AutoClient do
+defmodule ExSd.ForgeClient do
   require Logger
 
   alias ExSd.Sd.GenerationParams
@@ -180,7 +180,7 @@ defmodule ExSd.AutoClient do
   end
 
   def get_vaes() do
-    with response <- get("/sd-vae"),
+    with response <- get("/sd-modules"),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -341,8 +341,14 @@ defmodule ExSd.AutoClient do
 
     case Finch.build(:post, "#{base_url}#{url}", [], Jason.encode!(body))
          |> Finch.request(ExSd.Finch, receive_timeout: timeout) do
-      {:ok, response} -> {:ok, %{response | body: Jason.decode!(response.body)}}
-      response -> response
+      {:ok, response} ->
+        case Jason.decode(response.body) do
+          {:ok, body} -> {:ok, %{response | body: body}}
+          {:error, _} -> {:ok, response}
+        end
+
+      response ->
+        response
     end
   end
 

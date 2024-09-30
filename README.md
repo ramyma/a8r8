@@ -333,6 +333,7 @@ Key/Combo/Action | Fuctionality
  `CTRL + c`| copy image to clipboard within selection box bounds from the base layer
  `CTRL + v`| paste image from clipboard at the selection box top left corner position to the base or active controlnet layer. Generation info will be applied if found when pasting to base layer
  `CTRL + s`| save image within selection box bounds to disk
+ `CTRL + SHIFT + l`| un/lock seed
  `Drop PNG image to canvas` | add image at the selection box top left corner position to the base or active controlnet layer. Generation info will be applied if found when pasting to base layer
 
 ## Development Environment
