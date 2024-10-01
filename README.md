@@ -126,6 +126,9 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      6. Install <https://github.com/city96/ComfyUI-GGUF>
+      7. Install <https://github.com/Extraltodeus/Skimmed_CFG>
+      8. Install <https://github.com/cubiq/ComfyUI_essentials>
 
 &nbsp;
 
@@ -158,6 +161,9 @@ You can define the default backend selected on startup by setting `DEFAULT_BACKE
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      6. Install <https://github.com/city96/ComfyUI-GGUF>
+      7. Install <https://github.com/Extraltodeus/Skimmed_CFG>
+      8. Install <https://github.com/cubiq/ComfyUI_essentials>
 
 &nbsp;
 
@@ -192,6 +198,9 @@ Start the SD backend of your choice
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      6. Install <https://github.com/city96/ComfyUI-GGUF>
+      7. Install <https://github.com/Extraltodeus/Skimmed_CFG>
+      8. Install <https://github.com/cubiq/ComfyUI_essentials>
 
 &nbsp;
 
@@ -222,6 +231,9 @@ Start the SD backend of your choice
       3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
       4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
       5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      6. Install <https://github.com/city96/ComfyUI-GGUF>
+      7. Install <https://github.com/Extraltodeus/Skimmed_CFG>
+      8. Install <https://github.com/cubiq/ComfyUI_essentials>
 
 &nbsp;
 
