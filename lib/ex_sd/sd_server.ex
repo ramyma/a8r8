@@ -519,7 +519,7 @@ defmodule ExSd.SdServer do
     new_state = state |> refresh_and_put_models()
     Sd.broadcast_data("models", new_state.models)
 
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   @impl true
@@ -527,7 +527,7 @@ defmodule ExSd.SdServer do
     new_state = state |> refresh_and_put_unets()
     Sd.broadcast_data("unets", new_state.unets)
 
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   @impl true
@@ -535,7 +535,7 @@ defmodule ExSd.SdServer do
     new_state = state |> put_clips_models()
     Sd.broadcast_data("clip_models", new_state.clip_models)
 
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   @impl true
@@ -543,7 +543,7 @@ defmodule ExSd.SdServer do
     new_state = state |> put_clips_models
     Sd.broadcast_data("clips_models", new_state.clips_models)
 
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   @impl true
@@ -552,7 +552,7 @@ defmodule ExSd.SdServer do
 
     Sd.broadcast_data("vaes", new_state.vaes)
 
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   @impl true
@@ -561,7 +561,7 @@ defmodule ExSd.SdServer do
 
     Sd.broadcast_data("schedulers", new_state.schedulers)
 
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   @impl true
@@ -577,7 +577,7 @@ defmodule ExSd.SdServer do
 
     Sd.broadcast_data("upscalers", new_state.upscalers)
 
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   @impl true
@@ -586,7 +586,7 @@ defmodule ExSd.SdServer do
 
     Sd.broadcast_data("embeddings", new_state.embeddings)
 
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   @impl true
