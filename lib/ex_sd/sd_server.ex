@@ -386,7 +386,8 @@ defmodule ExSd.SdServer do
     task =
       Task.async(fn -> SdService.generate_image(generation_params, attrs, backend: backend) end)
 
-    ConfigManager.set_config(%{
+    ConfigManager.set_config(
+      %{
       "prompt" => generation_params.prompt,
       "negative_prompt" => generation_params.negative_prompt,
       "scheduler" => generation_params.scheduler,
@@ -401,13 +402,21 @@ defmodule ExSd.SdServer do
       "batch_size" => generation_params.batch_size,
       "scale" => attrs["scale"],
       "use_scaled_dimensions" => attrs["use_scaled_dimensions"],
-      "full_scale_pass" => attrs["full_scale_pass"],
+        "full_scale_pass" => attrs["full_scale_pass"]
+      }
+      |> Map.merge(
+        if(backend == :comfy,
+          do: %{
       "model" => attrs["model"],
       "vae" => attrs["vae"],
       "clip_skip" => attrs["clip_skip"],
       "clip_model" => attrs["clip_model"],
       "clip_model_2" => attrs["clip_model_2"]
-    })
+          },
+          else: %{}
+        )
+      )
+    )
 
     {:noreply, %{state | task: task, generating_session_name: session_name, is_generating: true}}
   end

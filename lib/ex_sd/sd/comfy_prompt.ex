@@ -199,6 +199,7 @@ defmodule ExSd.Sd.ComfyPrompt do
   def flux_txt2img(%GenerationParams{} = generation_params, attrs) do
     positive_loras = Map.get(attrs, "positive_loras")
 
+    is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
     is_split_render = get_in(attrs, ["split_render", "is_enabled"]) || false
     is_skimmed_cfg_enabled = get_in(attrs, ["skimmed_cfg", "is_enabled"]) || false
 
@@ -226,9 +227,21 @@ defmodule ExSd.Sd.ComfyPrompt do
         generation_params.prompt,
         "prompt"
       )
+      |> maybe_add_regional_prompts_with_conditioning(attrs,
+        clip:
+          if(Enum.empty?(positive_loras),
+            do: node_ref("clip", 0),
+            else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
+          ),
+        global_prompt: node_ref("prompt", 0)
+      )
       |> add_node(
         node("flux_guidance", "FluxGuidance", %{
-          conditioning: node_ref("prompt", 0),
+          conditioning:
+            if(is_regional_prompting_enabled,
+              do: node_ref("regional_prompt", 0),
+              else: node_ref("prompt", 0)
+            ),
           guidance: generation_params.flux_guidance
         })
       )
@@ -347,7 +360,7 @@ defmodule ExSd.Sd.ComfyPrompt do
       |> add_node(
         node("inject_noise", "InjectLatentNoise+", %{
           latent: node_ref("sampler_advanced", 0),
-          noise_seed: 1,
+          noise_seed: :rand.uniform(1_000_000_000_000_000),
           noise_strength: get_in(attrs, ["split_render", "noise_injection_strength"]),
           normalize: "false"
         })
@@ -955,6 +968,8 @@ defmodule ExSd.Sd.ComfyPrompt do
 
     has_ultimate_upscale = Map.get(attrs, "ultimate_upscale", false)
 
+    is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
+
     is_split_render = get_in(attrs, ["split_render", "is_enabled"]) || false
     is_skimmed_cfg_enabled = get_in(attrs, ["skimmed_cfg", "is_enabled"]) || false
 
@@ -990,9 +1005,21 @@ defmodule ExSd.Sd.ComfyPrompt do
         generation_params.prompt,
         "positive_prompt"
       )
+      |> maybe_add_regional_prompts_with_conditioning(attrs,
+        clip:
+          if(Enum.empty?(positive_loras),
+            do: node_ref("clip", 0),
+            else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
+          ),
+        global_prompt: node_ref("positive_prompt", 0)
+      )
       |> add_node(
         node("flux_guidance", "FluxGuidance", %{
-          conditioning: node_ref("positive_prompt", 0),
+          conditioning:
+            if(is_regional_prompting_enabled,
+              do: node_ref("regional_prompt", 0),
+              else: node_ref("positive_prompt", 0)
+            ),
           guidance: generation_params.flux_guidance
         })
       )
@@ -1699,8 +1726,11 @@ defmodule ExSd.Sd.ComfyPrompt do
     end)
   end
 
-  @spec maybe_add_regional_prompts_with_conditioning(prompt(), map()) :: prompt()
-  def maybe_add_regional_prompts_with_conditioning(prompt, attrs) do
+  @spec maybe_add_regional_prompts_with_conditioning(prompt(), map(), [
+          {:clip, ref_node_value()} | {:global_prompt, ref_node_value()}
+        ]) ::
+          prompt()
+  def maybe_add_regional_prompts_with_conditioning(prompt, attrs, options \\ []) do
     is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
     regional_prompts = Map.get(attrs, "regional_prompts")
     global_prompt_weight = Map.get(attrs, "global_prompt_weight", 0.3)
@@ -1724,7 +1754,7 @@ defmodule ExSd.Sd.ComfyPrompt do
               acc_prompt
               |> add_clip_text_encode(
                 if(Enum.empty?(positive_loras),
-                  do: node_ref("clip", 0),
+                  do: Keyword.get(options, :clip, node_ref("clip", 0)),
                   else:
                     node_ref(
                       "positive_lora#{length(positive_loras) - 1}",
@@ -1764,14 +1794,14 @@ defmodule ExSd.Sd.ComfyPrompt do
 
       new_prompt
       |> add_conditioning_area_strength(
-        node_ref("positive_prompt", 0),
+        Keyword.get(options, :global_prompt, node_ref("positive_prompt", 0)),
         global_prompt_weight,
         "regional_prompt_global_effect"
       )
       |> add_conditioning_combine(
         node_ref("regional_prompt_global_effect", 0),
         node_ref(last_node_name, 0),
-        "regional_prompt"
+        Keyword.get(options, :name, "regional_prompt")
       )
     else
       prompt
@@ -1938,12 +1968,19 @@ defmodule ExSd.Sd.ComfyPrompt do
     node =
       node(name, "ConditioningSetMask")
       |> add_node_input(:conditioning, conditioning_prompt)
-      |> add_node_input(:mask, node_ref("#{name}_convert_image_mask", 0))
+      |> add_node_input(:mask, node_ref("#{name}_mask_with_blur", 0))
       |> add_node_input(:strength, weight)
-      |> add_node_input(:set_cond_area, "default")
+      |> add_node_input(:set_cond_area, "mask bounds")
+
+    mask_blur_node =
+      node("#{name}_mask_with_blur", "MaskBlur+")
+      |> add_node_input(:mask, node_ref("#{name}_convert_image_mask", 0))
+      |> add_node_input(:amount, 100)
+      |> add_node_input(:device, "auto")
 
     prompt
     |> add_node(convert_image_to_mask_node)
+    |> add_node(mask_blur_node)
     |> add_image_loader(base64_image: mask, name: "#{name}_mask")
     |> add_node(node)
   end

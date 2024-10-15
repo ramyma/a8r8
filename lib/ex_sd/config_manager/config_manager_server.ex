@@ -14,7 +14,7 @@ defmodule ExSd.ConfigManager.ConfigManagerServer do
 
   @impl true
   def init(_init_arg) do
-    Logger.info("Initializing conifg manager")
+    Logger.info("Initializing config manager")
 
     {:ok, %{}, {:continue, :fetch_config}}
   end
@@ -65,7 +65,7 @@ defmodule ExSd.ConfigManager.ConfigManagerServer do
     })
   end
 
-  @spec set_config(map()) :: nil
+  @spec set_config(map()) :: :ok
   def set_config(config) do
     GenServer.cast(__MODULE__, {:store_last_gen_config, config})
   end

@@ -325,7 +325,7 @@ Run `./update.sh` or `./update-packaged.sh` if you used the package installation
 
 ## Key Shortcuts
 
-Key/Combo/Action | Fuctionality
+Key/Combo/Action | Functionality
 ---------|----------
  `-` | zoom out canvas
  `+` | zoom in canvas

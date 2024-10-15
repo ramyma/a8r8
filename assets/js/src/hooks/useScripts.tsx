@@ -102,7 +102,7 @@ const useScripts = ({ fetchPolicy }: Props = {}): Return => {
     hasControlnet,
     hasSelfAttentionGuidance,
     hasSoftInpainting,
-    hasRegionalPrompting: hasForgeCouple || (backend === "comfy" && !isFlux),
+    hasRegionalPrompting: hasForgeCouple || backend === "comfy",
     hasNeverOutOfMemory,
     hasMultidiffusionIntegrated,
   };
