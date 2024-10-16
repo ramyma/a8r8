@@ -19,7 +19,7 @@ permissions:
 jobs:
   build:
     name: Build and test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       MIX_ENV: prod
       BUILD_PATH: a8r8-build
@@ -84,7 +84,7 @@ jobs:
   create_draft_release_with_assets:
     name: Create draft release w/ assets
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
