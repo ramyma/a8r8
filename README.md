@@ -123,12 +123,14 @@ Keep in mind this hasn't been tested, please report any issues [here](https://gi
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen --max-upload-size 500`
-      3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
-      4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
-      5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
-      6. Install <https://github.com/city96/ComfyUI-GGUF>
-      7. Install <https://github.com/Extraltodeus/Skimmed_CFG>
-      8. Install <https://github.com/cubiq/ComfyUI_essentials>
+      3. Install <https://github.com/ltdrdata/ComfyUI-Manager>
+      4. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
+      5. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+      6. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      7. Install <https://github.com/city96/ComfyUI-GGUF>
+      8. Install <https://github.com/Extraltodeus/Skimmed_CFG>
+      9. Install <https://github.com/cubiq/ComfyUI_essentials>
+      10. Install <https://github.com/crystian/ComfyUI-Crystools>
 
 &nbsp;
 
@@ -158,12 +160,14 @@ You can define the default backend selected on startup by setting `DEFAULT_BACKE
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen --max-upload-size 500`
-      3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
-      4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
-      5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
-      6. Install <https://github.com/city96/ComfyUI-GGUF>
-      7. Install <https://github.com/Extraltodeus/Skimmed_CFG>
-      8. Install <https://github.com/cubiq/ComfyUI_essentials>
+      3. Install <https://github.com/ltdrdata/ComfyUI-Manager>
+      4. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
+      5. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+      6. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      7. Install <https://github.com/city96/ComfyUI-GGUF>
+      8. Install <https://github.com/Extraltodeus/Skimmed_CFG>
+      9. Install <https://github.com/cubiq/ComfyUI_essentials>
+      10. Install <https://github.com/crystian/ComfyUI-Crystools>
 
 &nbsp;
 
@@ -191,16 +195,19 @@ _Or_
 &nbsp;
   
 Start the SD backend of your choice
+
    1. Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen --max-upload-size 500`
-      3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
-      4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
-      5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
-      6. Install <https://github.com/city96/ComfyUI-GGUF>
-      7. Install <https://github.com/Extraltodeus/Skimmed_CFG>
-      8. Install <https://github.com/cubiq/ComfyUI_essentials>
+      3. Install <https://github.com/ltdrdata/ComfyUI-Manager>
+      4. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
+      5. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+      6. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      7. Install <https://github.com/city96/ComfyUI-GGUF>
+      8. Install <https://github.com/Extraltodeus/Skimmed_CFG>
+      9. Install <https://github.com/cubiq/ComfyUI_essentials>
+      10. Install <https://github.com/crystian/ComfyUI-Crystools>
 
 &nbsp;
 
@@ -224,16 +231,19 @@ _Or_
 &nbsp;
   
 Start the SD backend of your choice
+
    1. Automatic1111 webui and make sure to add `--api --listen` to `COMMANDLINE_ARGS` under `webui-user.sh` or `webui-user.bat` [depending on the operating system](https://github.com/AUTOMATIC1111/stable-diffusion-webui/wiki/Command-Line-Arguments-and-Settings#webui-user)
    2. [ComfyUI](https://github.com/comfyanonymous/ComfyUI)
       1. Install [A8R8 supporting nodes](https://github.com/ramyma/A8R8_ComfyUI_nodes)
       2. Add `--preview-method auto --listen` to the run command, ex: `python main.py --preview-method auto --listen --max-upload-size 500`
-      3. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
-      4. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
-      5. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
-      6. Install <https://github.com/city96/ComfyUI-GGUF>
-      7. Install <https://github.com/Extraltodeus/Skimmed_CFG>
-      8. Install <https://github.com/cubiq/ComfyUI_essentials>
+      3. Install <https://github.com/ltdrdata/ComfyUI-Manager>
+      4. Install <https://github.com/ssitu/ComfyUI_UltimateSDUpscale>
+      5. Install <https://github.com/Fannovel16/comfyui_controlnet_aux>
+      6. Install <https://github.com/Kosinkadink/ComfyUI-Advanced-ControlNet>
+      7. Install <https://github.com/city96/ComfyUI-GGUF>
+      8. Install <https://github.com/Extraltodeus/Skimmed_CFG>
+      9. Install <https://github.com/cubiq/ComfyUI_essentials>
+      10. Install <https://github.com/crystian/ComfyUI-Crystools>
 
 &nbsp;
 

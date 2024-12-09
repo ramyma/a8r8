@@ -22,10 +22,13 @@ function useFuzzySearch<T = string>(
     }),
     [options]
   );
-  const fuse = useMemo(
-    () => new Fuse(items, fuseOptions),
-    [fuseOptions, items]
-  );
+  const fuse = useMemo(() => {
+    try {
+      return new Fuse(items, fuseOptions);
+    } catch {
+      console.warn("Ignored error, transitioning data...");
+    }
+  }, [fuseOptions, items]);
 
   const searchItemsRaw = useCallback((query) => fuse.search(query), [fuse]);
 

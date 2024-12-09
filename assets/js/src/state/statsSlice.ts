@@ -6,7 +6,8 @@ interface StatsState {
   ramUsage: number;
   progress: number;
   etaRelative: number;
-  isConnected: boolean;
+  isSocketConnected: boolean;
+  isBackendConnected: boolean;
   isGenerating: boolean;
   generatingSessionName: string;
 }
@@ -16,7 +17,8 @@ export const initialState: StatsState = {
   ramUsage: 0,
   progress: 0,
   etaRelative: 0,
-  isConnected: false,
+  isSocketConnected: false,
+  isBackendConnected: false,
   isGenerating: false,
   generatingSessionName: "",
 };
@@ -38,19 +40,33 @@ export const statsSlice = createSlice({
       state.generatingSessionName =
         action.payload.generatingSessionName ?? state.generatingSessionName;
     },
-    setIsConnected: (state: StatsState, action: PayloadAction<boolean>) => {
-      state.isConnected = action.payload;
+    setIsBackendConnected: (
+      state: StatsState,
+      action: PayloadAction<boolean>
+    ) => {
+      state.isBackendConnected = action.payload;
+    },
+    setIsSocketConnected: (
+      state: StatsState,
+      action: PayloadAction<boolean>
+    ) => {
+      state.isSocketConnected = action.payload;
     },
   },
 });
 
-export const { updateStats, setIsConnected } = statsSlice.actions;
+export const { updateStats, setIsSocketConnected, setIsBackendConnected } =
+  statsSlice.actions;
 
 export const selectStats = (state: RootState) => state.stats;
 export const selectProgress = (state: RootState) => state.stats.progress;
 export const selectIsGenerating = (state: RootState) =>
   state.stats.isGenerating;
-
-export const selectIsConnected = (state: RootState) => state.stats.isConnected;
+export const selectIsBackendConnected = (state: RootState) =>
+  state.stats.isBackendConnected;
+export const selectIsSocketConnected = (state: RootState) =>
+  state.stats.isSocketConnected;
+export const selectIsConnected = (state: RootState) =>
+  state.stats.isSocketConnected && state.stats.isBackendConnected;
 
 export default statsSlice.reducer;

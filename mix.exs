@@ -4,7 +4,7 @@ defmodule ExSd.MixProject do
   def project do
     [
       app: :ex_sd,
-      version: "0.7.1",
+      version: "0.9.0",
       elixir: "~> 1.17",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
@@ -37,33 +37,32 @@ defmodule ExSd.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.7.10", override: true},
-      {:phoenix_ecto, "~> 4.4"},
-      {:ecto_sql, "~> 3.11"},
-      {:postgrex, ">= 0.0.0"},
+      {:phoenix, "~> 1.7.17", override: true},
+      {:phoenix_ecto, "~> 4.6"},
+      {:ecto_sqlite3, "~> 0.17"},
       {:phoenix_html, "~> 3.3"},
-      {:phoenix_live_reload, "~> 1.4", only: :dev},
-      {:phoenix_live_view, "~> 0.18.16"},
+      {:phoenix_live_reload, "~> 1.5", only: :dev},
+      {:phoenix_live_view, "~> 0.18.18"},
       {:heroicons, "~> 0.5"},
-      {:floki, ">= 0.35.2", only: :test},
+      {:floki, ">= 0.37.0", only: :test},
       {:phoenix_live_dashboard, "~> 0.7.2"},
       # {:esbuild, "~> 0.5", runtime: Mix.env() == :dev},
       # {:tailwind, "~> 0.1.8", runtime: Mix.env() == :dev},
-      {:swoosh, "~> 1.3"},
-      {:finch, "~> 0.18"},
+      {:swoosh, "~> 1.17"},
+      {:finch, "~> 0.19"},
       {:telemetry_metrics, "~> 0.6"},
-      {:telemetry_poller, "~> 1.0"},
-      {:gettext, "~> 0.20"},
+      {:telemetry_poller, "~> 1.1"},
+      {:gettext, "~> 0.26"},
       {:jason, "~> 1.4"},
       # {:plug_cowboy, "~> 2.5"},
-      {:bandit, "~> 1.1"},
+      {:bandit, "~> 1.6"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:ex_url, "~> 2.0"},
-      {:image, "~> 0.48"},
-      {:nx, "~> 0.7"},
+      {:image, "~> 0.55"},
+      {:nx, "~> 0.9"},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
-      {:grpc, "~> 0.8"},
-      {:protobuf, "~> 0.12"},
+      {:grpc, "~> 0.9"},
+      {:protobuf, "~> 0.13"},
       # {:mint, "~> 1.4.2"}
       # {:bumblebee, "~> 0.2"},
       # {:exla, "~> 0.6"},
@@ -71,7 +70,7 @@ defmodule ExSd.MixProject do
       {:mint_web_socket, "~> 1.0"},
       # {:evision, "~> 0.1.29"},
       {:mix_test_watch, "~> 1.2", only: [:dev, :test], runtime: false},
-      {:mix_test_interactive, "~> 2.0", only: :dev, runtime: false}
+      {:mix_test_interactive, "~> 2.1", only: :dev, runtime: false}
     ]
   end
 

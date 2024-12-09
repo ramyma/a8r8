@@ -51,7 +51,7 @@ const useClipboard = ({ handleAddImage, emit = false }: Props) => {
         const clipboardContents = await navigator.clipboard.read();
 
         for (const item of clipboardContents) {
-          console.log(item.types);
+          // console.log(item.types);
           if (!item.types.includes("image/png")) {
             return;
           }

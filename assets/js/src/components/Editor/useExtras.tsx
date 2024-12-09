@@ -103,9 +103,12 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
   const lorasByName = useMemo(
     () =>
       loras
-        ?.map(({ name }) => name.replace(".safetensors", ""))
-        .toSorted((l1, l2) =>
-          l1.toLocaleLowerCase() < l2.toLocaleLowerCase() ? -1 : 1
+        // ?.map(({ alias, name }) => (alias || name).replace(".safetensors", ""))
+        ?.toSorted((l1, l2) =>
+          (l1.alias?.toLocaleLowerCase() || l1.name.toLocaleLowerCase()) <
+          (l2.alias?.toLocaleLowerCase() || l2.name.toLocaleLowerCase())
+            ? -1
+            : 1
         ) ?? [],
     [loras]
   );
@@ -128,7 +131,7 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
 
   const { searchItems: searchLoraItems } = useFuzzySearch(lorasByName ?? [], {
     options: {
-      keys: ["name"],
+      keys: ["name", "alias"],
     },
   });
 

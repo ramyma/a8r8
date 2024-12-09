@@ -3,7 +3,11 @@ import { beforeAll, expect, vi } from "vitest";
 import { render, screen, act } from "../testUtils";
 import MainForm from "./MainForm";
 // import "@testing-library/jest-dom";
-import { initialState, setIsConnected, updateStats } from "../state/statsSlice";
+import {
+  initialState,
+  setIsBackendConnected,
+  updateStats,
+} from "../state/statsSlice";
 
 describe("Test MainForm", () => {
   beforeAll(() => {
@@ -54,7 +58,7 @@ describe("Test MainForm", () => {
 
     expect(screen.queryByText(/generate/i)).toBeEnabled();
 
-    act(() => store.dispatch(setIsConnected(false)));
+    act(() => store.dispatch(setIsBackendConnected(false)));
 
     expect(screen.getByText(/generate/i)).toBeDisabled();
   });

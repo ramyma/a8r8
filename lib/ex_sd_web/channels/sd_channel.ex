@@ -93,6 +93,12 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
+  def handle_in("get_loras_with_metadata", _payload, socket) do
+    Sd.load_loras()
+    {:noreply, socket}
+  end
+
+  @impl true
   def handle_in("get_embeddings", _payload, socket) do
     Sd.get_embeddings()
     {:noreply, socket}
@@ -141,14 +147,20 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
-  def handle_in("set_model", model_title, socket) do
-    Sd.set_model(model_title)
+  def handle_in("set_model", model, socket) do
+    Sd.set_model(model)
     {:noreply, socket}
   end
 
   @impl true
   def handle_in("set_vae", vae, socket) do
     Sd.set_vae(vae)
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("set_additional_modules", additional_modules, socket) do
+    Sd.set_additional_modules(additional_modules)
     {:noreply, socket}
   end
 
@@ -172,8 +184,20 @@ defmodule ExSdWeb.SdChannel do
 
   @impl true
   def handle_in("get_config", _payload, socket) do
-    config = ConfigManager.get_config()
-    {:reply, {:ok, config}, socket}
+    ConfigManager.get_config()
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("store_model_config", model_config, socket) do
+    ConfigManager.store_model_config(model_config)
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("load_model_config", %{"model_name" => model_name, "backend" => backend}, socket) do
+    model_config = ConfigManager.load_model_config(model_name, backend)
+    {:reply, model_config, socket}
   end
 
   # @impl true

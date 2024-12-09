@@ -1,14 +1,15 @@
 import Config
 
 # Configure your database
-config :ex_sd, ExSd.Repo,
-  username: "postgres",
-  password: "postgres",
-  hostname: "localhost",
-  database: "ex_sd_dev",
-  stacktrace: true,
-  show_sensitive_data_on_connection_error: true,
-  pool_size: 10
+# config :ex_sd, ExSd.Repo,
+#   username: "postgres",
+#   password: "postgres",
+#   hostname: "localhost",
+#   database: "ex_sd_dev",
+#   stacktrace: true,
+#   show_sensitive_data_on_connection_error: true,
+#   pool_size: 10
+config :ex_sd, ExSd.Repo, database: "app_config/database_dev.db"
 
 # For development, we disable any cache and enable
 # debugging and code reloading.

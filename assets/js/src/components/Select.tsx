@@ -1,6 +1,7 @@
 import React, {
   ChangeEventHandler,
   KeyboardEventHandler,
+  MouseEvent,
   MouseEventHandler,
   SelectHTMLAttributes,
   forwardRef,
@@ -13,12 +14,12 @@ import React, {
 } from "react";
 import * as RadixSelect from "@radix-ui/react-select";
 import * as Portal from "@radix-ui/react-portal";
-import { CrossCircledIcon } from "@radix-ui/react-icons";
-import uFuzzy from "@leeoniya/ufuzzy";
+import { CheckIcon, CrossCircledIcon } from "@radix-ui/react-icons";
 import Input from "./Input";
 import ScrollArea from "./ScrollArea";
 import useFuzzySearch from "../hooks/useFuzzySearch";
 import { twMerge } from "tailwind-merge";
+import Chip from "./Chip";
 
 const UNGROUPED_NAME = "Other";
 
@@ -86,7 +87,7 @@ export interface SelectProps<
    */
   textAttr?: string;
   placeholder?: string;
-  value?: T;
+  value?: T | T[];
   onChange: (value: SelectProps["value"]) => void;
   shouldSetDefaultValue?: boolean;
   groups?: {
@@ -109,6 +110,7 @@ const Select = forwardRef(
       title,
       shouldSetDefaultValue = true,
       groups,
+      multiple,
       ...rest
     }: SelectProps,
     _ref
@@ -167,27 +169,27 @@ const Select = forwardRef(
           return acc;
         }, {});
         let itemsIdx = 0;
+        const entries = Object.entries(itemsByGroups);
 
-        return Object.entries(itemsByGroups)
-          .toSorted(([groupNameA], [groupNameB]) =>
-            groupNameA === UNGROUPED_NAME
-              ? 1
-              : groupNameB === UNGROUPED_NAME
+        const sorted = entries.toSorted(([groupNameA], [groupNameB]) =>
+          groupNameA === UNGROUPED_NAME
+            ? 1
+            : groupNameB === UNGROUPED_NAME
+              ? -1
+              : groupNameA <= groupNameB
                 ? -1
-                : groupNameA <= groupNameB
-                  ? -1
-                  : 1
-          )
-          .reduce((acc, [groupName, items]) => {
-            return {
-              ...acc,
-              [groupName]: (items as unknown[]).map((item, groupItemIndex) => ({
-                item,
-                index: itemsIdx++,
-                groupItemIndex,
-              })),
-            };
-          }, {});
+                : 1
+        );
+        return sorted.reduce((acc, [groupName, items]) => {
+          return {
+            ...acc,
+            [groupName]: (items as unknown[]).map((item, groupItemIndex) => ({
+              item,
+              index: itemsIdx++,
+              groupItemIndex,
+            })),
+          };
+        }, {});
       },
       [textAttr]
     );
@@ -209,11 +211,13 @@ const Select = forwardRef(
       // return [];
     }, [getItemsByGroups, initializedGroups, items, rest.name, search]);
 
-    const selectedItemIdx = getSelectedItemIndex({
-      value,
-      itemsByGroup: groupedFilteredItems,
-      valueAttr,
-    });
+    const selectedItemIdx = !multiple
+      ? getSelectedItemIndex({
+          value,
+          itemsByGroup: groupedFilteredItems,
+          valueAttr,
+        })
+      : -1;
 
     useLayoutEffect(() => {
       if (prevIsOpen !== isOpen) {
@@ -239,7 +243,7 @@ const Select = forwardRef(
     const [pos, setPos] = useState({ x: 0, y: 0, yDir: "bottom" });
 
     useEffect(() => {
-      if (shouldSetDefaultValue && !value && items?.length) {
+      if (shouldSetDefaultValue && !multiple && !value && items?.length) {
         const item = items[0];
 
         if (typeof item === "object") {
@@ -248,7 +252,7 @@ const Select = forwardRef(
           onChange && onChange(item);
         }
       }
-    }, [items, onChange, shouldSetDefaultValue, value, valueAttr]);
+    }, [items, multiple, onChange, shouldSetDefaultValue, value, valueAttr]);
 
     useLayoutEffect(() => {
       const bodyBoundingBox = document.body.getBoundingClientRect();
@@ -305,13 +309,24 @@ const Select = forwardRef(
       }
     }, [activeItem, initializedGroups, selectedItemIdx]);
 
-    const selectedItem = items?.find(
-      (item) => getItemValue({ item, valueAttr }) === value
-    );
+    const selectedItem =
+      !multiple &&
+      items?.find((item) => getItemValue({ item, valueAttr }) === value);
 
-    const handleOpen = (open: boolean) => {
-      setIsOpen(open);
-    };
+    const selectedItems =
+      multiple &&
+      Array.isArray(value) &&
+      items?.reduce(
+        (acc, item) =>
+          value.includes(getItemValue({ item, valueAttr }))
+            ? [...acc, item]
+            : acc,
+        [] as Required<SelectProps>["value"][]
+      );
+
+    // const handleOpen = (open: boolean) => {
+    //   setIsOpen(open);
+    // };
 
     const toggleOpen = () => {
       if (isOpen) {
@@ -404,7 +419,16 @@ const Select = forwardRef(
           : Object.values(groupedFilteredItems)
               .flat()
               .find(({ index }) => index === activeItem)?.item;
-      selectedItem && onChange(getItemValue({ item: selectedItem, valueAttr }));
+      selectedItem &&
+        onChange(
+          multiple && Array.isArray(value)
+            ? Array.from(
+                new Set(value).add(
+                  getItemValue({ item: selectedItem, valueAttr })
+                )
+              )
+            : getItemValue({ item: selectedItem, valueAttr })
+        );
       isOpen && toggleOpen();
     };
 
@@ -412,31 +436,59 @@ const Select = forwardRef(
       toggleOpen();
     };
 
+    const handleRemoveItem = (
+      event: MouseEvent<Element, globalThis.MouseEvent>,
+      item
+    ) => {
+      event.preventDefault();
+      event.stopPropagation();
+      value &&
+        Array.isArray(value) &&
+        onChange(value.filter((v) => v != getItemValue({ item, valueAttr })));
+    };
+
     return (
       <RadixSelect.Root
         value={"" + value}
         // onValueChange={(newValue) => onChange && onChange("" + newValue)}
         disabled={disabled}
-        onOpenChange={handleOpen}
+        // onOpenChange={handleOpen}
+        // open={!isOpen}
       >
         <RadixSelect.Trigger
           ref={triggerRef}
           className={twMerge(
-            "inline-flex items-center justify-between rounded px-2 text-sm leading-none h-[35px] gap-[5px] data-[placeholder]:text-violet9 outline-none w-full text-neutral-200 bg-neutral-800/80 enabled:hover:bg-neutral-700/80 border border-neutral-700/95 enabled:hover:border-neutral-500 disabled:text-neutral-700 enabled:focus:border-neutral-200 disabled:cursor-not-allowed overflow-hidden transition-colors",
+            `inline-flex items-center justify-between rounded px-2 text-sm leading-none ${multiple ? "h-fit py-2" : "h-[35px]"} gap-[5px] enabled:data-[placeholder]:text-neutral-500 outline-none w-full text-neutral-200 bg-neutral-800/80 enabled:hover:bg-neutral-700/80 border border-neutral-700/95 enabled:hover:border-neutral-500 disabled:text-neutral-500 enabled:focus:border-neutral-200 disabled:cursor-not-allowed overflow-hidden transition-colors text-sm`,
             rest.className ?? ""
           )}
           title={title}
-          onClick={toggleOpen}
+          onClick={(e) => {
+            toggleOpen();
+          }}
           onKeyDown={handleTriggerKeyDown}
         >
           <RadixSelect.Value placeholder={placeholder} asChild>
-            <span className="block text-start truncate disabled:text-neutral-700">
-              {selectedItem &&
-                (typeof selectedItem === "object"
-                  ? selectedItem[textAttr]
-                  : value)}
-            </span>
+            {multiple ? (
+              <div className="w-full flex flex-col gap-1 !pointer-events-auto">
+                {/* //FIXME: Nested buttons in HTML */}
+                {selectedItems?.map((item) => (
+                  <Chip
+                    key={getItemValue({ item, valueAttr })}
+                    label={getItemLabel({ item, textAttr })}
+                    onRemove={(event) => handleRemoveItem(event, item)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <span className="block text-start truncate disabled:text-neutral-700">
+                {selectedItem &&
+                  (typeof selectedItem === "object"
+                    ? selectedItem[textAttr]
+                    : value)}
+              </span>
+            )}
           </RadixSelect.Value>
+
           <RadixSelect.Icon className="text-neutral-700 data-[highlighted]:text-neutral-100 ml-auto" />
         </RadixSelect.Trigger>
 
@@ -485,6 +537,9 @@ const Select = forwardRef(
                   className="max-h-72 bg-neutral-900/90"
                   ref={scrollContainerRef}
                 >
+                  {!filteredItems?.length && (
+                    <div className="p-3 text-sm text-neutral-400">No items</div>
+                  )}
                   {initializedGroups?.map(({ name: groupName }) => (
                     <div key={groupName} className="h-full">
                       {(groupName !== UNGROUPED_NAME ||
@@ -502,6 +557,12 @@ const Select = forwardRef(
                             index
                           ) => {
                             itemIndex ??= index;
+                            const isMultipleAndItemSelected =
+                              multiple &&
+                              value?.some(
+                                (v) => getItemValue({ item, valueAttr }) === v
+                              );
+
                             return (
                               <li
                                 // role="listitem"
@@ -529,7 +590,8 @@ const Select = forwardRef(
                                       : activeItem === itemIndex
                                         ? "bg-neutral-100 text-neutral-900"
                                         : "hover:bg-neutral-900/70") +
-                                  (selectedItemIdx === itemIndex
+                                  (selectedItemIdx === itemIndex ||
+                                  isMultipleAndItemSelected
                                     ? " text-primary"
                                     : "")
                                 }
@@ -546,9 +608,14 @@ const Select = forwardRef(
                                 }
                                 onMouseEnter={() => setActiveItem(itemIndex)}
                               >
-                                {typeof item === "object"
-                                  ? item?.[textAttr]
-                                  : item}
+                                <div className="flex gap-3">
+                                  {typeof item === "object"
+                                    ? item?.[textAttr]
+                                    : item}
+                                  {isMultipleAndItemSelected && (
+                                    <CheckIcon className="text-primary size-5" />
+                                  )}
+                                </div>
                               </li>
                             );
                           }

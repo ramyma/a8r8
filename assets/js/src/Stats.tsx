@@ -1,5 +1,4 @@
 import { Link1Icon, LinkBreak1Icon, PersonIcon } from "@radix-ui/react-icons";
-import React from "react";
 import { useAppSelector } from "./hooks";
 import { selectIsConnected, selectStats } from "./state/statsSlice";
 import useProgress from "./hooks/useProgress";
@@ -24,7 +23,12 @@ const Stats = () => {
     changeBackend(backend);
   };
   return (
-    <div className="flex absolute bottom-2 right-2 z-10 items-end gap-2">
+    <div className="flex absolute bottom-2 right-2 z-10 items-end gap-2 select-none">
+      {!!VERSION && (
+        <div className="text-sm text-neutral-700/90 pointer-events-none select-none">
+          {VERSION}
+        </div>
+      )}
       <Select
         className="!w-fit"
         items={[
@@ -37,8 +41,8 @@ const Stats = () => {
         disabled={!!stats.progress}
         onChange={handleBackendChange}
       />
-      <div className="text-sm flex w-fit flex-col gap-1 bg-black/90 backdrop-blur-sm rounded p-4 shadow-md shadow-black/20">
-        {stats.isConnected && stats.progress !== 0 && (
+      <div className="text-xs flex w-fit flex-col gap-1 bg-black/90 backdrop-blur-sm rounded p-4 shadow-md shadow-black/20">
+        {isConnected && stats.progress !== 0 && (
           <>
             {stats?.progress > 1 &&
               !!stats?.etaRelative &&
@@ -48,11 +52,28 @@ const Stats = () => {
                   {etaSecs}s
                 </span>
               )}
-            <span className="text-orange-400">Progress: {stats.progress}%</span>
+            <div className="flex gap-2 items-baseline text-orange-400 ">
+              <span className="text-sm">Progress:</span>
+              <span className="text-sm font-semibold">{stats.progress}%</span>
+            </div>
           </>
         )}
+
         {!!stats.vRamUsage && isConnected && (
-          <span>vRam usage: {stats.vRamUsage}%</span>
+          <div className="flex gap-2 items-baseline">
+            <span className="text-neutral-300">VRAM:</span>
+            <span className="text-sm font-semibold">
+              {Math.round(stats.vRamUsage)}%
+            </span>
+          </div>
+        )}
+        {backend === "comfy" && !!stats.ramUsage && isConnected && (
+          <div className="flex gap-2 items-baseline">
+            <span className="text-neutral-300">Mem:</span>
+            <span className="text-sm font-semibold">
+              {Math.round(stats.ramUsage)}%
+            </span>
+          </div>
         )}
         <ConnectionStatus isConnected={isConnected} backend={backend} />
         <SessionsStatus />

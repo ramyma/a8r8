@@ -71,8 +71,15 @@ defmodule ExSd.ForgeClient do
     end
   end
 
-  def post_active_model(model_title) do
-    with response <- post("/options", %{sd_model_checkpoint: model_title}),
+  def post_active_model(model) do
+    with response <-
+           post(
+             "/options",
+             %{
+               #  sd_checkpoint_hash: model["hash"],
+               sd_model_checkpoint: model["title"]
+             }
+           ),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -81,8 +88,8 @@ defmodule ExSd.ForgeClient do
     end
   end
 
-  def post_active_vae(vae) do
-    with response <- post("/options", %{sd_vae: vae}),
+  def post_active_additional_modules(additional_modules) do
+    with response <- post("/options", %{forge_additional_modules: additional_modules}),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -182,7 +189,17 @@ defmodule ExSd.ForgeClient do
   def get_vaes() do
     with response <- get("/sd-modules"),
          {:ok, body} <- handle_response(response) do
-      {:ok, body}
+      {:ok, body |> Enum.filter(&Regex.match?(~r/vae/i, &1["filename"]))}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  def get_clips_models() do
+    with response <- get("/sd-modules"),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body |> Enum.filter(&Regex.match?(~r/text_encoder/i, &1["filename"]))}
     else
       {:error, _error} = res ->
         res

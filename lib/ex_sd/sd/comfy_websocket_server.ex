@@ -159,9 +159,11 @@ defmodule ExSd.Sd.ComfyWebsocketServer do
 
       {:text, text}, state ->
         # filter out crystool debug messages
-        if(!String.contains?(text, "crystools.monitor"),
-          do: Logger.debug("Received: #{inspect(text)}")
-        )
+        if !String.contains?(text, "crystools.monitor") do
+          Logger.debug("Received: #{inspect(text)}")
+        else
+          process_monitor_data(text)
+        end
 
         response = Jason.decode!(text)
 
@@ -270,5 +272,27 @@ defmodule ExSd.Sd.ComfyWebsocketServer do
   defp reply(state, response) do
     if state.caller, do: GenServer.reply(state.caller, response)
     put_in(state.caller, nil)
+  end
+
+  defp process_monitor_data(text) do
+    with {:ok, resp} <- Jason.decode(text),
+         data <- Map.get(resp, "data", %{}) do
+      gpus =
+        Map.get(data, "gpus", [])
+
+      vram_usage_percentage =
+        (Enum.map(gpus, & &1["vram_used_percent"]) |> Enum.sum()) / length(gpus)
+
+      ram_usage_percentage =
+        Map.get(data, "ram_used_percent")
+
+      if(ram_usage_percentage && vram_usage_percentage,
+        do:
+          ExSd.Sd.broadcast_memory_stats(%ExSd.Sd.MemoryStats{
+            cuda_usage: vram_usage_percentage,
+            ram_usage: ram_usage_percentage
+          })
+      )
+    end
   end
 end

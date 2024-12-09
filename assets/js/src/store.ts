@@ -8,6 +8,7 @@ import linesReducer from "./state/linesSlice";
 import controlnetReducer from "./state/controlnetSlice";
 import promptRegionsReducer from "./state/promptRegionsSlice";
 import dataSliceReducer from "./state/dataSlice";
+import lorasSliceReducer from "./state/lorasSlice";
 import generationParamsSliceReducer from "./state/generationParamsSlice";
 import optionsReducer from "./state/optionsSlice";
 import statsReducer, { updateStats } from "./state/statsSlice";
@@ -31,6 +32,7 @@ const rootReducer = //undoable(
     stats: statsReducer,
     generationParams: generationParamsSliceReducer,
     data: dataSliceReducer,
+    loras: lorasSliceReducer,
     options: optionsReducer,
     controlnet: controlnetReducer,
     promptRegions: promptRegionsReducer,

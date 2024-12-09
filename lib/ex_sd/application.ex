@@ -11,7 +11,7 @@ defmodule ExSd.Application do
       # Start the Telemetry supervisor
       ExSdWeb.Telemetry,
       # Start the Ecto repository
-      # ExSd.Repo,
+      ExSd.Repo,
       # Start the PubSub system
       {Phoenix.PubSub, name: ExSd.PubSub},
       # Start Finch

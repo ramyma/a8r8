@@ -25,8 +25,7 @@ export type AppConfig = {
     model?: string;
     vae?: string;
     clip_skip?: string;
-    clip_model?: string;
-    clip_model_2?: string;
+    clip_models?: string[];
   };
 };
 

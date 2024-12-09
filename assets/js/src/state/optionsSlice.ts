@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { Model } from "../App.d";
+import { Model, ModelType } from "../App.d";
 import { RootState } from "../store";
 
 export type Backend = "auto" | "comfy" | "forge";
@@ -9,10 +9,14 @@ export type OptionsState = {
     name: string;
     isSdXl?: boolean;
     isFlux?: boolean;
+    isPony?: boolean;
+    isSd35?: boolean;
+    modelType?: ModelType;
   };
   sd_vae?: string;
   clipModel?: string;
   clipModel2?: string;
+  clipModels?: string[];
   backend: Backend;
 };
 
@@ -23,7 +27,10 @@ const initialState: OptionsState = {
     name: "",
     isSdXl: false,
     isFlux: false,
+    isPony: false,
+    isSd35: false,
   },
+  clipModels: [],
 };
 export const optionsSlice = createSlice({
   name: "options",
@@ -50,6 +57,12 @@ export const optionsSlice = createSlice({
     ) => {
       state.clipModel2 = action.payload;
     },
+    setSelectedClipModels: (
+      state,
+      action: PayloadAction<OptionsState["clipModels"]>
+    ) => {
+      state.clipModels = action.payload;
+    },
     setBackend: (state, action: PayloadAction<OptionsState["backend"]>) => {
       state.backend = action.payload;
     },
@@ -59,6 +72,7 @@ export const optionsSlice = createSlice({
 export const {
   setSelectedModel,
   setSelectedClipModel2,
+  setSelectedClipModels,
   setSelectedVae,
   setSelectedClipModel,
   setBackend,
@@ -74,6 +88,9 @@ export const selectSelectedClipModel = (state: RootState) =>
 
 export const selectSelectedClipModel2 = (state: RootState) =>
   state.options.clipModel2;
+
+export const selectSelectedClipModels = (state: RootState) =>
+  state.options.clipModels;
 
 export const selectBackend = (state: RootState) => state.options.backend;
 

@@ -37,7 +37,7 @@ export const CustomPopupComponent: FC = () => {
 
               return (
                 <div
-                  key={extra}
+                  key={typeof extra === "object" ? extra.path : extra}
                   className={
                     "p-1 px-2 data-[state=checked]:text-primary select-none " +
                     (isHighlighted || isHovered
@@ -56,7 +56,9 @@ export const CustomPopupComponent: FC = () => {
                         : "text-white"
                     }
                   >
-                    {extra}
+                    {typeof extra === "object"
+                      ? extra.alias || extra.name
+                      : extra}
                   </span>
                 </div>
               );

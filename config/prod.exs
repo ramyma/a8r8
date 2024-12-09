@@ -11,6 +11,8 @@ import Config
 # before starting your production server.
 config :ex_sd, ExSdWeb.Endpoint, cache_static_manifest: "priv/static/cache_manifest.json"
 
+config :ex_sd, ExSd.Repo, database: "../../app_config/database.db"
+
 # Configures Swoosh API Client
 config :swoosh, :api_client, ExSd.Finch
 

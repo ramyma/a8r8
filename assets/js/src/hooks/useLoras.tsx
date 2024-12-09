@@ -1,4 +1,5 @@
-import { Lora, Model } from "../App.d";
+import { Lora } from "../App.d";
+import useBackend from "./useBackend";
 import useData, { FetchPolicy, UseDataProps } from "./useData";
 
 type Props = {
@@ -7,13 +8,17 @@ type Props = {
 };
 
 const useLoras = ({ fetchPolicy, callback }: Props = {}) => {
+  const { backend } = useBackend();
   const { fetchData, data: loras } = useData<Lora[] | undefined>({
-    name: "loras",
+    name:
+      backend === "comfy" || backend === "forge"
+        ? "loras_with_metadata"
+        : "loras",
     fetchPolicy,
     callback,
   });
 
-  return { loras, fetchData };
+  return { loras: loras ?? [], fetchData };
 };
 
 export default useLoras;

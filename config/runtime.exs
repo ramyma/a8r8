@@ -73,6 +73,8 @@ if config_env() == :prod do
   config :ex_sd, :default_backend, String.to_atom(System.get_env("DEFAULT_BACKEND") || "auto")
   config :ex_sd, :auto_client_base_url, System.get_env("AUTO_URL") || "http://localhost:7860"
   config :ex_sd, :comfy_client_base_url, System.get_env("COMFY_URL") || "http://localhost:8188"
+  config :ex_sd, :config_path, System.get_env("CONFIG_PATH") || "./app_config"
+
   # ## SSL Support
   #
   # To get SSL working, you will need to add the `https` key

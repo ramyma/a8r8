@@ -7,8 +7,8 @@
 # General application configuration
 import Config
 
-# config :ex_sd,
-#   ecto_repos: [ExSd.Repo]
+config :ex_sd,
+  ecto_repos: [ExSd.Repo]
 
 # Configures the endpoint
 config :ex_sd, ExSdWeb.Endpoint,
@@ -31,6 +31,7 @@ config :ex_sd, ExSdWeb.Endpoint,
 config :ex_sd, ExSd.Mailer, adapter: Swoosh.Adapters.Local
 
 config :ex_sd, :default_backend, String.to_atom(System.get_env("DEFAULT_BACKEND") || "auto")
+config :ex_sd, :config_path, System.get_env("CONFIG_PATH") || "app_config"
 
 # Configure esbuild (the version is required)
 # config :esbuild,

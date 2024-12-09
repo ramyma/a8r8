@@ -1,4 +1,4 @@
-import React, {
+import {
   ChangeEvent,
   KeyboardEventHandler,
   MouseEvent,
@@ -7,6 +7,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { Controller, SubmitHandler, useForm, useWatch } from "react-hook-form";
 // import { DevTool } from "@hookform/devtools";
@@ -39,7 +40,6 @@ import {
   getLayers,
   roundToClosestMultipleOf8Down,
   checkIsIpAdapterControlnetModel,
-  roundToClosestMultipleOf8,
 } from "../utils";
 import Editor from "../components/Editor";
 
@@ -60,8 +60,7 @@ import {
 import useScripts from "../hooks/useScripts";
 import {
   selectBackend,
-  selectSelectedClipModel,
-  selectSelectedClipModel2,
+  selectSelectedClipModels,
   selectSelectedModel,
   selectSelectedVae,
 } from "../state/optionsSlice";
@@ -75,13 +74,18 @@ import { REGIONAL_PROMPTS_SEPARATOR, weightTypesByName } from "./constants";
 import { selectPromptRegionLayers } from "../state/promptRegionsSlice";
 import { showNotification } from "../Notifications/utils";
 import Button from "../components/Button";
-import { useCustomEventListener } from "react-custom-events";
+import { emitCustomEvent, useCustomEventListener } from "react-custom-events";
 import ComfySoftInpaintingFields from "./ComfySoftInpaintingFields";
 import { ComfySoftInpaintingArgs } from "./ComfySoftInpaintingFields";
 import SkimmedCfgFields from "./SkimmedCfgFields";
 import { SkimmedCfgArgs } from "./SkimmedCfgFields/SkimmedCfgFields";
 import SplitRenderFields from "./SplitRenderFields";
 import { SplitRenderArgs } from "./SplitRenderFields/SplitRenderFields";
+import LorasModal from "../LorasModal";
+import { selectLoras } from "../state/lorasSlice";
+import LorasSection from "./LorasSection";
+import useModels from "../hooks/useModels";
+import useLoras from "../hooks/useLoras";
 
 export type MainFormValues = Record<string, any> & {
   clip_skip: number;
@@ -120,10 +124,12 @@ export type MainFormValues = Record<string, any> & {
 };
 
 const MainForm = () => {
-  const { channel, sendMessage } = useSocket();
+  const { channel, sendMessage, broadcastSelectionBoxUpdate } = useSocket();
   const backend = useAppSelector(selectBackend);
+  const addedLoras = useAppSelector(selectLoras);
+  const { loras } = useLoras();
   const batchImageResults = useAppSelector(selectBatchImageResults);
-  const methods = useForm<MainFormValues>({ shouldUnregister: true });
+  const methods = useForm<MainFormValues>({ shouldUnregister: false });
   const { control, handleSubmit, setValue } = methods;
   const formRef = useRef<HTMLFormElement>(null);
   const scale = useWatch({ name: "scale", control, defaultValue: 1 });
@@ -207,8 +213,7 @@ const MainForm = () => {
   const model = useAppSelector(selectSelectedModel);
   const vae = useAppSelector(selectSelectedVae);
 
-  const clipModel = useAppSelector(selectSelectedClipModel);
-  const clipModel2 = useAppSelector(selectSelectedClipModel2);
+  const clipModels = useAppSelector(selectSelectedClipModels);
 
   const isConnected = useAppSelector(selectIsConnected);
 
@@ -249,6 +254,21 @@ const MainForm = () => {
   const refs = useContext(RefsContext);
   const { selectionBoxRef, canvasContainerRef } = refs;
 
+  const { selectedModel, loadModelConfig } = useModels();
+
+  const [prevSelectedModel, setPrevSelectedModel] =
+    useState<typeof selectedModel>();
+
+  const applyModelConfig = async () => {
+    const modelConfig = await loadModelConfig(selectedModel.name);
+    if (modelConfig) emitCustomEvent("apply-preset", modelConfig);
+  };
+
+  if (selectedModel !== prevSelectedModel) {
+    setPrevSelectedModel(selectedModel);
+    applyModelConfig();
+  }
+
   // apply last gen config
   useCustomEventListener("apply-preset", (params: Partial<MainFormValues>) => {
     params?.clip_skip && setValue("clip_skip", params.clip_skip);
@@ -258,26 +278,36 @@ const MainForm = () => {
     params?.scheduler && setValue("scheduler", params.scheduler);
     params?.steps && setValue("steps", params.steps);
 
-    params?.width &&
-      params?.height &&
+    if (params?.width && params?.height && canvasContainerRef?.current) {
+      const width = params.width;
+      const height = params.height;
+
+      // const x = roundToClosestMultipleOf8(
+      //   Math.floor(
+      //     canvasContainerRef?.current.clientWidth / 2 - params.width / 2
+      //   )
+      // );
+      // const y = roundToClosestMultipleOf8(
+      //   Math.floor(
+      //     canvasContainerRef?.current.clientHeight / 2 - params.height / 2
+      //   )
+      // );
+
       dispatch(
         updateSelectionBox({
-          width: params.width,
-          height: params.height,
-          ...(canvasContainerRef?.current && {
-            x: roundToClosestMultipleOf8(
-              Math.floor(
-                canvasContainerRef?.current.clientWidth / 2 - params.width / 2
-              )
-            ),
-            y: roundToClosestMultipleOf8(
-              Math.floor(
-                canvasContainerRef?.current.clientHeight / 2 - params.height / 2
-              )
-            ),
-          }),
+          width,
+          height,
+          // ...(canvasContainerRef?.current && {
+          //   x,
+          //   y,
+          // }),
         })
       );
+      broadcastSelectionBoxUpdate({
+        width,
+        height,
+      });
+    }
     params?.scale && setValue("scale", params.scale);
   });
 
@@ -302,14 +332,16 @@ const MainForm = () => {
   useEffect(() => {
     // Update scale if either width of height go below 512
     if (width && height) {
-      const referenceDim = model.isSdXl || model.isFlux ? 1024 : 512;
+      const referenceDim =
+        model.isSdXl || model.isFlux || model.isSd35 ? 1024 : 512;
 
       const minDimension = Math.min(+width, +height);
 
       if (minDimension < referenceDim) {
         const newScale = Math.min(
           10,
-          (model?.isSdXl || model?.isFlux ? 1024 : 516.5) / minDimension
+          (model?.isSdXl || model?.isFlux || model.isSd35 ? 1024 : 516.5) /
+            minDimension
         ).toFixed(2);
         setValue("scale", +newScale);
       } else if (
@@ -380,6 +412,9 @@ const MainForm = () => {
       regionalPrompts,
       isRegionalPromptingEnabled,
       promptRegions,
+      loras,
+      lorasState: addedLoras,
+      backend,
     });
 
     // Show validation warning if prompt is not set with regional prompts
@@ -467,9 +502,9 @@ const MainForm = () => {
             //_
             null,
             //tile_width,
-            model?.isSdXl || model?.isFlux ? 1024 : 512,
+            model?.isSdXl || model?.isFlux || model?.isSd35 ? 1024 : 512,
             //tile_height
-            model?.isSdXl || model?.isFlux ? 1024 : 512,
+            model?.isSdXl || model?.isFlux || model?.isSd35 ? 1024 : 512,
             //mask_blur
             8,
             // padding,
@@ -671,8 +706,7 @@ const MainForm = () => {
       invert_mask: invertMask,
       model: model?.name,
       vae,
-      clip_model: clipModel,
-      clip_model_2: clipModel2,
+      ...((model.isFlux || model.isSd35) && { clip_models: clipModels }),
       ...((backend === "comfy" || schedulers?.length > 0) && {
         scheduler,
       }),
@@ -701,7 +735,7 @@ const MainForm = () => {
       ...(backend === "comfy" && skimmedCfg?.is_enabled
         ? { skimmed_cfg: skimmedCfg }
         : {}),
-      ...(backend === "comfy" && splitRender?.is_enabled
+      ...(backend === "comfy" && txt2img && splitRender?.is_enabled
         ? {
             split_render: {
               ...splitRender,
@@ -822,15 +856,27 @@ const MainForm = () => {
     }
   };
 
+  const handleInterrupt = useCallback(
+    (e?: MouseEvent<HTMLButtonElement>) => {
+      e?.preventDefault();
+      sendMessage("interrupt");
+    },
+    [sendMessage]
+  );
+
   const handleKeydown: KeyboardEventHandler = useCallback(
     (e) => {
-      if (e.key === "Enter" && e.ctrlKey && !isGenerating && isConnected) {
-        formRef.current?.requestSubmit();
+      if (e.key === "Enter" && e.ctrlKey && isConnected) {
+        if (isGenerating) {
+          handleInterrupt();
+        } else {
+          formRef.current?.requestSubmit();
+        }
       } else if (e.key.toLowerCase() === "l" && e.ctrlKey && e.shiftKey) {
         seed && seed != -1 && setValue("isSeedPinned", !isSeedPinned);
       }
     },
-    [isConnected, isGenerating, isSeedPinned, seed, setValue]
+    [handleInterrupt, isConnected, isGenerating, isSeedPinned, seed, setValue]
   );
 
   useGlobalKeydown({ handleKeydown, override: true });
@@ -854,11 +900,6 @@ const MainForm = () => {
     !isSeedPinned && setValue("seed", seed);
   });
 
-  const handleInterrupt = (e: MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
-    sendMessage("interrupt");
-  };
-
   const showFullScalePass =
     (batchSize === 1 || isBatchDisabled || backend === "comfy") && scale < 1;
   const showSecondPassStrength =
@@ -870,37 +911,49 @@ const MainForm = () => {
   const showSoftInpainting =
     (backend === "auto" || backend === "forge") && !txt2img;
 
+  const [isLoraModalVisible, setIsLoraModalVisible] = useState(false);
+
+  useCustomEventListener("showLorasModal", () => setIsLoraModalVisible(true));
+
   return (
     <FormProvider {...methods}>
+      <LorasModal
+        open={isLoraModalVisible}
+        onClose={() => setIsLoraModalVisible(false)}
+      />
+
       <form
         onSubmit={handleSubmit(onSubmit)}
         className="flex flex-col p-4 px-6 pt-1 pb-10 gap-8  w-full"
         ref={formRef}
       >
-        {!model.isFlux && (
-          <div className="flex place-items-center gap-3 justify-between">
-            <Label htmlFor="clip_skip" className="whitespace-nowrap">
-              Clip Skip
-            </Label>
-            <Controller
-              name="clip_skip"
-              control={control}
-              render={({ field }) => (
-                <Input
-                  id="clip_skip"
-                  className="text-center max-w-16"
-                  type="number"
-                  step={1}
-                  min={1}
-                  max={10}
-                  {...field}
-                  onChange={(event) => field.onChange(+event.target.value)}
-                />
-              )}
-              defaultValue={1}
-            />
-          </div>
-        )}
+        {(backend === "auto" || backend === "comfy") &&
+          !model.isFlux &&
+          !model.isSd35 && (
+            <div className="flex place-items-center gap-3 justify-between">
+              <Label htmlFor="clip_skip" className="whitespace-nowrap">
+                Clip Skip
+              </Label>
+
+              <Controller
+                name="clip_skip"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    id="clip_skip"
+                    className="text-center max-w-16"
+                    type="number"
+                    step={1}
+                    min={1}
+                    max={10}
+                    {...field}
+                    onChange={(event) => field.onChange(+event.target.value)}
+                  />
+                )}
+                defaultValue={1}
+              />
+            </div>
+          )}
 
         {!isGenerating || !isConnected ? (
           <Button
@@ -920,6 +973,7 @@ const MainForm = () => {
             Interrupt
           </Button>
         )}
+
         <div className="flex flex-col gap-2">
           <Label>Prompt</Label>
 
@@ -932,22 +986,24 @@ const MainForm = () => {
             defaultValue=""
           />
         </div>
-        {hasRegionalPrompting && <RegionalPromptsFields />}
-        {backend !== "comfy" ||
-          (!model.isFlux && (
-            <div className="flex flex-col gap-2">
-              <Label>Negative Prompt</Label>
 
-              <Controller
-                name="negative_prompt"
-                control={control}
-                render={({ field }) => (
-                  <Editor placeholder="Negative Prompt" {...field} />
-                )}
-                defaultValue=""
-              />
-            </div>
-          ))}
+        <LorasSection />
+
+        {hasRegionalPrompting && <RegionalPromptsFields />}
+        {(backend !== "comfy" || !model.isFlux) && (
+          <div className="flex flex-col gap-2">
+            <Label>Negative Prompt</Label>
+
+            <Controller
+              name="negative_prompt"
+              control={control}
+              render={({ field }) => (
+                <Editor placeholder="Negative Prompt" {...field} />
+              )}
+              defaultValue=""
+            />
+          </div>
+        )}
 
         <Controller
           name="txt2img"
@@ -1055,7 +1111,7 @@ const MainForm = () => {
         <Controller
           name="cfg_scale"
           control={control}
-          defaultValue={model.isFlux ? 1 : 7}
+          defaultValue={model.isFlux ? 1 : 4}
           // rules={{ required: true }}
           render={({ field }) => (
             <Slider step={0.1} min={1} max={32} label="CFG Scale" {...field} />
@@ -1075,6 +1131,7 @@ const MainForm = () => {
                     step={0.1}
                     min={0}
                     max={30}
+                    defaultValue={3.5}
                     label="Flux Guidnace"
                     {...field}
                   />
@@ -1082,7 +1139,9 @@ const MainForm = () => {
               />
             )}
             <SkimmedCfgFields control={control} />
-            {model?.isFlux && <SplitRenderFields control={control} />}
+            {model?.isFlux && txt2img && (
+              <SplitRenderFields control={control} />
+            )}
           </>
         )}
         {/* TODO: Show image_cfg_scale only with ip2p */}
@@ -1116,6 +1175,7 @@ const MainForm = () => {
             onChange(e: ChangeEvent<HTMLInputElement>) {
               const value = +e.target.value;
               dispatch(updateSelectionBox({ width: value }));
+              broadcastSelectionBoxUpdate({ width: value });
             },
           }}
         />
@@ -1132,6 +1192,7 @@ const MainForm = () => {
             onChange(e: ChangeEvent<HTMLInputElement>) {
               const value = +e.target.value;
               dispatch(updateSelectionBox({ height: value }));
+              broadcastSelectionBoxUpdate({ height: value });
             },
           }}
         />
@@ -1142,7 +1203,14 @@ const MainForm = () => {
             control={control}
             // rules={{ required: true }}
             render={({ field }) => (
-              <Slider min={0.1} max={10} step={0.01} label="Scale" {...field} />
+              <Slider
+                min={0.1}
+                max={10}
+                step={0.01}
+                label="Scale"
+                defaultValue={1}
+                {...field}
+              />
             )}
             defaultValue={1}
             rules={{ required: true }}

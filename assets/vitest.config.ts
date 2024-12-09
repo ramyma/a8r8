@@ -14,7 +14,11 @@ export default defineConfig(({ command }: any) => {
     process.stdin.resume();
   }
   return {
+    define: {
+      VERSION: JSON.stringify(process.env.VERSION),
+    },
     publicDir: "static",
+    envDir: "../.env",
     plugins: [
       svgr(),
       react({

@@ -3,7 +3,6 @@ defmodule ExSd.Sd.AlwaysonScriptArgs do
   import Ecto.Changeset
 
   @derive {Jason.Encoder, except: []}
-
   @primary_key false
   embedded_schema do
     field :args, {:array, :any}

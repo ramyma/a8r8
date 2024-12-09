@@ -60,7 +60,7 @@ defmodule ExSd.SdServer do
   def handle_info(:status, state) do
     Process.send_after(self(), :status, 500)
 
-    new_state = state |> put_memory_usage() |> put_progress()
+    new_state = state |> put_memory_usage() |> put_progress() |> put_health
 
     new_state =
       if !state.is_connected and new_state.is_connected do
@@ -87,7 +87,7 @@ defmodule ExSd.SdServer do
       )
     end
 
-    if not Map.equal?(new_state.memory_stats, state.memory_stats) do
+    if state.backend != :comfy and not Map.equal?(new_state.memory_stats, state.memory_stats) do
       Sd.broadcast_memory_stats(new_state.memory_stats)
     end
 
@@ -388,30 +388,29 @@ defmodule ExSd.SdServer do
 
     ConfigManager.set_config(
       %{
-      "prompt" => generation_params.prompt,
-      "negative_prompt" => generation_params.negative_prompt,
-      "scheduler" => generation_params.scheduler,
-      "txt2img" => generation_params.txt2img,
-      "sampler_name" => generation_params.sampler_name,
-      "steps" => generation_params.steps,
-      "cfg_scale" => generation_params.cfg_scale,
-      "width" => generation_params.width,
-      "height" => generation_params.height,
-      "seed" => generation_params.seed,
-      "flux_guidance" => generation_params.flux_guidance,
-      "batch_size" => generation_params.batch_size,
-      "scale" => attrs["scale"],
-      "use_scaled_dimensions" => attrs["use_scaled_dimensions"],
+        "prompt" => generation_params.prompt,
+        "negative_prompt" => generation_params.negative_prompt,
+        "scheduler" => generation_params.scheduler,
+        "txt2img" => generation_params.txt2img,
+        "sampler_name" => generation_params.sampler_name,
+        "steps" => generation_params.steps,
+        "cfg_scale" => generation_params.cfg_scale,
+        "width" => generation_params.width,
+        "height" => generation_params.height,
+        "seed" => generation_params.seed,
+        "flux_guidance" => generation_params.flux_guidance,
+        "batch_size" => generation_params.batch_size,
+        "scale" => attrs["scale"],
+        "use_scaled_dimensions" => attrs["use_scaled_dimensions"],
         "full_scale_pass" => attrs["full_scale_pass"]
       }
       |> Map.merge(
         if(backend == :comfy,
           do: %{
-      "model" => attrs["model"],
-      "vae" => attrs["vae"],
-      "clip_skip" => attrs["clip_skip"],
-      "clip_model" => attrs["clip_model"],
-      "clip_model_2" => attrs["clip_model_2"]
+            "model" => attrs["model"],
+            "vae" => attrs["vae"],
+            "clip_skip" => attrs["clip_skip"],
+            "clip_models" => attrs["clip_models"]
           },
           else: %{}
         )
@@ -463,9 +462,9 @@ defmodule ExSd.SdServer do
   end
 
   @impl true
-  def handle_cast({:set_model, model_title}, state) do
+  def handle_cast({:set_model, model}, %{backend: backend} = state) do
     Sd.broadcast_model_loading_status(true)
-    new_state = state |> put_active_model(model_title)
+    new_state = state |> put_active_model(model, backend)
     Sd.broadcast_model_loading_status(false)
     {:noreply, new_state}
   end
@@ -474,6 +473,14 @@ defmodule ExSd.SdServer do
   def handle_cast({:set_vae, vae}, state) do
     Sd.broadcast_vae_loading_status(true)
     new_state = state |> put_active_vae(vae)
+    Sd.broadcast_vae_loading_status(false)
+    {:noreply, new_state}
+  end
+
+  @impl true
+  def handle_cast({:set_additional_modules, additional_modules}, state) do
+    Sd.broadcast_vae_loading_status(true)
+    new_state = state |> put_active_additional_modules(additional_modules)
     Sd.broadcast_vae_loading_status(false)
     {:noreply, new_state}
   end
@@ -510,10 +517,10 @@ defmodule ExSd.SdServer do
   end
 
   @impl true
-  def handle_cast(:loras, state) do
+  def handle_cast({:loras, broadcast}, state) do
     new_state = state |> refresh_and_put_loras()
-    Sd.broadcast_data("loras", new_state.loras)
-    {:noreply, state}
+    if(broadcast, do: Sd.broadcast_loras_with_metadata(new_state.loras))
+    {:noreply, new_state}
   end
 
   @impl true
@@ -674,6 +681,11 @@ defmodule ExSd.SdServer do
     {:reply, {:ok, state.is_connected}, state}
   end
 
+  @impl true
+  def handle_call(:read_loras, _, state) do
+    {:reply, {:ok, state.loras}, state}
+  end
+
   defp initialize_state(state) do
     # there's a delay between a1111 server starting and embeddings
     # getting loaded. This to refetch embeddings with a small delay
@@ -808,7 +820,10 @@ defmodule ExSd.SdServer do
       state
       |> Map.put(
         :models,
-        Enum.concat(models, unets |> Enum.sort() |> Enum.filter(&String.match?(&1, ~r/flux/i)))
+        Enum.concat(
+          models,
+          unets |> Enum.sort() |> Enum.filter(&String.match?(&1, ~r/(flux|3\.?5)/i))
+        )
         |> Enum.sort()
       )
     else
@@ -821,7 +836,10 @@ defmodule ExSd.SdServer do
     case SdService.get_unets(:comfy) do
       {:ok, unets} ->
         state
-        |> Map.put(:unets, unets |> Enum.sort() |> Enum.filter(&String.match?(&1, ~r/flux/i)))
+        |> Map.put(
+          :unets,
+          unets |> Enum.sort() |> Enum.filter(&String.match?(&1, ~r/(flux|3\.?5)/i))
+        )
 
       {:error, _} ->
         state
@@ -834,6 +852,16 @@ defmodule ExSd.SdServer do
 
   defp put_clips_models(%{backend: :comfy} = state) do
     case SdService.get_clips_models(:comfy) do
+      {:ok, clips_models} ->
+        state |> Map.put(:clip_models, clips_models |> Enum.sort())
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_clips_models(%{backend: :forge} = state) do
+    case SdService.get_clips_models(:forge) do
       {:ok, clips_models} ->
         state |> Map.put(:clip_models, clips_models |> Enum.sort())
 
@@ -866,7 +894,7 @@ defmodule ExSd.SdServer do
         state
         |> Map.put(
           :vaes,
-          vaes |> Enum.map(& &1["model_name"]) |> Enum.sort()
+          vaes |> Enum.sort(&(&1["model_name"] < &2["model_name"]))
         )
 
       {:error, _} ->
@@ -967,8 +995,6 @@ defmodule ExSd.SdServer do
   end
 
   defp put_loras(%{backend: backend} = state) do
-    # loras = Sd.load_loras()
-    # state |> Map.put(:loras, loras)
     case SdService.get_loras(backend) do
       {:ok, loras} ->
         state |> Map.put(:loras, loras)
@@ -978,12 +1004,13 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp refresh_and_put_loras(state) do
-    case SdService.refresh_loras() do
+  defp refresh_and_put_loras(%{backend: backend} = state) do
+    case SdService.refresh_loras(backend) do
       {:ok, _} ->
         state |> put_loras()
 
-      {:error, _} ->
+      {:error, e} ->
+        Logger.error(e)
         state
     end
   end
@@ -997,6 +1024,10 @@ defmodule ExSd.SdServer do
       {:error, _} ->
         state
     end
+  end
+
+  defp put_memory_usage(%{backend: :comfy} = state) do
+    state
   end
 
   defp put_memory_usage(
@@ -1065,10 +1096,10 @@ defmodule ExSd.SdServer do
     end
   end
 
-  defp put_active_model(state, model_title) do
-    case SdService.post_active_model(model_title) do
+  defp put_active_model(state, model, backend) do
+    case SdService.post_active_model(model, backend) do
       {:ok, options} ->
-        state |> Map.put(:options, options)
+        if(is_nil(options), do: state, else: state |> Map.put(:options, options))
 
       {:error, _} ->
         state
@@ -1077,6 +1108,16 @@ defmodule ExSd.SdServer do
 
   defp put_active_vae(state, vae) do
     case SdService.post_active_vae(vae) do
+      {:ok, options} ->
+        state |> Map.put(:options, options)
+
+      {:error, _} ->
+        state
+    end
+  end
+
+  defp put_active_additional_modules(state, additional_modules) do
+    case SdService.post_active_additional_modules(additional_modules) do
       {:ok, options} ->
         state |> Map.put(:options, options)
 
@@ -1095,6 +1136,10 @@ defmodule ExSd.SdServer do
 
   defp handle_generation_error(error) when is_map(error) do
     Sd.broadcast_error(error)
+  end
+
+  defp handle_generation_error(error) when is_binary(error) do
+    Sd.broadcast_error(%{error: error})
   end
 
   defp handle_generation_error(error) when error === :closed do
@@ -1140,12 +1185,37 @@ defmodule ExSd.SdServer do
           |> :erlang.float_to_binary(decimals: 1)
           |> String.to_float()
         )
+        |> Map.put(:is_connected, true)
 
       # |> assign(:preview, current_image)
 
       {:error, _} ->
-        state
+        state |> Map.put(:is_connected, false)
     end
+  end
+
+  def put_health(%{backend: :comfy, generating_session_name: generating_session_name} = state) do
+    case SdService.get_health(:comfy) do
+      {:ok, _} ->
+        state
+        |> Map.put(:is_connected, true)
+
+      {:error, _} ->
+        # TODO: handle error?
+
+        Sd.broadcast_progress(%{
+          progress: 0,
+          etaRelative: 0,
+          isGenerating: false,
+          generatingSessionName: generating_session_name
+        })
+
+        state |> Map.put(:is_connected, false)
+    end
+  end
+
+  def put_health(state) do
+    state
   end
 
   def put_progress(state) do
@@ -1208,9 +1278,9 @@ defmodule ExSd.SdServer do
     GenServer.cast(__MODULE__, :upscalers)
   end
 
-  @spec get_loras :: {:ok, list()}
-  def get_loras() do
-    GenServer.cast(__MODULE__, :loras)
+  @spec get_loras([]) :: :ok
+  def get_loras(options \\ []) do
+    GenServer.cast(__MODULE__, {:loras, Keyword.get(options, :broadcast, true)})
   end
 
   @spec get_embeddings :: {:ok, map()}
@@ -1257,16 +1327,24 @@ defmodule ExSd.SdServer do
     GenServer.cast(__MODULE__, :options)
   end
 
-  def set_model(model_title) do
-    GenServer.cast(__MODULE__, {:set_model, model_title})
+  def set_model(model) do
+    GenServer.cast(__MODULE__, {:set_model, model})
   end
 
   def set_vae(vae) do
     GenServer.cast(__MODULE__, {:set_vae, vae})
   end
 
+  def set_additional_modules(additional_modules) do
+    GenServer.cast(__MODULE__, {:set_additional_modules, additional_modules})
+  end
+
   def get_png_info(png_data_url) do
     GenServer.call(__MODULE__, {:get_png_info, png_data_url})
+  end
+
+  def read_loras() do
+    GenServer.call(__MODULE__, :read_loras)
   end
 
   @spec get_is_connected(pos_integer() | nil) :: {:ok, boolean()}
