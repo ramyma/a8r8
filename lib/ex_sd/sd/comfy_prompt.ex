@@ -1111,8 +1111,8 @@ defmodule ExSd.Sd.ComfyPrompt do
                 ),
               else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
             ),
-          positive: node_ref("flux_guidance", 0),
-          negative: node_ref("negative_prompt", 0),
+          positive: node_ref("img2img_vae_encode_node", 0),
+          negative: node_ref("img2img_vae_encode_node", 1),
           cfg: generation_params.cfg_scale
         })
       )
@@ -2265,7 +2265,8 @@ defmodule ExSd.Sd.ComfyPrompt do
       |> add_node_input(:conditioning, conditioning_prompt)
       |> add_node_input(:mask, node_ref("#{name}_mask_with_blur", 0))
       |> add_node_input(:strength, weight)
-      |> add_node_input(:set_cond_area, "mask bounds")
+      # "mask bounds"
+      |> add_node_input(:set_cond_area, "default")
 
     mask_blur_node =
       node("#{name}_mask_with_blur", "MaskBlur+")
@@ -2500,18 +2501,18 @@ defmodule ExSd.Sd.ComfyPrompt do
           Keyword.get(
             options,
             :model,
-          if(Enum.empty?(positive_loras),
-            do:
-              if(is_regional_prompting_enabled,
-                do: node_ref("attention_couple", 0),
-                else: get_base_model(generation_params.txt2img)
-              ),
-            else:
-              if(is_regional_prompting_enabled,
-                do: node_ref("attention_couple", 0),
-                else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+            if(Enum.empty?(positive_loras),
+              do:
+                if(is_regional_prompting_enabled,
+                  do: node_ref("attention_couple", 0),
+                  else: get_base_model(generation_params.txt2img)
+                ),
+              else:
+                if(is_regional_prompting_enabled,
+                  do: node_ref("attention_couple", 0),
+                  else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
                 )
-              )
+            )
           ),
         positive:
           if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
