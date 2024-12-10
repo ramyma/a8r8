@@ -41,6 +41,7 @@ defmodule ExSd.ComfyClient do
 
     generation_params =
       if Regex.match?(~r/flux/i, attrs["model"]) do
+        Logger.info("Flux img2img")
         ComfyPrompt.flux_img2img(generation_params, attrs)
       else
         ComfyPrompt.img2img(generation_params, attrs)
@@ -288,11 +289,16 @@ defmodule ExSd.ComfyClient do
 
   def get_unets() do
     with response <- get("/object_info/UnetLoaderGGUF"),
-         {:ok, body} <- handle_response(response) do
+         {:ok, body} <- handle_response(response),
+         response <-
+           body |> get_in(["UnetLoaderGGUF", "input", "required", "unet_name"]) do
       unets =
-        body
-        |> get_in(["UnetLoaderGGUF", "input", "required", "unet_name"])
-        |> List.first()
+        if(is_nil(response),
+          do: [],
+          else:
+            response
+            |> List.first()
+        )
 
       {:ok, unets}
     else
@@ -303,11 +309,17 @@ defmodule ExSd.ComfyClient do
 
   def get_clips_models() do
     with response <- get("/object_info/DualCLIPLoaderGGUF"),
-         {:ok, body} <- handle_response(response) do
+         {:ok, body} <- handle_response(response),
+         response <-
+           body
+           |> get_in(["DualCLIPLoaderGGUF", "input", "required", "clip_name1"]) do
       clip_models =
-        body
-        |> get_in(["DualCLIPLoaderGGUF", "input", "required", "clip_name1"])
-        |> List.first()
+        if(is_nil(response),
+          do: [],
+          else:
+            response
+            |> List.first()
+        )
 
       {:ok, clip_models}
     else
@@ -388,7 +400,8 @@ defmodule ExSd.ComfyClient do
       upscalers =
         body
         |> get_in(["UpscaleModelLoader", "input", "required", "model_name"])
-        |> List.first()
+
+      upscalers = if(is_nil(upscalers), do: [], else: upscalers |> List.first())
 
       {:ok, upscalers}
     else
@@ -397,7 +410,7 @@ defmodule ExSd.ComfyClient do
     end
   end
 
-  def get_loras() do
+  def get_vanilla_loras() do
     with response <- get("/object_info/LoraLoader"),
          {:ok, body} <- handle_response(response) do
       loras =
@@ -407,6 +420,26 @@ defmodule ExSd.ComfyClient do
         |> Enum.map(&%{name: &1})
 
       {:ok, loras}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  def get_loras() do
+    with response <- get("/a8r8/loras"),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  def get_health() do
+    with response <- get("/a8r8/health", timeout: 1_500),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body}
     else
       {:error, _error} = res ->
         res

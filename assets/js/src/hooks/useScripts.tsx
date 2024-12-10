@@ -31,6 +31,7 @@ const useScripts = ({ fetchPolicy }: Props = {}): Return => {
   const selectedModel = useAppSelector(selectSelectedModel);
 
   const isFlux = selectedModel?.isFlux;
+  const isSd35 = selectedModel?.isSd35;
 
   const hasScript = useCallback(
     (scriptName: string) => {
@@ -61,8 +62,8 @@ const useScripts = ({ fetchPolicy }: Props = {}): Return => {
     () =>
       backend === "auto" || backend === "forge"
         ? hasScript("controlnet")
-        : !isFlux,
-    [backend, hasScript, isFlux]
+        : !isFlux && !isSd35,
+    [backend, hasScript, isFlux, isSd35]
   );
   const hasSelfAttentionGuidance = useMemo(
     () =>

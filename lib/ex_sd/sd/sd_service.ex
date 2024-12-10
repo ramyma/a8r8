@@ -1,6 +1,7 @@
 defmodule ExSd.Sd.SdService do
   require Logger
 
+  alias Logger.Backends
   alias ExSd.ForgeClient
   alias ExSd.Sd.AlwaysOnScripts
   alias ExSd.ComfyGenerationServer
@@ -597,6 +598,7 @@ defmodule ExSd.Sd.SdService do
 
   @spec get_clips_models(backend()) :: {:error, any} | {:ok, list(binary())}
   def get_clips_models(:comfy), do: ComfyClient.get_clips_models()
+  def get_clips_models(:forge), do: ForgeClient.get_clips_models()
 
   @spec get_vaes(backend()) :: {:error, any} | {:ok, any}
   def get_vaes(:auto), do: AutoClient.get_vaes()
@@ -611,18 +613,44 @@ defmodule ExSd.Sd.SdService do
   @spec refresh_models() :: {:error, any} | {:ok, any}
   defdelegate refresh_models(), to: AutoClient
 
-  @spec refresh_loras() :: {:error, any} | {:ok, any}
-  defdelegate refresh_loras(), to: AutoClient
+  @spec refresh_loras(Backends.t()) :: {:error, any} | {:ok, any}
+  def refresh_loras(:auto), do: AutoClient.refresh_loras()
+  def refresh_loras(:forge), do: ForgeClient.refresh_loras()
+  def refresh_loras(:comfy), do: {:ok, nil}
 
   @spec get_upscalers(backend()) :: {:error, any} | {:ok, any}
   def get_upscalers(:auto), do: AutoClient.get_upscalers()
   def get_upscalers(:forge), do: ForgeClient.get_upscalers()
   def get_upscalers(:comfy), do: ComfyClient.get_upscalers()
 
-  @spec get_loras(backend()) :: {:error, any} | {:ok, any}
+  @spec get_loras(backend()) :: {:error, any} | {:ok, list()}
   def get_loras(:auto), do: AutoClient.get_loras()
-  def get_loras(:forge), do: ForgeClient.get_loras()
+
+  def get_loras(:forge) do
+    case ForgeClient.get_loras() do
+      {:ok, loras} ->
+        {:ok,
+         Enum.map(loras, fn lora ->
+           %{
+             lora
+             | "path" =>
+                 Map.get(
+                   Regex.named_captures(~r/^.*(?<=\/models\/Lora\/)(?<path>.+$)/i, lora["path"]) ||
+                     %{},
+                   "path",
+                   lora["path"]
+                 )
+           }
+         end)}
+
+      resp ->
+        resp
+    end
+  end
+
   def get_loras(:comfy), do: ComfyClient.get_loras()
+
+  def get_health(:comfy), do: ComfyClient.get_health()
 
   @spec get_embeddings(backend()) :: {:error, any} | {:ok, list()}
   def get_embeddings(:auto) do
@@ -661,11 +689,15 @@ defmodule ExSd.Sd.SdService do
   def get_memory_usage(:auto), do: AutoClient.get_memory_usage()
   def get_memory_usage(:forge), do: ForgeClient.get_memory_usage()
 
-  @spec post_active_model(binary()) :: {:error, any} | {:ok, any}
-  defdelegate post_active_model(model_title), to: AutoClient
+  @spec post_active_model(binary() | map(), backend()) :: {:error, any} | {:ok, any}
+  def post_active_model(model, :auto), do: AutoClient.post_active_model(model)
+  def post_active_model(model, :forge), do: ForgeClient.post_active_model(model)
 
   @spec post_active_vae(binary()) :: {:error, any} | {:ok, any}
   defdelegate post_active_vae(vae), to: AutoClient
+
+  @spec post_active_additional_modules(list(binary())) :: {:error, any} | {:ok, any}
+  defdelegate post_active_additional_modules(additional_modules), to: ForgeClient
 
   def round_to_closest_multiple_of_8_down(number) do
     round((number - 4) / 8) * 8

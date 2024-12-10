@@ -684,7 +684,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
       negative_prompt: "neg prompt",
       width: 512,
       height: 768,
-      cfg_scale: 7,
+      cfg_scale: 4,
       sampler_name: "euler",
       steps: 20,
       seed: 1,
@@ -734,7 +734,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                  "hires_sampler" => %{
                    class_type: "KSampler",
                    inputs: %{
-                     cfg: 7,
+                     cfg: 4,
                      denoise: 0.5,
                      latent_image: ["second_pass_vae_encode", 0],
                      model: ["positive_lora1", 0],
@@ -771,7 +771,7 @@ defmodule ExSd.Sd.ComfyPromptTest do
                  "sampler" => %{
                    class_type: "KSampler",
                    inputs: %{
-                     cfg: 7,
+                     cfg: 4,
                      denoise: 1,
                      latent_image: ["empty_latent_image", 0],
                      model: ["positive_lora1", 0],

@@ -500,7 +500,7 @@ export const getLayers = async ({
         //FIXME: Pasted image on CN layer on canvas should be fetched from canvas rather than
         // sending the whole image
         const controlnetDataUrl = layer.overrideBaseLayer
-          ? ((layer.image as string) ||
+          ? (((layer.image as string) ||
               controlnetLayer?.toDataURL({
                 x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
                 y: selectionBox?.getAbsolutePosition().y,
@@ -508,7 +508,7 @@ export const getLayers = async ({
                 height: selectionBox?.height(),
                 // imageSmoothingEnabled: false,
               })) ??
-            ""
+            "")
           : "";
         layerGroup?.visible(false);
 
@@ -525,13 +525,13 @@ export const getLayers = async ({
           // tempLayer?.filters([Konva.Filters.RGB, Konva.Filters.Invert]);
 
           controlnetMaskDataUrl = layer.isMaskEnabled
-            ? controlnetLayer?.toDataURL({
+            ? (controlnetLayer?.toDataURL({
                 x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
                 y: selectionBox?.getAbsolutePosition().y,
                 width: selectionBox?.width(),
                 height: selectionBox?.height(),
                 // imageSmoothingEnabled: false,
-              }) ?? null
+              }) ?? null)
             : null;
           layerGroup?.filters([]);
           layerGroup?.clearCache();
@@ -596,7 +596,8 @@ export const editorJsonToText = (json: RemirrorJSON) => {
 
             case "extra":
               return (
-                acc + `<lora:${nodeJson.attrs?.code}:${nodeJson.attrs?.value}>`
+                acc +
+                `<lora:${nodeJson.attrs?.code.path.replace(".safetensors", "")}:${nodeJson.attrs?.value}>`
               );
             case "attention":
               return acc + `(${nodeJson.attrs?.code}:${nodeJson.attrs?.value})`;
@@ -700,11 +701,40 @@ export const debugImage = function (url, label, height = 100) {
   image.src = url;
 };
 
+export const getModelWithParams = (model: string) => {
+  const isSdXl = checkIsSdXlModel(model);
+  const isFlux = checkIsSdFluxModel(model);
+  const isPony = checkIsPonyModel(model);
+  const isSd35 = checkIsSd35Model(model);
+  const modelType = isPony
+    ? "pony"
+    : isSdXl
+      ? "sdxl"
+      : isFlux
+        ? "flux"
+        : isSd35
+          ? "sd3.5"
+          : "sd1.5";
+  return {
+    name: model,
+    isSdXl,
+    isFlux,
+    isPony,
+    isSd35,
+    modelType,
+  };
+};
 export const checkIsSdXlModel = (modelName: string): boolean =>
   modelName?.toLowerCase()?.includes("xl");
 
+export const checkIsPonyModel = (modelName: string): boolean =>
+  modelName?.toLowerCase()?.includes("pony");
+
 export const checkIsSdFluxModel = (modelName: string): boolean =>
   /flux/i.test(modelName);
+
+export const checkIsSd35Model = (modelName: string): boolean =>
+  /3\.?5/i.test(modelName);
 
 export const checkIsIpAdapterControlnetModel = (
   modelName: string = ""

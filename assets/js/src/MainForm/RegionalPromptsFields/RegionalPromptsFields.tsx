@@ -209,11 +209,11 @@ const PromptRegion = ({
 
   return (
     <div
-      className="p-1 relative"
-      onMouseEnter={(event) => {
+      className="p-1 relative gap-2 flex flex-col"
+      onMouseEnter={(_event) => {
         dispatch(setPreviewLayerId(id));
       }}
-      onMouseLeave={(event) => {
+      onMouseLeave={(_event) => {
         dispatch(setPreviewLayerId());
       }}
     >

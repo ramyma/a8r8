@@ -83,7 +83,6 @@ const useDragEvents = () => {
   const updateSelectionBoxAndBroadcast = useCallback(
     (selectionBoxUpdate) => {
       dispatch(updateSelectionBox(selectionBoxUpdate));
-      //TODO: refactor into useSocket as send presence update
       broadcastSelectionBoxUpdate(selectionBoxUpdate);
     },
     [dispatch, broadcastSelectionBoxUpdate]

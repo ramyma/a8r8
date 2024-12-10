@@ -6,6 +6,7 @@ import { twMerge } from "tailwind-merge";
 type Props = PropsWithChildren &
   Omit<RadixSwitch.SwitchProps, "id" | "onChange"> & {
     onChange: RadixSwitch.SwitchProps["onCheckedChange"];
+    value: boolean;
   };
 
 const Switch = forwardRef<React.ElementRef<typeof RadixSwitch.Root>, Props>(
@@ -18,7 +19,7 @@ const Switch = forwardRef<React.ElementRef<typeof RadixSwitch.Root>, Props>(
       onChange?.(checked);
     };
     return (
-      <div className="flex w-full justify-between">
+      <div className="flex w-full justify-between place-items-center gap-2 select-none">
         <Label htmlFor={id} className="cursor-pointer">
           {children}
         </Label>
@@ -26,11 +27,12 @@ const Switch = forwardRef<React.ElementRef<typeof RadixSwitch.Root>, Props>(
           id={id}
           {...props}
           className={twMerge(
-            "w-[42px] h-[25px] bg-neutral-800 border border-neutral-700 relative data-[state=checked]:bg-primary outline-none rounded-md cursor-pointer",
+            "w-[42px] h-[25px] bg-neutral-800 border border-neutral-700 relative data-[state=checked]:bg-primary outline-none rounded-md cursor-pointer transition-colors",
             className
           )}
           ref={ref}
           onCheckedChange={handleChange}
+          checked={props.value}
         >
           <RadixSwitch.Thumb className="block w-[21px] h-[21px] bg-white rounded-md transition-transform duration-100 translate-x-0 will-change-transform data-[state=checked]:translate-x-[20px]" />
         </RadixSwitch.Root>

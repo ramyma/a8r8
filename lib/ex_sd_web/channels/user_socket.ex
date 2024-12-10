@@ -11,6 +11,7 @@ defmodule ExSdWeb.UserSocket do
   # pointing to the `ExSdWeb.RoomChannel`:
   #
   channel("sd", ExSdWeb.SdChannel)
+  channel("civit", ExSdWeb.CivitChannel)
   channel("room:*", ExSdWeb.RoomChannel)
 
   #

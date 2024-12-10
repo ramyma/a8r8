@@ -32,7 +32,7 @@ defmodule ExSd.Sd.GenerationParams do
     field(:batch_size, :integer, default: 1)
     field(:n_iter, :integer, default: 1)
     field(:steps, :integer, default: 20)
-    field(:cfg_scale, :float, default: 7.0)
+    field(:cfg_scale, :float, default: 4.0)
     field(:flux_guidance, :float, default: 3.5)
     field(:image_cfg_scale, :float, default: 1.5)
     field(:width, :integer, default: 512)
@@ -56,6 +56,7 @@ defmodule ExSd.Sd.GenerationParams do
     field(:inpaint_full_res_padding, :integer, default: 0)
     field(:script_name, :string, default: "")
     field(:script_args, {:array, :any}, default: [])
+    field(:hr_additional_modules, {:array, :any}, default: [])
     embeds_one(:alwayson_scripts, AlwaysOnScripts)
   end
 
@@ -107,7 +108,8 @@ defmodule ExSd.Sd.GenerationParams do
       :init_images,
       :inpaint_full_res,
       :script_name,
-      :script_args
+      :script_args,
+      :hr_additional_modules
     ])
     |> cast_embed(:alwayson_scripts, required: false)
   end

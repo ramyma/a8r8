@@ -1,4 +1,4 @@
-import { MouseEvent, useCallback, useMemo } from "react";
+import { MouseEvent, useCallback, useMemo, useState } from "react";
 import "./App.css";
 import Canvas from "./Canvas/Canvas";
 import Stats from "./Stats";
@@ -12,7 +12,7 @@ import Notifications from "./Notifications";
 import useControlnet from "./hooks/useControlnet";
 import useIsConnected from "./hooks/useIsConnected";
 import Select, { SelectProps } from "./components/Select";
-import { ReloadIcon } from "@radix-ui/react-icons";
+import { GearIcon, ReloadIcon } from "@radix-ui/react-icons";
 import useMemoryStats from "./hooks/useMemoryStats";
 import useLoras from "./hooks/useLoras";
 import useUpscalers from "./hooks/useUpsclaers";
@@ -37,9 +37,12 @@ import { useCustomEventListener } from "react-custom-events";
 import { HistoryItem } from "./state/historySlice";
 import Button from "./components/Button";
 import BatchImageResults from "./BatchImageResults";
-import ClipModelSelect from "./MainForm/ClipModelSelect";
+import ClipModelMultiSelect from "./MainForm/ClipModelMultiSelect";
+import SettingsModal from "./SettingsModal/SettingsModal";
+import { twMerge } from "tailwind-merge";
 
 function App() {
+  const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
   const { refetch: refetchOptions } = useOptions({ fetchPolicy: "eager" });
   useSamplers({ fetchPolicy: "eager" });
   useSchedulers({ fetchPolicy: "eager" });
@@ -82,12 +85,10 @@ function App() {
     models,
     setModel,
     setVae,
-    setClipModel,
-    setClipModel2,
+    setClipModels,
     selectedModel,
     selectedVae,
-    selectedClipModel,
-    selectedClipModel2,
+    selectedClipModels,
     fetchData: refetchModels,
     fetchVaes: refetchVaes,
     vaes,
@@ -107,17 +108,16 @@ function App() {
     (params: AppConfig["last_gen_config"]) => {
       if (backend === "comfy") {
         params?.model && setModel(params.model);
-        params?.vae && setVae(params.vae);
-        params?.clip_model && setClipModel(params.clip_model);
-        params?.clip_model_2 && setClipModel2(params.clip_model_2);
+        params?.vae &&
+          !(params?.model ?? "").toLocaleLowerCase().includes("gguf") &&
+          setVae(params?.vae ?? "automatic");
+        params?.clip_models && setClipModels(params.clip_models);
       }
     }
   );
 
   // const panelRef = useRef<HTMLDivElement>(null);
   // const { width } = useResize({ container: panelRef });
-
-  // console.log({ width });
 
   // TODO: refactor into a more relevant part of the code
   const dispatch = useAppDispatch();
@@ -133,6 +133,10 @@ function App() {
     }
   });
 
+  const handleSettingsModalClose = () => {
+    setIsSettingsModalVisible(false);
+  };
+
   return (
     <div className="relative App w-screen h-screen m-0 p-0 bg-[#0d0d0d] overflow-hidden">
       <div className="relative flex h-full w-full ">
@@ -141,41 +145,44 @@ function App() {
           className="absolute left-0 top-0 max-w-[20vw] md:w-[17vw] lg:w-[33vw] flex flex-1 h-full bg-black/90 backdrop-blur-sm flex-col z-10 transition-all"
         >
           <ScrollArea>
-            <div className="flex p-4 px-6 flex-col gap-2">
-              <ModelSelect
-                refetchOptions={refetchOptions}
-                isModelLoading={isModelLoading}
-                isVaeLoading={isVaeLoading}
-                models={models}
-                refetchModels={refetchModels}
-                setModel={setModel}
-                selectedModel={selectedModel && { name: selectedModel.name }}
-              />
-              <VaeSelect
-                refetchOptions={refetchOptions}
-                vaes={vaes}
-                refetchVaes={refetchVaes}
-                setVae={setVae}
-                selectedVae={selectedVae}
-                isVaeLoading={isVaeLoading}
-                isModelLoading={isModelLoading}
-              />
-              {selectedModel?.isFlux && (
-                <>
-                  <ClipModelSelect
+            <div className="h-screen">
+              <div className="flex p-4 px-6 flex-col gap-2">
+                <Button
+                  className="justify-between h-9 mb-2 text-sm"
+                  fullWidth
+                  onClick={() => setIsSettingsModalVisible(true)}
+                >
+                  Settings
+                  <GearIcon />
+                </Button>
+                <ModelSelect
+                  refetchOptions={refetchOptions}
+                  isModelLoading={isModelLoading}
+                  isVaeLoading={isVaeLoading}
+                  models={models}
+                  refetchModels={refetchModels}
+                  setModel={setModel}
+                  selectedModel={selectedModel && { name: selectedModel.name }}
+                />
+                <VaeSelect
+                  refetchOptions={refetchOptions}
+                  vaes={vaes}
+                  refetchVaes={refetchVaes}
+                  setVae={setVae}
+                  selectedVae={selectedVae}
+                  isVaeLoading={isVaeLoading}
+                  isModelLoading={isModelLoading}
+                />
+                {(selectedModel?.isFlux || selectedModel?.isSd35) && (
+                  <ClipModelMultiSelect
                     clipModels={clipModels}
-                    setClipModel={setClipModel}
-                    selectedClipModel={selectedClipModel}
+                    setClipModels={setClipModels}
+                    selectedClipModels={selectedClipModels}
                   />
-                  <ClipModelSelect
-                    clipModels={clipModels}
-                    setClipModel={setClipModel2}
-                    selectedClipModel={selectedClipModel2}
-                  />
-                </>
-              )}
+                )}
+              </div>
+              <MainForm />
             </div>
-            <MainForm />
           </ScrollArea>
         </div>
         <div className="relative flex-[9] w-full">
@@ -186,13 +193,18 @@ function App() {
         </div>
         <LayersControl />
         <Notifications />
+        <SettingsModal
+          open={isSettingsModalVisible}
+          onClose={handleSettingsModalClose}
+          key={String(isSettingsModalVisible)}
+        />
         {/* <ModelsModal /> */}
       </div>
     </div>
   );
 }
 export default App;
-const ModelSelect = ({
+export const ModelSelect = ({
   refetchOptions,
   models,
   setModel,
@@ -200,6 +212,8 @@ const ModelSelect = ({
   selectedModel,
   isModelLoading,
   isVaeLoading,
+  className = "",
+  shouldSetDefaultValue,
 }: {
   refetchOptions: () => void;
   models: Model[];
@@ -208,6 +222,8 @@ const ModelSelect = ({
   selectedModel: OptionsState["selectedModel"];
   isModelLoading: boolean;
   isVaeLoading: boolean;
+  className?: string;
+  shouldSetDefaultValue?: boolean;
 }) => {
   const backend = useAppSelector(selectBackend);
 
@@ -228,9 +244,29 @@ const ModelSelect = ({
   const title = "Select Checkpoint";
   const name = "checkpoint";
   //TODO: fix types
+
+  const groups = [
+    {
+      name: "Flux",
+      matcher: (itemName) => /.*flux.*/i.test(itemName),
+    },
+    {
+      name: "Pony",
+      matcher: (itemName) => /.*pony.*/i.test(itemName),
+    },
+    {
+      name: "SDXL",
+      matcher: (itemName) => /.*(sd)?(\S)*xl.*/i.test(itemName),
+    },
+    {
+      name: "SD 3.5",
+      matcher: (itemName) => /.*3\.?5.*/i.test(itemName),
+    },
+  ];
+
   return (
     <>
-      <div className="inline-flex w-full">
+      <div className={twMerge("inline-flex w-full", className)}>
         {backend === "auto" || backend === "forge" ? (
           <Select
             id="auto_model"
@@ -244,6 +280,7 @@ const ModelSelect = ({
             title={title}
             disabled={isModelLoading || isVaeLoading}
             shouldSetDefaultValue={false}
+            groups={groups}
           />
         ) : (
           <Select
@@ -253,20 +290,8 @@ const ModelSelect = ({
             value={selectedModel?.model_name || selectedModel?.name}
             onChange={handleModelChange}
             title={title}
-            groups={[
-              {
-                name: "Flux",
-                matcher: (itemName) => /.*flux.*/i.test(itemName),
-              },
-              {
-                name: "Pony",
-                matcher: (itemName) => /.*pony.*/i.test(itemName),
-              },
-              {
-                name: "SDXL",
-                matcher: (itemName) => /.*(sd)?(\S)*xl.*/i.test(itemName),
-              },
-            ]}
+            groups={groups}
+            shouldSetDefaultValue={shouldSetDefaultValue}
           />
         )}
         <Button
@@ -281,7 +306,7 @@ const ModelSelect = ({
     </>
   );
 };
-const VaeSelect = ({
+export const VaeSelect = ({
   refetchOptions,
   vaes,
   setVae,
@@ -289,6 +314,9 @@ const VaeSelect = ({
   selectedVae,
   isVaeLoading,
   isModelLoading,
+  className = "",
+  selectedModel: selectedModelOverride,
+  shouldSetDefaultValue,
 }: {
   refetchOptions: () => void;
   vaes;
@@ -297,13 +325,19 @@ const VaeSelect = ({
   selectedVae;
   isVaeLoading: boolean;
   isModelLoading: boolean;
+  className?: string;
+  selectedModel?: ReturnType<typeof selectSelectedModel>;
+  shouldSetDefaultValue?: boolean;
 }) => {
   const backend = useAppSelector(selectBackend);
-  const selectedModel = useAppSelector(selectSelectedModel);
+  const stateSelectedModel = useAppSelector(selectSelectedModel);
+
+  const selectedModel = selectedModelOverride ?? stateSelectedModel;
 
   const handleVaeChange: SelectProps["onChange"] = useCallback(
     (value) => {
-      if (value && (selectedVae || backend === "comfy")) setVae(value);
+      if (value && (selectedVae || backend === "comfy" || backend === "forge"))
+        setVae(value);
     },
     [backend, selectedVae, setVae]
   );
@@ -318,23 +352,35 @@ const VaeSelect = ({
   const name = "vae";
 
   const vaeList = useMemo(
-    () => [...(!selectedModel?.isFlux ? ["Automatic"] : []), ...(vaes ?? [])],
-    [selectedModel, vaes]
+    () =>
+      backend === "forge"
+        ? [
+            ...(!selectedModel?.isFlux
+              ? [{ model_name: "Automatic", filename: "automatic" }]
+              : []),
+            ...(vaes ?? []),
+          ]
+        : [...(!selectedModel?.isFlux ? ["Automatic"] : []), ...(vaes ?? [])],
+    [backend, selectedModel?.isFlux, vaes]
   );
 
   return (
     <>
-      <div className="inline-flex w-full">
+      <div className={twMerge("inline-flex w-full", className)}>
         {backend === "auto" || backend === "forge" ? (
           <Select
             id="auto_vae"
             items={vaeList}
             name={name}
+            {...(backend === "forge" && {
+              textAttr: "model_name",
+              valueAttr: "filename",
+            })}
             value={selectedVae}
             onChange={handleVaeChange}
             title={title}
             disabled={isVaeLoading || isModelLoading}
-            shouldSetDefaultValue={false}
+            shouldSetDefaultValue={shouldSetDefaultValue}
           />
         ) : (
           <Select

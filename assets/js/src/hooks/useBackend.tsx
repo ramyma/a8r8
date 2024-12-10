@@ -14,7 +14,7 @@ const useBackend = ({ fetchPolicy }: Props = {}) => {
   const { fetchData, data: backend } = useData<Backend>({
     name: "backend",
     fetchPolicy,
-    forceRequest: true,
+    forceRequest: fetchPolicy == "eager",
   });
 
   const previousBackendRef = useRef<string>();

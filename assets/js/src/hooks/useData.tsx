@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "../hooks";
-import { selectData, updateData } from "../state/dataSlice";
+import {
+  selectData,
+  updateData,
+  updateDataItemByProperty,
+} from "../state/dataSlice";
 import { selectIsConnected } from "../state/statsSlice";
 import useSocket from "./useSocket";
+import { Channel } from "./Channel";
 
 export type FetchPolicy = "lazy" | "eager";
 export type UseDataProps<T> = {
@@ -23,7 +28,11 @@ const useData = <T,>({
   fetchPolicy = "lazy",
   forceRequest = false,
   condition = true,
-}: UseDataProps<T>): { fetchData: () => Promise<T>; data: T } => {
+}: UseDataProps<T>): {
+  fetchData: () => Promise<T>;
+  data: T;
+  channel: Channel | null;
+} => {
   const { channel, getData } = useSocket();
   const ref = useRef(false);
   const dataState = useAppSelector(selectData);
@@ -85,7 +94,28 @@ const useData = <T,>({
     }
   }, [callback, channel, dispatch, fetchPolicy, name]);
 
-  return { fetchData, data };
+  useEffect(() => {
+    if (fetchPolicy === "eager" && channel) {
+      const ref = channel.on(
+        `item_update_${name}`,
+        async ({
+          data,
+        }: {
+          data: { property: string; key: string; value: Partial<T> };
+        }) => {
+          const { property, key, value } = data;
+          dispatch(
+            updateDataItemByProperty({ dataKey: name, property, key, value })
+          );
+        }
+      );
+      return () => {
+        channel.off(`item_update_${name}`, ref);
+      };
+    }
+  }, [callback, channel, dispatch, fetchPolicy, name]);
+
+  return { fetchData, data, channel };
 };
 
 export default useData;

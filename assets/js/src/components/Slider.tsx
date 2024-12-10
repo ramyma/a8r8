@@ -2,6 +2,9 @@ import { ChangeEvent, forwardRef, useId } from "react";
 import * as RadixSlider from "@radix-ui/react-slider";
 import Input from "./Input";
 import Label from "./Label";
+import Button from "./Button";
+import { ResetIcon } from "@radix-ui/react-icons";
+import { twMerge } from "tailwind-merge";
 
 type Props = {
   label?: string;
@@ -10,8 +13,11 @@ type Props = {
   min: number;
   max: number;
   step: number;
+  defaultValue?: number;
+  name?: string;
   showInput?: boolean;
   disabled?: boolean;
+  className?: string;
 };
 
 const Slider = forwardRef(
@@ -23,8 +29,11 @@ const Slider = forwardRef(
       step,
       showInput = true,
       disabled = false,
+      name,
+      defaultValue,
       value,
       onChange,
+      className = "",
     }: Props,
     _ref
   ) => {
@@ -32,25 +41,43 @@ const Slider = forwardRef(
     const handleInputChange = (e: ChangeEvent<HTMLInputElement>) =>
       onChange(+e.target.value);
 
+    const handleResetClick = () =>
+      defaultValue !== undefined && onChange(defaultValue);
+
     const inputId = useId();
     return (
-      <div className="flex flex-col">
+      <div className={twMerge("flex flex-col", className)}>
         {showInput && (
-          <div className="flex flex-col lg:flex-row gap-2 mb-2 items-start lg:items-center  justify-between">
+          <div className="flex flex-col lg:flex-row gap-2 mb-2 items-start lg:items-center justify-between">
             <Label htmlFor={inputId} className="w-7/12">
               {label}
             </Label>
-            <Input
-              id={inputId}
-              className="px-1 min-w-[60px] max-w-[70px]"
-              type="number"
-              step={step}
-              min={min}
-              max={max}
-              value={value}
-              onChange={handleInputChange}
-              disabled={disabled}
-            />
+            <div className="flex gap-1 place-items-center">
+              {defaultValue !== undefined && defaultValue !== value && (
+                <Button
+                  variant="clear"
+                  title="Reset"
+                  type="button"
+                  onClick={handleResetClick}
+                  className="h-[12px]"
+                  disabled={disabled}
+                >
+                  <ResetIcon />
+                </Button>
+              )}
+              <Input
+                id={inputId}
+                className="px-1 min-w-[60px] max-w-[70px]"
+                type="number"
+                step={step}
+                min={min}
+                max={max}
+                name={name}
+                value={value}
+                onChange={handleInputChange}
+                disabled={disabled}
+              />
+            </div>
           </div>
         )}
 

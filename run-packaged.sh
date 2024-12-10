@@ -11,6 +11,7 @@ fi
 
 export AUTO_URL="http://$HOST_IP:7860"
 export COMFY_URL="http://$HOST_IP:8188"
+export CONFIG_PATH="../../app_config"
 
 if [[ -f user.sh ]]; then
     echo Loading user config...
@@ -21,6 +22,7 @@ fi
 echo "Accessing A1111/Forge on $AUTO_URL"
 echo "Accessing ComfyUI on $COMFY_URL"
 
+sh a8r8-build/bin/migrate
 sh a8r8-build/bin/server start
 
 bash -i -c "read -p 'Press Enter to close...'"

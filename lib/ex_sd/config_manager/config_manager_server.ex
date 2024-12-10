@@ -3,9 +3,6 @@ defmodule ExSd.ConfigManager.ConfigManagerServer do
 
   require Logger
 
-  @config_base_path "./app_config"
-  @last_gen_config_path "#{@config_base_path}/last_gen_config.json"
-
   def start_link(init_args) do
     # you may want to register your server with `name: __MODULE__`
     # as a third argument to `start_link`
@@ -15,6 +12,7 @@ defmodule ExSd.ConfigManager.ConfigManagerServer do
   @impl true
   def init(_init_arg) do
     Logger.info("Initializing config manager")
+    Logger.info("Config path: #{get_config_path()}")
 
     {:ok, %{}, {:continue, :fetch_config}}
   end
@@ -32,8 +30,8 @@ defmodule ExSd.ConfigManager.ConfigManagerServer do
   def handle_cast({:store_last_gen_config, config}, state) do
     Logger.info("Setting new gen config")
 
-    with :ok <- File.mkdir_p(@config_base_path),
-         :ok <- File.write("#{@last_gen_config_path}", Jason.encode!(config, pretty: true)) do
+    with :ok <- File.mkdir_p(get_config_path()),
+         :ok <- File.write("#{get_last_config_path()}", Jason.encode!(config, pretty: true)) do
       {:noreply, state |> merge_last_gen_config(config)}
     else
       _ -> {:noreply, state}
@@ -47,7 +45,7 @@ defmodule ExSd.ConfigManager.ConfigManagerServer do
 
   @spec load_last_gen_config() :: map()
   def load_last_gen_config() do
-    with {:ok, config_string} <- File.read("#{@last_gen_config_path}"),
+    with {:ok, config_string} <- File.read("#{get_last_config_path()}"),
          {:ok, config} <- Jason.decode(config_string) do
       config
     else
@@ -73,5 +71,13 @@ defmodule ExSd.ConfigManager.ConfigManagerServer do
   @spec get_config() :: map()
   def get_config() do
     GenServer.call(__MODULE__, :retrieve_config)
+  end
+
+  defp get_config_path() do
+    Path.expand(Application.fetch_env!(:ex_sd, :config_path))
+  end
+
+  defp get_last_config_path() do
+    Path.join(get_config_path(), "last_gen_config.json")
   end
 end

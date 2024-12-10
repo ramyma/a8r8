@@ -344,7 +344,7 @@ export default function Canvas() {
   useCustomEventsListener({ clearLines });
 
   useLayoutEffect(() => {
-    if (ref.current) {
+    if (ref?.current) {
       setDimensions({
         width: ref.current.clientWidth,
         height: ref.current.clientHeight,
@@ -364,7 +364,7 @@ export default function Canvas() {
         height: DEFAULT_HEIGHT_VALUE,
       });
     }
-  }, [dispatch, broadcastSelectionBoxUpdate]);
+  }, [dispatch, broadcastSelectionBoxUpdate, ref]);
 
   const zoomCanvas = useCallback(
     (stage: StageType, direction: number) => {
@@ -404,21 +404,21 @@ export default function Canvas() {
     [dispatch]
   );
 
-  const handleWindowResize = () => {
-    if (ref.current) {
+  const handleWindowResize = useCallback(() => {
+    if (ref?.current) {
       setDimensions({
         width: ref.current.clientWidth,
         height: ref.current.clientHeight,
       });
     }
-  };
+  }, [ref]);
 
   useEffect(() => {
     window.addEventListener("resize", handleWindowResize);
     return () => {
       window.removeEventListener("resize", handleWindowResize);
     };
-  }, []);
+  }, [handleWindowResize]);
 
   const handleWheel = (e: KonvaEventObject<WheelEvent>) => {
     // stop default scrolling

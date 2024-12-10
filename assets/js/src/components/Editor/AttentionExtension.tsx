@@ -89,7 +89,6 @@ export class AttentionExtension extends NodeExtension<ExtrasOptions> {
         options.selection ?? tr.selection,
         tr.doc
       );
-      console.log(state.schema);
       (dispatch as DispatchFunction)(
         tr.replaceSelectionWith(
           Node.fromJSON(state.schema, {

@@ -6,6 +6,10 @@
   overflow: visible !important;
 }
 
+.remirror-editor-wrapper {
+  padding: 0 !important;
+}
+
 .remirror-editor-wrapper > [role="textbox"] {
   line-height: 1.85em !important;
 }

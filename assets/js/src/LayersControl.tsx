@@ -258,10 +258,10 @@ const LayerItem = ({
             dragOver
               ? "bg-primary/80"
               : isActive && !isMaskLayerActive
-                ? "bg-neutral-200/80"
+                ? "bg-neutral-500/80"
                 : "odd:bg-[#222222]/80 even:bg-[#2b2b2b]/80"
           } ` +
-          `${isActive && !isMaskLayerActive ? "text-black" : "cursor-pointer"}`
+          `${isActive && !isMaskLayerActive ? "text-white" : "cursor-pointer"}`
         }
         onClick={handleClick}
         // FIXME: drag over event toggles when hovering over child elements
@@ -280,7 +280,8 @@ const LayerItem = ({
               "w-full flex flex-col sm:shrink-[0.6] 2xl:shrink " +
               (type === "controlnet" &&
               controlnetLayer?.isEnabled &&
-              controlnetLayer?.overrideBaseLayer
+              controlnetLayer?.overrideBaseLayer &&
+              !dragOver
                 ? "text-primary"
                 : "")
             }
@@ -481,7 +482,7 @@ const LayersControl = () => {
           subId: id,
           subtitle: `${
             backend === "comfy" && isIpAdapter
-              ? iPAdapterWeightType ?? iPAdapterModel
+              ? (iPAdapterWeightType ?? iPAdapterModel)
               : module?.toLowerCase() != "none"
                 ? module
                 : model?.toLowerCase() != "none"
@@ -804,30 +805,35 @@ const LayersControl = () => {
     ({ name }) => name === activeControlnetLayer?.module
   )?.sliders;
 
+  const showControlLayers =
+    !selectedModel.isFlux && !selectedModel.isSd35 && activeControlnetLayer;
+
   return (
     <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[20vw] p-4 pe-0 rounded backdrop-blur-sm select-none overflow-hidden transition-all">
       <div className="flex justify-between pt-2">
         <h3 className="sm:flex-1 lg:flex-[3] text-sm font-bold">Layers</h3>
-        <div className="flex flex-1 gap-4 sticky top-0 mt-[-8px] pe-1">
-          <Button
-            className="p-0.5 size-8"
-            title="Remove layer"
-            onClick={handleRemoveLayer}
-            disabled={
-              !activeControlnetLayer &&
-              (!activeRegionMaskLayer || regionMaskLayers.length <= 2)
-            }
-          >
-            <TrashIcon />
-          </Button>
-          <Button
-            className="p-0.5 rounded size-8 "
-            title="Add controlnet layer"
-            onClick={handleAddLayer}
-          >
-            <PlusIcon />
-          </Button>
-        </div>
+        {showControlLayers && (
+          <div className="flex flex-1 gap-4 sticky top-0 mt-[-8px] pe-1">
+            <Button
+              className="p-0.5 size-8"
+              title="Remove layer"
+              onClick={handleRemoveLayer}
+              disabled={
+                !activeControlnetLayer &&
+                (!activeRegionMaskLayer || regionMaskLayers.length <= 2)
+              }
+            >
+              <TrashIcon />
+            </Button>
+            <Button
+              className="p-0.5 rounded size-8 "
+              title="Add controlnet layer"
+              onClick={handleAddLayer}
+            >
+              <PlusIcon />
+            </Button>
+          </div>
+        )}
       </div>
       <ScrollArea className="pe-2 mb-2" ref={layerItemsListRef}>
         <ul className="max-h-[31vh] pe-2 flex flex-col w-full mt-2 rounded">
@@ -856,7 +862,7 @@ const LayersControl = () => {
               onChange={(e) => handleControlnetChange(e, i)}
             />
           </Label> */}
-        {!selectedModel.isFlux && activeControlnetLayer && (
+        {showControlLayers && (
           <ScrollArea className="pe-2 mb-2">
             <div className="flex gap-5 flex-col mt-2 h-[45vh]  pt-1 pr-2.5">
               <div>
@@ -1376,7 +1382,7 @@ const LayerActionButton = ({
     <Button
       variant="clear"
       key="clearMask"
-      className="size-[32px] text-base leading-4 p-0 group-data-active:text-black group-data-active:hover:text-neutral-700"
+      className="size-[32px] text-base leading-4 p-0 group-data-active:text-white group-data-active:hover:text-neutral-400"
       onClick={(e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();

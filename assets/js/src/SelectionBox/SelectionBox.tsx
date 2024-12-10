@@ -4,7 +4,7 @@ import { Group, Image, Rect, Text } from "react-konva";
 import RefsContext from "../context/RefsContext";
 import { useAppSelector } from "../hooks";
 import { selectMode, selectStageScale } from "../state/canvasSlice";
-import { selectStats } from "../state/statsSlice";
+import { selectIsConnected } from "../state/statsSlice";
 import { AnchorPoints } from "./AnchorPoints";
 import useEvents from "./hooks/useEvents";
 import ThemeContext from "../context/ThemeContext";
@@ -32,7 +32,7 @@ const SelectionBox = ({
 }: Props) => {
   const { selectionBoxRef } = useContext(RefsContext);
 
-  const { isConnected } = useAppSelector(selectStats);
+  const isConnected = useAppSelector(selectIsConnected);
 
   const theme = useContext(ThemeContext);
   const mode = useAppSelector(selectMode);

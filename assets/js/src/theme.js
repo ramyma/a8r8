@@ -8,10 +8,19 @@ const theme = {
     active: 'ui~="active"',
   },
   extend: {
+    animation: {
+      border: "background ease infinite",
+    },
+    keyframes: {
+      background: {
+        "0%, 100%": { backgroundPosition: "0% 50%" },
+        "50%": { backgroundPosition: "100% 50%" },
+      },
+    },
     colors: {
-      primary: "#df4b26",
+      primary: "#ff9a4b",
       danger: "#d41818",
-      success: colors.green["700"],
+      success: "#49a847", //colors.green["700"],
       warning: amber["amber9"],
     },
     textShadow: {

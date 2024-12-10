@@ -61,6 +61,8 @@ jobs:
         run: pnpm -C assets install
       - name: Build assets
         run: pnpm -C assets build
+        env:
+          VERSION: ${{ github.ref_name }}
       - name: Compile
         run: mix compile
       - name: Digest assests

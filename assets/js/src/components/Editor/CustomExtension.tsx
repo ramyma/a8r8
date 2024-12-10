@@ -27,6 +27,9 @@ import {
 import { formatToMaxDecimalPlaces } from "../../utils";
 import { Node } from "@remirror/pm/model";
 import { NodeSelection } from "prosemirror-state";
+import { store } from "../../store";
+import { addLora } from "../../state/lorasSlice";
+import { Lora } from "../../App.d";
 
 // class MyCustomNode extends Node {
 //   // ... other methods for the node
@@ -273,7 +276,7 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
               " bg-white rounded text-primary p-1",
             // [extra_DATA_ATTRIBUTE]: extra[this.options.identifier],
           },
-          `<lora:${code}:${value}>`,
+          `<lora:${code.alias || code.name}:${value}>`,
         ];
       },
       // attrs: {
@@ -319,12 +322,19 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
       }
 
       if (!this.options.plainText) {
-        return this.store.commands.replaceText.original({
-          type: this.type,
-          appendText: "",
-          attrs: { code: extra, value: 1, from: tr.selection.from },
-          selection: options.selection,
-        })(props);
+        store.dispatch(addLora(extra));
+        // return this.store.commands.replaceText.original({
+        //   type: this.type,
+        //   appendText: "",
+        //   attrs: { code: extra, value: 1, from: tr.selection.from },
+        //   selection: options.selection,
+        // })(props);
+        const { from, to } = getTextSelection(
+          options.selection ?? tr.selection,
+          tr.doc
+        );
+        dispatch?.(tr.insertText("", from, to));
+        return true;
       }
 
       const { from, to } = getTextSelection(
@@ -464,8 +474,10 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
             range: props.range,
             exit: !!props.exitReason,
             change: !!props.changeReason,
-            apply: (code: string) => {
-              this.store.commands.addLora(code, { selection: props.range });
+            apply: (lora: Lora) => {
+              this.store.commands.addLora(lora.path, {
+                selection: props.range,
+              });
             },
           });
         },

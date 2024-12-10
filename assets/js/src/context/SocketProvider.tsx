@@ -8,7 +8,7 @@ import React, {
 import { Socket, Presence, Channel } from "phoenix";
 import SocketContext from "./SocketContext";
 import { useAppDispatch } from "../hooks";
-import { setIsConnected } from "../state/statsSlice";
+import { setIsBackendConnected } from "../state/statsSlice";
 import { setSessions } from "../state/sessionsSlice";
 import { v4 as uuid4 } from "uuid";
 
@@ -19,11 +19,22 @@ const socket = new Socket(`ws://${location.hostname}:4000/socket`);
 socket.connect();
 const channel = socket.channel("sd", {});
 // TODO: make optional
+const civitChannel = socket.channel("civit", {});
+
 // TODO: move into useEffect to be avoid getting stuck disconnection
 channel
   .join()
   .receive("ok", (resp) => {
     console.log("Joined successfully", resp);
+  })
+  .receive("error", (resp) => {
+    console.log("Unable to join", resp);
+  });
+
+civitChannel
+  .join()
+  .receive("ok", (resp) => {
+    console.log("Joined Civit successfully", resp);
   })
   .receive("error", (resp) => {
     console.log("Unable to join", resp);
@@ -76,15 +87,18 @@ const SocketProvider = ({ children }: { children: ReactNode }) => {
     const isConnectedRef = channel.on(
       "is_connected",
       ({ isConnected }: { isConnected: boolean }) => {
-        dispatch(setIsConnected(isConnected));
+        dispatch(setIsBackendConnected(isConnected));
       }
     );
     return () => {
       channel.off("is_connected", isConnectedRef);
     };
   }, [dispatch]);
+
   return (
-    <SocketContext.Provider value={{ socket, channel, presenceChannel }}>
+    <SocketContext.Provider
+      value={{ socket, channel, civitChannel, presenceChannel }}
+    >
       {children}
     </SocketContext.Provider>
   );
