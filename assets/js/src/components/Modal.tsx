@@ -1,5 +1,7 @@
 import {
   HTMLProps,
+  KeyboardEvent,
+  MouseEvent,
   MouseEventHandler,
   PropsWithChildren,
   RefObject,
@@ -45,48 +47,104 @@ const Modal = ({
   return (
     <AnimatePresence>
       {isOpen && (
-        <Portal.Root
-          onClick={handleOutsideClick}
-          className={`absolute flex w-screen h-screen transition-all ${isOpen ? "bg-black/50 backdrop-blur-sm opacity-1" : "pointer-events-none opacity-0"} shadow shadow-black/90 align-middle justify-center items-center text-center z-40`}
-          ref={outsideRef}
-        >
+        <Portal.Root className="absolute w-screen h-screen">
           <motion.div
-            initial={{ opacity: 0.6, y: 0 /*scale: 0.95*/ }}
+            className="top-0 left-0 bg-black/50 backdrop-blur-sm absolute flex w-screen h-screen shadow-2xs shadow-black/90 align-middle justify-center items-center text-center z-40"
+            onClick={handleOutsideClick}
+            initial={{
+              opacity: 0.6,
+              y: 0 /*scale: 0.95*/,
+
+              filter: "blur(10px)",
+            }}
             animate={isOpen ? "open" : "closed"}
             variants={{
               open: {
                 opacity: 1,
                 y: 0,
-                scale: 1,
+
+                filter: "blur(0px)",
+              },
+              close: {
+                opacity: 0,
+                y: 0,
               },
             }}
             // animate={{ opacity: 1, y: 0, scale: 1 }}
             // transition={{ bounce: 0.1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className={twMerge(
-              " w-[95vw] h-[90vh]  bg-neutral-900/95 border border-neutral-700/30 rounded shadow shadow-black/50",
-              containerClassName
-            )}
-            ref={modalContRef}
-            // layout
+            exit={{
+              opacity: 0,
+              filter: "blur(10px)",
+              transition: {
+                // type: "tween",
+                duration: 0.4,
+                // delay: 0.1,
+              },
+            }}
+            ref={outsideRef}
           >
-            <ScrollArea
-              className="h-full"
-              ref={scrollAreaRef}
-              disable={disableScroll}
-              scroll={scroll}
+            <motion.div
+              initial={{
+                rotateX: 5,
+                rotateY: 10,
+                // rotateZ: 1,
+                transformPerspective: 2000,
+                // y: 50,
+                scale: 0.95,
+              }}
+              animate={{
+                rotateY: 0,
+                rotateX: 0,
+                // rotateZ: 0,
+                scale: 1,
+                // y: 0,
+              }}
+              exit={{
+                rotateX: 0,
+                rotateY: 10,
+                // rotateZ: 1,
+                transformPerspective: 2000,
+                // scale: 0.95,
+                // transition: {
+                //   visualDuration: 0.2,
+                //   bounce: 0.16,
+                //   // damping: 10,
+                //   // stiffness: 200,
+                //   type: "spring",
+                // },
+              }}
+              transition={{
+                visualDuration: 0.4,
+                bounce: 0.16,
+                // damping: 10,
+                // stiffness: 200,
+                type: "spring",
+              }}
+              className={twMerge(
+                " w-[95vw] h-[90vh] bg-neutral-900/95 border border-neutral-700/30 rounded-sm shadow-2xs shadow-black/50 overflow-hidden",
+                containerClassName
+              )}
+              ref={modalContRef}
+              // layout
             >
-              <div className="h-full">
-                <div
-                  className={twMerge(
-                    "h-[90vh] bg-opacity-90 backdrop-blur-sm  align-middle justify-center items-center text-center p-8",
-                    className
-                  )}
-                >
-                  {children}
+              <ScrollArea
+                className="h-full"
+                ref={scrollAreaRef}
+                disable={disableScroll}
+                scroll={scroll}
+              >
+                <div className="h-full">
+                  <div
+                    className={twMerge(
+                      "h-[90vh] bg-opacity-90 backdrop-blur-xs  align-middle justify-center items-center text-center p-8",
+                      className
+                    )}
+                  >
+                    {children}
+                  </div>
                 </div>
-              </div>
-            </ScrollArea>
+              </ScrollArea>
+            </motion.div>
           </motion.div>
         </Portal.Root>
       )}

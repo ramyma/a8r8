@@ -258,9 +258,12 @@ const LoraDetails = ({
             </div>
           </ScrollArea>
         </div>
-        <ScrollArea className="w-full flex-grow-[5] mb-5">
+        <ScrollArea
+          className="w-full flex-grow-5 mb-5"
+          scrollBarClassNames="z-10"
+        >
           <div
-            className="relative w-full flex-1" //  border border-neutral-700 rounded" //p-5 h-[20vh] "
+            className="relative w-full flex-1" //  border border-neutral-700 rounded-xs" //p-5 h-[20vh] "
             /*"grid grid-cols-3 gap-2 "8*/ ref={imagesContRef}
             style={{
               height: processedImages?.length
@@ -290,7 +293,7 @@ const LoraDetails = ({
                 ) => (
                   <motion.div
                     key={url || hash || index}
-                    className={`absolute bg-contain bg-no-repeat bg-center rounded border border-neutral-700 bg-black/70 cursor-pointer ${index !== activeImage ? "pointer-events-none" : ""}`}
+                    className={`absolute bg-contain bg-no-repeat bg-center rounded-sm border border-neutral-700 bg-black/70 cursor-pointer ${index !== activeImage ? "pointer-events-none" : ""}`}
                     initial={{
                       x,
                       y,
@@ -335,7 +338,8 @@ const LoraDetails = ({
                     }}
                     transition={{
                       bounce: 0.15,
-                      duration: 0.35,
+                      // duration: 0.35,
+                      visualDuration: 0.34,
                       type: "spring",
                     }}
                     // layout
@@ -396,7 +400,7 @@ const LoraDetails = ({
                             }
                             variant="clear"
                             // disabled={activeImage === 0}
-                            className="pointer-events-auto border-none size-12 rounded-full enabled:hover:!bg-white-950/30 enabled:!bg-white backdrop-blur-none text-neutral-950 hover:text-neutral-950 hover:opacity-80 opacity-50 transition-all !p-0"
+                            className="pointer-events-auto border-none size-12 rounded-full enabled:hover:bg-white-950/30! enabled:bg-white! backdrop-blur-none text-neutral-950 hover:text-neutral-950 hover:opacity-80 opacity-50 transition-all p-0!"
                           >
                             <ChevronLeftIcon />
                           </Button>
@@ -412,7 +416,7 @@ const LoraDetails = ({
                             }
                             variant="clear"
                             // disabled={activeImage >= processedImages.length - 1}
-                            className="pointer-events-auto border-none size-12 rounded-full enabled:hover:!bg-white-950/30 enabled:!bg-white backdrop-blur-none text-neutral-950 hover:text-neutral-950 hover:opacity-80 opacity-50 transition-all !p-0"
+                            className="pointer-events-auto border-none size-12 rounded-full enabled:hover:bg-white-950/30! enabled:bg-white! backdrop-blur-none text-neutral-950 hover:text-neutral-950 hover:opacity-80 opacity-50 transition-all p-0!"
                           >
                             <ChevronRightIcon />
                           </Button>

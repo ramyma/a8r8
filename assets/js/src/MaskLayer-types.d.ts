@@ -4,3 +4,11 @@ export type BrushStroke = {
   brushSize: number;
   tool: "brush" | "eraser";
 };
+
+export type BrushStrokePoint = {
+  x: number;
+  y: number;
+  brushColor: string;
+  brushSize: number;
+  tool: "brush" | "eraser";
+};

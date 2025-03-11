@@ -1,5 +1,6 @@
 defmodule ExSd.Sd.ComfyPrompt do
   require Logger
+  alias ExSd.Sd.SdService
   alias ExSd.Sd.ControlNetArgs
   alias ExSd.Sd.GenerationParams
 
@@ -7,19 +8,20 @@ defmodule ExSd.Sd.ComfyPrompt do
   @type comfy_node :: %{binary() => %{class_type: binary(), inputs: node_inputs()}}
   @type node_value :: number() | binary() | ref_node_value()
   @type node_inputs :: %{(atom() | binary() | number() | boolean()) => node_value}
-  @type prompt :: %{prompt: comfy_node()}
+  @type prompt :: %{prompt: comfy_node(), lookup: map()}
 
   @spec new(comfy_node()) :: prompt()
   def new(initial_nodes \\ %{}) do
-    %{prompt: initial_nodes}
+    %{prompt: initial_nodes, lookup: %{}}
   end
 
-  @spec node(binary(), binary(), node_inputs()) :: comfy_node()
-  def node(name, class_type, inputs \\ %{}) do
+  @spec node(binary(), binary(), node_inputs(), node_inputs()) :: comfy_node()
+  def node(name, class_type, inputs \\ %{}, outputs \\ %{}) do
     %{}
     |> Map.put(name, %{
       class_type: class_type,
-      inputs: inputs
+      inputs: inputs,
+      outputs: outputs
     })
   end
 
@@ -52,21 +54,37 @@ defmodule ExSd.Sd.ComfyPrompt do
       new()
       |> add_vae_loader(attrs["vae"])
       |> add_model_loader(attrs["model"], clip_skip: Map.get(attrs, "clip_skip", 1), attrs: attrs)
-      |> add_clip_text_encode(
-        if(Enum.empty?(positive_loras),
-          do: node_ref("clip", 0),
-          else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
-        ),
-        generation_params.prompt,
-        "positive_prompt"
+      |> then(
+        &add_clip_text_encode(
+          &1,
+          if(Enum.empty?(positive_loras),
+            do: get_lookup_value(&1, "clip", "CLIP"),
+            else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
+          ),
+          generation_params.prompt,
+          "positive_prompt"
+        )
       )
-      |> add_clip_text_encode(
-        if(Enum.empty?(positive_loras),
-          do: node_ref("clip", 0),
-          else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
-        ),
-        generation_params.negative_prompt,
-        "negative_prompt"
+      |> then(
+        &add_clip_text_encode(
+          &1,
+          if(Enum.empty?(positive_loras),
+            do: get_lookup_value(&1, "clip", "CLIP"),
+            else: node_ref("positive_lora#{length(positive_loras) - 1}", 1)
+          ),
+          generation_params.negative_prompt,
+          "negative_prompt"
+        )
+      )
+      |> add_loras(attrs, is_txt2img: generation_params.txt2img)
+      |> then(
+        &maybe_add_ip_adapters(&1, attrs,
+          model:
+            if(Enum.empty?(positive_loras),
+              do: node_ref("model", 0),
+              else: get_lookup_value(&1, get_last_lora_node_name(positive_loras), "MODEL")
+            )
+        )
       )
       |> maybe_add_skimmed_cfg(
         name: "skimmed_cfg",
@@ -91,93 +109,106 @@ defmodule ExSd.Sd.ComfyPrompt do
         width: generation_params.width,
         height: generation_params.height
       )
-      |> add_k_sampler(
-        "sampler",
-        cfg: generation_params.cfg_scale,
-        denoise: 1,
-        latent_image: node_ref("empty_latent_image", 0),
-        model:
-          if(Enum.empty?(positive_loras),
-            do:
-              if(is_regional_prompting_enabled && !is_sd_35,
-                do: node_ref("attention_couple", 0),
-                else:
-                  if(Enum.empty?(ip_adapters),
-                    do:
-                      if(is_skimmed_cfg_enabled,
-                        do: node_ref("skimmed_cfg", 0),
-                        else: get_base_model(generation_params.txt2img)
-                      ),
-                    else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
-                  )
-              ),
-            else:
-              if(is_regional_prompting_enabled && !is_sd_35,
-                do: node_ref("attention_couple", 0),
-                else:
-                  if(Enum.empty?(ip_adapters),
-                    do:
-                      if(is_skimmed_cfg_enabled,
-                        do: node_ref("skimmed_cfg", 0),
-                        else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
-                      ),
-                    else: node_ref("ip_adapter_#{length(ip_adapters) - 1}", 0)
-                  )
-              )
-          ),
-        positive:
-          if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
-            do:
-              if(is_regional_prompting_enabled && is_sd_35,
-                do:
-                  node_ref(
-                    "regional_prompt",
-                    0
-                  ),
-                else:
-                  node_ref(
-                    get_positive_prompt(attrs),
-                    0
-                  )
-              ),
-            else:
-              node_ref(
-                "cn#{length(controlnet_args) - 1}_apply_controlnet",
-                0
-              )
-          ),
-        negative:
-          if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
-            do:
-              node_ref(
-                "negative_prompt",
-                0
-              ),
-            else:
-              node_ref(
-                "cn#{length(controlnet_args) - 1}_apply_controlnet",
-                1
-              )
-          ),
-        sampler_name: generation_params.sampler_name,
-        scheduler: attrs["scheduler"] || "karras",
-        seed: generation_params.seed,
-        steps: generation_params.steps
+      |> then(
+        &add_k_sampler(
+          &1,
+          "sampler",
+          cfg: generation_params.cfg_scale,
+          denoise: 1,
+          latent_image: get_lookup_value(&1, "empty_latent_image", "LATENT"),
+          model:
+            if(Enum.empty?(positive_loras),
+              do:
+                if(is_regional_prompting_enabled && !is_sd_35,
+                  do: get_lookup_value(&1, "attention_couple", "MODEL"),
+                  else:
+                    if(Enum.empty?(ip_adapters),
+                      do:
+                        if(is_skimmed_cfg_enabled,
+                          do: node_ref("skimmed_cfg", 0),
+                          else: get_base_model(generation_params.txt2img)
+                        ),
+                      else:
+                        get_lookup_value(&1, get_last_ip_adapter_node_name(ip_adapters), "MODEL")
+                    )
+                ),
+              else:
+                if(is_regional_prompting_enabled && !is_sd_35,
+                  do: get_lookup_value(&1, "attention_couple", "MODEL"),
+                  else:
+                    if(Enum.empty?(ip_adapters),
+                      do:
+                        if(is_skimmed_cfg_enabled,
+                          do: node_ref("skimmed_cfg", 0),
+                          else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+                        ),
+                      else:
+                        get_lookup_value(
+                          &1,
+                          get_last_ip_adapter_node_name(ip_adapters),
+                          "MODEL"
+                        )
+                    )
+                )
+            ),
+          positive:
+            if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
+              do:
+                if(is_regional_prompting_enabled && is_sd_35,
+                  do:
+                    node_ref(
+                      "regional_prompt",
+                      0
+                    ),
+                  else:
+                    node_ref(
+                      get_positive_prompt(attrs),
+                      0
+                    )
+                ),
+              else:
+                node_ref(
+                  "cn#{length(controlnet_args) - 1}_apply_controlnet",
+                  0
+                )
+            ),
+          negative:
+            if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
+              do:
+                node_ref(
+                  "negative_prompt",
+                  0
+                ),
+              else:
+                node_ref(
+                  "cn#{length(controlnet_args) - 1}_apply_controlnet",
+                  1
+                )
+            ),
+          sampler_name: generation_params.sampler_name,
+          scheduler: attrs["scheduler"] || "karras",
+          seed: generation_params.seed,
+          steps: generation_params.steps
+        )
       )
-      |> add_vae_decode(
-        node_ref(
+      |> maybe_add_scale(generation_params, generation_params.hr_scale != 1,
+        attrs: attrs,
+        positive_loras: positive_loras,
+        controlnet_args: controlnet_args
+      )
+      |> then(
+        &add_vae_decode(
+          &1,
           if(
             Map.get(attrs, "scale") > 1 or
               (Map.get(attrs, "scale") < 1 and full_scale_pass),
-            do: "hires_sampler",
-            else: "sampler"
+            do: get_lookup_value(&1, "hires_sampler", "LATENT"),
+            else: get_lookup_value(&1, "sampler", "LATENT")
           ),
-          0
-        ),
-        get_vae(attrs)
+          get_vae(attrs)
+        )
       )
-      |> add_loras(attrs, is_txt2img: generation_params.txt2img)
-      |> add_output(node_ref("vae_decode", 0))
+      |> then(&add_output(&1, get_lookup_value(&1, "vae_decode", "IMAGE")))
       |> maybe_add_controlnet(
         controlnet_args,
         generation_params,
@@ -193,12 +224,6 @@ defmodule ExSd.Sd.ComfyPrompt do
             "negative_prompt",
             0
           )
-      )
-      |> maybe_add_ip_adapters(attrs, model: node_ref("model", 0))
-      |> maybe_add_scale(generation_params, generation_params.hr_scale != 1,
-        attrs: attrs,
-        positive_loras: positive_loras,
-        controlnet_args: controlnet_args
       )
 
     # File.write!("./prompt.json", Jason.encode!(prompt, pretty: true))
@@ -768,7 +793,8 @@ defmodule ExSd.Sd.ComfyPrompt do
           ),
         sampler_name: generation_params.sampler_name,
         scheduler: attrs["scheduler"] || "karras",
-        seed: generation_params.seed,
+        # generation_params.seed,
+        seed: SdService.create_seed(),
         steps: generation_params.steps
       )
       |> maybe_add_latent_scale(
@@ -1459,7 +1485,7 @@ defmodule ExSd.Sd.ComfyPrompt do
     )
   end
 
-  @spec add_node_input(map(), atom() | binary(), node_value()) :: map()
+  @spec add_node_input(map(), atom() | binary(), node_value()) :: comfy_node()
   def add_node_input(node, input_name, value) do
     node_name = node_name(node)
 
@@ -1470,16 +1496,55 @@ defmodule ExSd.Sd.ComfyPrompt do
     )
   end
 
+  @spec add_node_output(map(), binary(), ref_node_value()) :: comfy_node()
+  def add_node_output(node, output_name, node_ref) do
+    node_name = node_name(node)
+
+    node
+    |> put_in(
+      [node_name, :outputs],
+      Map.put(node[node_name].outputs, output_name, node_ref)
+    )
+  end
+
+  @spec remove_node_outputs(map()) :: comfy_node()
+  def remove_node_outputs(node) do
+    node_name = node_name(node)
+
+    node
+    |> Map.put(node_name, Map.delete(node[node_name], :outputs))
+  end
+
   @spec add_node(prompt(), comfy_node(), boolean()) :: prompt()
   def add_node(prompt, node, add \\ true)
 
   def add_node(prompt, node, true = _add) do
     prompt
-    |> put_in([:prompt], Map.merge(prompt.prompt, node))
+    |> put_in([:prompt], Map.merge(prompt.prompt, node |> remove_node_outputs()))
+    |> add_lookup(node_name(node), Map.get(node[node_name(node)], :outputs, %{}))
   end
 
   def add_node(prompt, _node, false = _add) do
     prompt
+  end
+
+  @spec add_lookup(prompt(), binary(), map()) :: prompt()
+  def add_lookup(prompt, key, value) do
+    updated_lookup = prompt.lookup |> Map.put(key, value)
+    prompt |> Map.put(:lookup, updated_lookup)
+  end
+
+  @spec get_lookup(prompt()) :: map()
+  def get_lookup(prompt) do
+    prompt |> Map.get(:lookup)
+  end
+
+  @spec get_lookup_value(prompt(), binary(), binary()) :: ref_node_value()
+  def get_lookup_value(prompt, node_name, output_name) do
+    prompt
+    |> get_lookup()
+    |> Map.get(node_name, %{})
+    |> Map.get(output_name)
   end
 
   @spec node_name(map()) :: binary()
@@ -1491,7 +1556,8 @@ defmodule ExSd.Sd.ComfyPrompt do
   def add_vae_loader(prompt, vae_name, name \\ "vae") do
     node =
       node(name, "VAELoader")
-      |> add_node_input(:vae_name, vae_name)
+      |> add_node_input("vae_name", vae_name)
+      |> then(&add_node_output(&1, "VAE", node_ref(name, 0)))
 
     prompt
     |> add_node(node)
@@ -1503,6 +1569,7 @@ defmodule ExSd.Sd.ComfyPrompt do
       node(name, "VAEDecode")
       |> add_node_input(:samples, samples)
       |> add_node_input(:vae, vae)
+      |> add_node_output("IMAGE", node_ref(name, 0))
 
     prompt
     |> add_node(node)
@@ -1523,6 +1590,7 @@ defmodule ExSd.Sd.ComfyPrompt do
       node(name, "RepeatLatentBatch")
       |> add_node_input("amount", Keyword.get(options, :batch_size, 1))
       |> add_node_input("samples", node_ref(node_name, 0))
+      |> add_node_output("LATENT", node_ref(name, 0))
 
     prompt
     |> add_node(node)
@@ -1563,8 +1631,7 @@ defmodule ExSd.Sd.ComfyPrompt do
 
   @spec add_model_loader(prompt(), binary(), [
           {:name, binary()} | {:clip_skip, non_neg_integer()} | {:attrs, map()}
-        ]) ::
-          prompt()
+        ]) :: prompt()
   def add_model_loader(prompt, model_name, options \\ []) do
     name = Keyword.get(options, :name, "model")
     attrs = Keyword.get(options, :attrs, %{})
@@ -1611,12 +1678,21 @@ defmodule ExSd.Sd.ComfyPrompt do
         clip: node_ref("clip_loader", 0),
         device: "cpu"
       })
+      |> add_node_output("CLIP", node_ref("clip", 0))
 
     clip_skip_node =
       node("clip", "CLIPSetLastLayer", %{
         clip: node_ref(name, 1),
         stop_at_clip_layer: -Keyword.get(options, :clip_skip, 1)
       })
+      |> add_node_output("CLIP", node_ref("clip", 0))
+
+    # prompt =
+    #   prompt
+    #   |> add_lookup("model", %{
+    #     "model" => node_ref(name, 0),
+    #     "clip" => node_ref("clip", 0)
+    #   })
 
     prompt
     |> add_node(node)
@@ -1627,7 +1703,9 @@ defmodule ExSd.Sd.ComfyPrompt do
 
   @spec add_clip_text_encode(prompt(), ref_node_value(), binary(), binary()) :: prompt()
   def add_clip_text_encode(prompt, clip, text, name \\ "prompt") do
-    node = node(name, "CLIPTextEncode", %{clip: clip, text: text})
+    node =
+      node(name, "CLIPTextEncode", %{clip: clip, text: text})
+      |> add_node_output("CONDITIONING", node_ref(name, 0))
 
     prompt
     |> add_node(node)
@@ -1643,12 +1721,15 @@ defmodule ExSd.Sd.ComfyPrompt do
         prompt,
         options \\ []
       ) do
+    name = Keyword.get(options, :name, "empty_latent_image")
+
     node =
-      node(Keyword.get(options, :name, "empty_latent_image"), "EmptyLatentImage", %{
+      node(name, "EmptyLatentImage", %{
         batch_size: Keyword.get(options, :batch_size, 1),
         width: Keyword.get(options, :width),
         height: Keyword.get(options, :height)
       })
+      |> add_node_output("LATENT", node_ref(name, 0))
 
     prompt
     |> add_node(node)
@@ -1669,11 +1750,22 @@ defmodule ExSd.Sd.ComfyPrompt do
           | {:name, binary()}
         ]) :: prompt()
   def add_k_sampler(prompt, name, options \\ []) do
+    rescale_cfg_multiplier = Map.get(%{}, "rescale_cfg_multiplier", 0.3)
+
+    prompt =
+      prompt
+      |> maybe_add_rescale_cfg(
+        model: Keyword.get(options, :model),
+        multiplier: rescale_cfg_multiplier,
+        add: rescale_cfg_multiplier
+      )
+
     node =
       node(name, "KSampler", %{
         cfg: Keyword.get(options, :cfg),
         denoise: Keyword.get(options, :denoise),
         latent_image: Keyword.get(options, :latent_image),
+        # node_ref("rescale_cfg", 0),
         model: Keyword.get(options, :model),
         positive: Keyword.get(options, :positive),
         negative: Keyword.get(options, :negative),
@@ -1682,6 +1774,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         seed: Keyword.get(options, :seed),
         steps: Keyword.get(options, :steps)
       })
+      |> add_node_output("LATENT", node_ref(name, 0))
 
     prompt
     |> add_node(node)
@@ -1696,14 +1789,18 @@ defmodule ExSd.Sd.ComfyPrompt do
           | {:name, binary()}
         ]) :: prompt()
   def add_lora(prompt, options \\ []) do
+    name = Keyword.get(options, :name)
+
     node =
-      node(Keyword.get(options, :name), "LoraLoader", %{
+      node(name, "LoraLoader", %{
         model: Keyword.get(options, :model),
         clip: Keyword.get(options, :clip),
         lora_name: Keyword.get(options, :lora_name),
         strength_model: Keyword.get(options, :strength_model),
         strength_clip: Keyword.get(options, :strength_clip)
       })
+      |> add_node_output("MODEL", node_ref(name, 0))
+      |> add_node_output("CLIP", node_ref(name, 1))
 
     prompt
     |> add_node(node)
@@ -2025,6 +2122,16 @@ defmodule ExSd.Sd.ComfyPrompt do
           {:clip, ref_node_value()} | {:global_prompt, ref_node_value()} | {:name, binary()}
         ]) ::
           prompt()
+  @spec maybe_add_regional_prompts_with_conditioning(
+          %{
+            lookup: map(),
+            prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}
+          },
+          map()
+        ) :: %{
+          lookup: map(),
+          prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}
+        }
   def maybe_add_regional_prompts_with_conditioning(prompt, attrs, options \\ []) do
     is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
     regional_prompts = Map.get(attrs, "regional_prompts")
@@ -2133,11 +2240,12 @@ defmodule ExSd.Sd.ComfyPrompt do
               acc_prompt
               |> add_clip_text_encode(
                 if(Enum.empty?(positive_loras),
-                  do: node_ref("clip", 0),
+                  do: get_lookup_value(acc_prompt, "clip", "CLIP"),
                   else:
-                    node_ref(
-                      "positive_lora#{length(positive_loras) - 1}",
-                      1
+                    get_lookup_value(
+                      acc_prompt,
+                      get_last_lora_node_name(positive_loras),
+                      "CLIP"
                     )
                 ),
                 prompt,
@@ -2217,6 +2325,7 @@ defmodule ExSd.Sd.ComfyPrompt do
               )
           }
         )
+        |> add_node_output("MODEL", node_ref("attention_couple", 0))
       )
     else
       prompt
@@ -2420,15 +2529,15 @@ defmodule ExSd.Sd.ComfyPrompt do
       attrs = Keyword.get(options, :attrs)
       positive_loras = Keyword.get(options, :positive_loras)
       controlnet_args = Keyword.get(options, :controlnet_args, [])
+      ip_adapters = Map.get(attrs, "ip_adapters", [])
+      is_skimmed_cfg_enabled = get_in(attrs, ["skimmed_cfg", "is_enabled"]) || false
+      is_sd_35 = Regex.match?(~r/3\.?5/i, attrs["model"])
 
       first_pass_samples_ref =
         Keyword.get(
           options,
           :first_pass_samples,
-          node_ref(
-            "sampler",
-            0
-          )
+          get_lookup_value(prompt, "sampler", "LATENT")
         )
 
       positive_prompt_ref =
@@ -2471,71 +2580,111 @@ defmodule ExSd.Sd.ComfyPrompt do
             0
           )
       )
-      |> add_image_upscale_with_model("upscale_with_model",
-        upscale_model:
-          node_ref(
-            "upscaler",
-            0
-          ),
-        image:
-          node_ref(
-            "first_pass_vae_decode",
-            0
-          )
-      )
       |> add_upscale_model_loader(generation_params.hr_upscaler, "upscaler")
-      |> add_vae_encode(node_ref("scaler", 0), get_vae(attrs), "second_pass_vae_encode")
-      |> add_k_sampler(
-        "hires_sampler",
-        cfg: generation_params.cfg_scale,
-        denoise: generation_params.sp_denoising_strength,
-        latent_image:
-          node_ref(
-            if(generation_params.hr_upscaler == "Latent",
-              do: "hires_latent_scaler",
-              else: "second_pass_vae_encode"
+      |> then(
+        &add_image_upscale_with_model(&1, "upscale_with_model",
+          upscale_model:
+            get_lookup_value(
+              &1,
+              "upscaler",
+              "UPSCALE_MODEL"
             ),
-            0
-          ),
-        model:
-          Keyword.get(
-            options,
-            :model,
-            if(Enum.empty?(positive_loras),
+          image: get_lookup_value(&1, "first_pass_vae_decode", "IMAGE")
+        )
+      )
+      |> then(
+        &add_vae_encode(
+          &1,
+          get_lookup_value(&1, "scaler", "IMAGE"),
+          get_vae(attrs),
+          "second_pass_vae_encode"
+        )
+      )
+      |> then(
+        &add_k_sampler(
+          &1,
+          "hires_sampler",
+          cfg: generation_params.cfg_scale,
+          denoise: generation_params.sp_denoising_strength,
+          latent_image:
+            if(generation_params.hr_upscaler == "Latent",
+              do: get_lookup_value(&1, "hires_latent_scaler", "LATENT"),
+              else: get_lookup_value(&1, "second_pass_vae_encode", "LATENT")
+            ),
+          model:
+            Keyword.get(
+              options,
+              :model,
+              if(Enum.empty?(positive_loras),
+                do:
+                  if(is_regional_prompting_enabled && !is_sd_35,
+                    do: get_lookup_value(&1, "attention_couple", "MODEL"),
+                    else:
+                      if(Enum.empty?(ip_adapters),
+                        do:
+                          if(is_skimmed_cfg_enabled,
+                            do: node_ref("skimmed_cfg", 0),
+                            else: get_base_model(generation_params.txt2img)
+                          ),
+                        else:
+                          get_lookup_value(
+                            &1,
+                            get_last_ip_adapter_node_name(ip_adapters),
+                            "MODEL"
+                          )
+                      )
+                  ),
+                else:
+                  if(is_regional_prompting_enabled && !is_sd_35,
+                    do: get_lookup_value(&1, "attention_couple", "MODEL"),
+                    else:
+                      if(Enum.empty?(ip_adapters),
+                        do:
+                          if(is_skimmed_cfg_enabled,
+                            do: node_ref("skimmed_cfg", 0),
+                            else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+                          ),
+                        else:
+                          get_lookup_value(
+                            &1,
+                            get_last_ip_adapter_node_name(ip_adapters),
+                            "MODEL"
+                          )
+                      )
+                  )
+              )
+            ),
+          positive:
+            if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
               do:
-                if(is_regional_prompting_enabled,
-                  do: node_ref("attention_couple", 0),
-                  else: get_base_model(generation_params.txt2img)
+                if(is_regional_prompting_enabled && is_sd_35,
+                  do:
+                    node_ref(
+                      "regional_prompt",
+                      0
+                    ),
+                  else: positive_prompt_ref
                 ),
               else:
-                if(is_regional_prompting_enabled,
-                  do: node_ref("attention_couple", 0),
-                  else: node_ref("positive_lora#{length(positive_loras) - 1}", 0)
+                node_ref(
+                  "cn#{length(controlnet_args) - 1}_apply_controlnet",
+                  0
                 )
-            )
-          ),
-        positive:
-          if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
-            do: positive_prompt_ref,
-            else:
-              node_ref(
-                "cn#{length(controlnet_args) - 1}_apply_controlnet",
-                0
-              )
-          ),
-        negative:
-          if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
-            do: negative_prompt_ref,
-            else:
-              node_ref(
-                "cn#{length(controlnet_args) - 1}_apply_controlnet",
-                1
-              )
-          ),
-        sampler_name: generation_params.sampler_name,
-        scheduler: attrs["scheduler"] || "karras",
-        seed: generation_params.seed,
-        steps: generation_params.steps
+            ),
+          negative:
+            if(is_nil(controlnet_args) or Enum.empty?(controlnet_args),
+              do: negative_prompt_ref,
+              else:
+                node_ref(
+                  "cn#{length(controlnet_args) - 1}_apply_controlnet",
+                  1
+                )
+            ),
+          sampler_name: generation_params.sampler_name,
+          scheduler: attrs["scheduler"] || "karras",
+          seed: generation_params.seed,
+          steps: generation_params.steps
+        )
       )
     else
       prompt
@@ -2595,6 +2744,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           ),
         crop: "disabled"
       })
+      |> add_node_output("LATENT", node_ref(name, 0))
 
     prompt
     |> add_node(node)
@@ -2659,6 +2809,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         combine_embeds: "average",
         embeds_scaling: "V only"
       })
+      |> add_node_output("MODEL", node_ref(name, 0))
 
     prompt
     |> add_node(node)
@@ -2772,6 +2923,7 @@ defmodule ExSd.Sd.ComfyPrompt do
         crop: "disabled",
         image: Keyword.get(options, :image)
       })
+      |> add_node_output("IMAGE", node_ref(name, 0))
 
     prompt
     |> add_node(node)
@@ -2813,6 +2965,7 @@ defmodule ExSd.Sd.ComfyPrompt do
       node(name, "UpscaleModelLoader", %{
         model_name: model_name
       })
+      |> add_node_output("UPSCALE_MODEL", node_ref(name, 0))
 
     prompt
     |> add_node(node)
@@ -2951,6 +3104,35 @@ defmodule ExSd.Sd.ComfyPrompt do
     end
   end
 
+  @spec maybe_add_rescale_cfg(prompt(), [
+          {:add, boolean()}
+          | {:name, binary()}
+          | {:model, ref_node_value()}
+          | {:multiplier, float()}
+        ]) ::
+          prompt()
+  def maybe_add_rescale_cfg(prompt, options \\ []) do
+    add = Keyword.get(options, :add, true)
+    model = Keyword.get(options, :model, true)
+    multiplier = Keyword.get(options, :multiplier, true)
+
+    if add do
+      prompt
+      |> add_node(
+        node(Keyword.get(options, :name, "rescale_cfg"), "RescaleCFG", %{
+          model: model,
+          multiplier: multiplier
+        })
+      )
+      |> add_lookup(
+        "model",
+        Map.merge(prompt.lookup["model"], %{"model" => node_ref("rescale_cfg", 0)})
+      )
+    else
+      prompt
+    end
+  end
+
   defp get_positive_prompt(_attrs) do
     # is_regional_prompting_enabled = Map.get(attrs, "is_regional_prompting_enabled", false)
 
@@ -3010,5 +3192,13 @@ defmodule ExSd.Sd.ComfyPrompt do
     model_name
     |> String.downcase()
     |> String.contains?("flux")
+  end
+
+  defp get_last_lora_node_name(loras) do
+    "positive_lora#{length(loras) - 1}"
+  end
+
+  defp get_last_ip_adapter_node_name(ip_adapters) do
+    "ip_adapter_#{length(ip_adapters) - 1}"
   end
 end

@@ -7,7 +7,7 @@ import {
 } from "../state/historySlice";
 import { useAppDispatch } from "../hooks";
 
-export interface Props<T> {
+export interface useHistoryStateProps<T> {
   topic: HistoryTopic;
   /**
    *
@@ -31,7 +31,7 @@ const useHistoryState = <T,>({
   undoCallback,
   redoCallback,
   clearCallback,
-}: Props<T>) => {
+}: useHistoryStateProps<T>) => {
   const dispatch = useAppDispatch();
   const [undoHistory, setUndoHistory] = useState<T[] | T[][]>([]);
   const [redoHistory, setRedoHistory] = useState<T[] | T[][]>([]);

@@ -125,7 +125,7 @@ const Editor = forwardRef(
             onChange(params?.state);
           }}
           classNames={[
-            "border border-neutral-700 !shadow-none text-base bg-neutral-800/80 line-height[28px]",
+            "border border-neutral-700 shadow-none! text-sm bg-neutral-800/80 line-height[28px]",
           ]}
         >
           {/* <OnChangeJSON
@@ -189,7 +189,7 @@ Editor.displayName = "Editor";
 //     >
 //       <div
 //         {...getMenuProps()}
-//         className="overflow-visible flex flex-col gap-2 text-white rounded  mt-4 bg-black w-full "
+//         className="overflow-visible flex flex-col gap-2 text-white rounded-xs  mt-4 bg-black w-full "
 //       >
 //         {enabled &&
 //           options.map((user, index) => {
@@ -239,7 +239,7 @@ export default Editor;
 
 // const Editor = (props: Props) => {
 //   return (
-//     <div className="flex border rounded p-2" role="textbox" aria-multiline>
+//     <div className="flex border rounded-xs p-2" role="textbox" aria-multiline>
 //       <p>
 //         {items.map((item, index) => (
 //           <Item key={index} {...item} />

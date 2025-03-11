@@ -6,7 +6,7 @@ import Button from "./Button";
 import { ResetIcon } from "@radix-ui/react-icons";
 import { twMerge } from "tailwind-merge";
 
-type Props = {
+export type SliderProps = {
   label?: string;
   value: number;
   onChange: (value: number) => void;
@@ -34,7 +34,7 @@ const Slider = forwardRef(
       value,
       onChange,
       className = "",
-    }: Props,
+    }: SliderProps,
     _ref
   ) => {
     const handleValueChange = (value: number[]) => onChange(value[0]);
@@ -67,7 +67,7 @@ const Slider = forwardRef(
               )}
               <Input
                 id={inputId}
-                className="px-1 min-w-[60px] max-w-[70px]"
+                className="px-1 min-w-[60px] max-w-[70px] text-xs"
                 type="number"
                 step={step}
                 min={min}
@@ -98,7 +98,7 @@ const Slider = forwardRef(
             />
           </RadixSlider.Track>
           <RadixSlider.Thumb
-            className={`block w-4 h-4 ${disabled ? "bg-neutral-700 border-none" : "bg-white"} shadow-[0_2px_10px] shadow-black rounded-[10px] border-2 focus:border-primary focus:scale-120 outline-none transition-all duration-100 ease-in-out`}
+            className={`block w-4 h-4 ${disabled ? "bg-neutral-700 border-none" : "bg-white"} shadow-[0_2px_10px] shadow-black rounded-[10px] border-2 focus:border-primary focus:scale-120 outline-hidden transition-all duration-100 ease-in-out`}
           />
         </RadixSlider.Root>
       </div>

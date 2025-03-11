@@ -16,7 +16,6 @@ export type RefsContextProps = {
   imageLayerRef: RefObject<LayerType> | null;
   stageRef: RefObject<StageType> | null;
   maskCompositeRectRef: RefObject<NodeType> | null;
-  sketchLayerRef: RefObject<LayerType> | null;
   overlayLayerRef: RefObject<LayerType> | null;
   controlnetLayerRef: RefObject<LayerType> | null;
   batchResultPreviewImageRef: RefObject<ImageType> | null;
@@ -31,7 +30,6 @@ const RefsContext = createContext<RefsContextProps>({
   overlayLayerRef: null,
   selectionBoxLayerRef: null,
   selectionBoxRef: null,
-  sketchLayerRef: null,
   stageRef: null,
   batchResultPreviewImageRef: null,
 });

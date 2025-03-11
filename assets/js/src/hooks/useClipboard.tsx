@@ -1,7 +1,12 @@
 import { useCallback, useContext, useEffect } from "react";
 import usePngInfo from "./usePngInfo";
 import { useAppDispatch, useAppSelector } from "../hooks";
-import { PngInfo, getLayers, updateControlnetArgs } from "../utils";
+import {
+  PngInfo,
+  getLayers,
+  isSketchLayer,
+  updateControlnetArgs,
+} from "../utils";
 import RefsContext from "../context/RefsContext";
 import {
   selectActiveLayer,
@@ -23,7 +28,9 @@ const useClipboard = ({ handleAddImage, emit = false }: Props) => {
   const activeLayer = useAppSelector(selectActiveLayer);
 
   useCustomEventListener("custom-paste", (data) => {
-    handleAddImage && handleAddImage(data);
+    if (handleAddImage) {
+      handleAddImage(data);
+    }
   });
 
   const handlePasteEvent = useCallback(
@@ -35,9 +42,9 @@ const useClipboard = ({ handleAddImage, emit = false }: Props) => {
           const dataUrl = event.target.result;
           if (typeof dataUrl === "string") {
             let pngInfo: PngInfo | undefined;
-            if (activeLayer === "base") {
+            if (isSketchLayer(activeLayer)) {
               pngInfo = await processPngInfo(dataUrl);
-              pngInfo && updateControlnetArgs(pngInfo, dispatch);
+              if (pngInfo) updateControlnetArgs(pngInfo, dispatch);
             }
 
             emitImagePasteEvent({
@@ -122,18 +129,18 @@ const useClipboard = ({ handleAddImage, emit = false }: Props) => {
 
   useEffect(() => {
     if (emit) {
-      document.addEventListener("paste", handlePasteEvent);
+      window.addEventListener("paste", handlePasteEvent);
       return () => {
-        document.removeEventListener("paste", handlePasteEvent);
+        window.removeEventListener("paste", handlePasteEvent);
       };
     }
   }, [handlePasteEvent, emit]);
 
   useEffect(() => {
     if (emit) {
-      document.addEventListener("copy", handleCopyEvent);
+      window.addEventListener("copy", handleCopyEvent);
       return () => {
-        document.removeEventListener("copy", handleCopyEvent);
+        window.removeEventListener("copy", handleCopyEvent);
       };
     }
   }, [handleCopyEvent, emit]);

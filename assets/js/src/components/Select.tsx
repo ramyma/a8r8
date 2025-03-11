@@ -1,4 +1,4 @@
-import React, {
+import {
   ChangeEventHandler,
   KeyboardEventHandler,
   MouseEvent,
@@ -12,7 +12,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import * as RadixSelect from "@radix-ui/react-select";
+import { Select as RadixSelect } from "radix-ui";
+
 import * as Portal from "@radix-ui/react-portal";
 import { CheckIcon, CrossCircledIcon } from "@radix-ui/react-icons";
 import Input from "./Input";
@@ -20,6 +21,8 @@ import ScrollArea from "./ScrollArea";
 import useFuzzySearch from "../hooks/useFuzzySearch";
 import { twMerge } from "tailwind-merge";
 import Chip from "./Chip";
+import { isArray } from "remirror";
+import { AnimatePresence, motion } from "motion/react";
 
 const UNGROUPED_NAME = "Other";
 
@@ -117,10 +120,9 @@ const Select = forwardRef(
   ) => {
     const triggerRef = useRef<HTMLButtonElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
-    const selectContentRef = useRef<HTMLDivElement>(null);
-    const selectedItemRef = useRef<HTMLLIElement>(null);
-    const activeItemRef = useRef<HTMLLIElement>(null);
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const selectedItemRef = useRef<HTMLLIElement>();
+    const activeItemRef = useRef<HTMLLIElement>();
+    const scrollContainerRef = useRef<HTMLDivElement>();
     const modalBodyRef = useRef<HTMLDivElement>(null);
 
     const [isOpen, setIsOpen] = useState(false);
@@ -171,15 +173,17 @@ const Select = forwardRef(
         let itemsIdx = 0;
         const entries = Object.entries(itemsByGroups);
 
-        const sorted = entries.toSorted(([groupNameA], [groupNameB]) =>
-          groupNameA === UNGROUPED_NAME
-            ? 1
-            : groupNameB === UNGROUPED_NAME
-              ? -1
-              : groupNameA <= groupNameB
-                ? -1
-                : 1
-        );
+        const sorted = search
+          ? entries
+          : entries.toSorted(([groupNameA], [groupNameB]) =>
+              groupNameA === UNGROUPED_NAME
+                ? 1
+                : groupNameB === UNGROUPED_NAME
+                  ? -1
+                  : groupNameA <= groupNameB
+                    ? -1
+                    : 1
+            );
         return sorted.reduce((acc, [groupName, items]) => {
           return {
             ...acc,
@@ -208,8 +212,7 @@ const Select = forwardRef(
         initializedGroups
       );
       return [resultItems, groupedResultItems];
-      // return [];
-    }, [getItemsByGroups, initializedGroups, items, rest.name, search]);
+    }, [getItemsByGroups, initializedGroups, items, search, searchItems]);
 
     const selectedItemIdx = !multiple
       ? getSelectedItemIndex({
@@ -221,7 +224,7 @@ const Select = forwardRef(
 
     useLayoutEffect(() => {
       if (prevIsOpen !== isOpen) {
-        isOpen && searchInputRef.current?.focus();
+        if (isOpen) searchInputRef.current?.focus();
 
         const selectedBBox = activeItemRef.current?.getBoundingClientRect();
         const scrollContainerBBox =
@@ -235,98 +238,128 @@ const Select = forwardRef(
           }
         }
 
-        isOpen && setActiveItem(selectedItemIdx);
+        if (isOpen) setActiveItem(selectedItemIdx);
         setPrevIsOpen(isOpen);
       }
     }, [isOpen, prevIsOpen, selectedItemIdx]);
 
-    const [pos, setPos] = useState({ x: 0, y: 0, yDir: "bottom" });
+    const [pos, setPos] = useState({ x: 0, y: 0 });
 
     useEffect(() => {
       if (shouldSetDefaultValue && !multiple && !value && items?.length) {
         const item = items[0];
 
         if (typeof item === "object") {
-          onChange && onChange(item[valueAttr]);
+          if (onChange) onChange(item[valueAttr]);
         } else {
-          onChange && onChange(item);
+          if (onChange) onChange(item);
         }
       }
     }, [items, multiple, onChange, shouldSetDefaultValue, value, valueAttr]);
 
-    useLayoutEffect(() => {
-      const bodyBoundingBox = document.body.getBoundingClientRect();
-      const selectContentBoundingBox =
-        selectContentRef.current?.getBoundingClientRect();
-      const triggerBoundingBox = triggerRef.current?.getBoundingClientRect();
-      if (bodyBoundingBox && selectContentBoundingBox && triggerBoundingBox) {
-        const x = triggerBoundingBox?.left ?? 0;
-        const y =
-          selectContentBoundingBox.height + triggerBoundingBox.top >
-          bodyBoundingBox.height
-            ? window.document.body.getBoundingClientRect().height -
-              triggerBoundingBox.top
-            : triggerBoundingBox.top;
+    const scrollToItemRef = useCallback(
+      (itemRef?: HTMLElement | null) => {
+        if (isOpen && itemRef) {
+          const offset = (initializedGroups?.length ?? 0) > 1 ? 32 : 0;
+          const bbox = itemRef.getBoundingClientRect();
+          const scrollContainerBbox =
+            scrollContainerRef.current?.getBoundingClientRect();
+          if (bbox && scrollContainerBbox) {
+            if (bbox.bottom > scrollContainerBbox.bottom) {
+              scrollContainerRef.current?.scrollBy(
+                0,
+                bbox.bottom - scrollContainerBbox.bottom
+              );
+            } else if (bbox.bottom - offset <= scrollContainerBbox.top) {
+              scrollContainerRef.current?.scrollBy(
+                0,
+                bbox.top - scrollContainerBbox.top - offset
+              );
+            }
+          }
+        }
+      },
+      [initializedGroups?.length, isOpen]
+    );
+    const scrollContainerRefCallback = useCallback(
+      (scrollContainerNode) => {
+        scrollContainerRef.current = scrollContainerNode;
+        scrollToItemRef(activeItemRef.current || selectedItemRef.current);
+      },
+      [scrollToItemRef]
+    );
 
-        setPos((pos) => {
-          return {
-            ...pos,
-            x,
-            y,
-            yDir:
-              selectContentBoundingBox?.height + triggerBoundingBox?.top >
+    const selectContentRef = useCallback(
+      (selectContentNode) => {
+        if (selectContentNode) {
+          const bodyBoundingBox = document.body.getBoundingClientRect();
+
+          const triggerBoundingBox =
+            triggerRef.current?.getBoundingClientRect();
+
+          const selectContentBoundingBox =
+            selectContentNode?.getBoundingClientRect();
+
+          if (
+            bodyBoundingBox &&
+            triggerBoundingBox &&
+            selectContentBoundingBox
+          ) {
+            const x =
+              selectContentBoundingBox.width + triggerBoundingBox.left >
+              bodyBoundingBox.width
+                ? bodyBoundingBox.width - selectContentBoundingBox.width
+                : triggerBoundingBox.left;
+            const y =
+              selectContentBoundingBox.height + triggerBoundingBox.bottom >
               bodyBoundingBox.height
-                ? "bottom"
-                : "top",
-          };
-        });
-      }
-    }, [isOpen, filteredItems]);
+                ? triggerBoundingBox.top - selectContentBoundingBox.height
+                : triggerBoundingBox.bottom;
+
+            setPos((pos) => {
+              return {
+                ...pos,
+                x,
+                y,
+              };
+            });
+          }
+        }
+      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [search]
+    );
+
+    const selectedItemCallbackRef = useCallback((selectedItemNode) => {
+      selectedItemRef.current = selectedItemNode;
+    }, []);
+    const activeItemCallbackRef = useCallback((activeItemNode) => {
+      activeItemRef.current = activeItemNode;
+    }, []);
 
     useEffect(() => {
       const itemRef =
-        selectedItemIdx === activeItem
+        selectedItemIdx < 0 || selectedItemIdx === activeItem
           ? activeItemRef.current
           : selectedItemRef.current;
-      if (itemRef) {
-        const offset = (initializedGroups?.length ?? 0) > 1 ? 32 : 0;
-        const bbox = itemRef.getBoundingClientRect();
-        const scrollContainerBbox =
-          scrollContainerRef.current?.getBoundingClientRect();
-        if (bbox && scrollContainerBbox) {
-          if (bbox.bottom > scrollContainerBbox.bottom) {
-            scrollContainerRef.current?.scrollBy(
-              0,
-              bbox.bottom - scrollContainerBbox.bottom
-            );
-          } else if (bbox.bottom - offset <= scrollContainerBbox.top) {
-            scrollContainerRef.current?.scrollBy(
-              0,
-              bbox.top - scrollContainerBbox.top - offset
-            );
-          }
-        }
-      }
-    }, [activeItem, initializedGroups, selectedItemIdx]);
+      scrollToItemRef(itemRef);
+    }, [activeItem, initializedGroups, scrollToItemRef, selectedItemIdx]);
 
     const selectedItem =
       !multiple &&
       items?.find((item) => getItemValue({ item, valueAttr }) === value);
 
     const selectedItems =
-      multiple &&
-      Array.isArray(value) &&
-      items?.reduce(
-        (acc, item) =>
-          value.includes(getItemValue({ item, valueAttr }))
-            ? [...acc, item]
-            : acc,
-        [] as Required<SelectProps>["value"][]
-      );
-
-    // const handleOpen = (open: boolean) => {
-    //   setIsOpen(open);
-    // };
+      (multiple &&
+        Array.isArray(value) &&
+        items?.reduce(
+          (acc, item) =>
+            value.includes(getItemValue({ item, valueAttr }))
+              ? [...acc, item]
+              : acc,
+          [] as Required<SelectProps>["value"][]
+        )) ||
+      [];
 
     const toggleOpen = () => {
       if (isOpen) {
@@ -377,6 +410,18 @@ const Select = forwardRef(
           setValue();
           break;
         }
+        case "Home": {
+          e.preventDefault();
+          setActiveItem(0);
+          break;
+        }
+        case "End": {
+          e.preventDefault();
+          if (filteredItems) {
+            setActiveItem((filteredItems?.length ?? 1) - 1);
+          }
+          break;
+        }
         case "Tab":
           e.preventDefault();
           break;
@@ -419,7 +464,7 @@ const Select = forwardRef(
           : Object.values(groupedFilteredItems)
               .flat()
               .find(({ index }) => index === activeItem)?.item;
-      selectedItem &&
+      if (selectedItem)
         onChange(
           multiple && Array.isArray(value)
             ? Array.from(
@@ -429,7 +474,7 @@ const Select = forwardRef(
               )
             : getItemValue({ item: selectedItem, valueAttr })
         );
-      isOpen && toggleOpen();
+      if (isOpen) toggleOpen();
     };
 
     const handleClickOutside: MouseEventHandler = () => {
@@ -442,8 +487,7 @@ const Select = forwardRef(
     ) => {
       event.preventDefault();
       event.stopPropagation();
-      value &&
-        Array.isArray(value) &&
+      if (value && Array.isArray(value))
         onChange(value.filter((v) => v != getItemValue({ item, valueAttr })));
     };
 
@@ -458,7 +502,7 @@ const Select = forwardRef(
         <RadixSelect.Trigger
           ref={triggerRef}
           className={twMerge(
-            `inline-flex items-center justify-between rounded px-2 text-sm leading-none ${multiple ? "h-fit py-2" : "h-[35px]"} gap-[5px] enabled:data-[placeholder]:text-neutral-500 outline-none w-full text-neutral-200 bg-neutral-800/80 enabled:hover:bg-neutral-700/80 border border-neutral-700/95 enabled:hover:border-neutral-500 disabled:text-neutral-500 enabled:focus:border-neutral-200 disabled:cursor-not-allowed overflow-hidden transition-colors text-sm`,
+            `inline-flex items-center justify-between rounded-sm px-2 text-sm leading-none ${multiple ? "h-fit py-2" : "h-[35px]"} gap-[5px] enabled:data-placeholder:text-neutral-500 outline-hidden w-full text-neutral-200 bg-neutral-800/80 enabled:hover:bg-neutral-700/80 border border-neutral-700/95 enabled:hover:border-neutral-500 disabled:text-neutral-500 enabled:focus:border-neutral-200 disabled:cursor-not-allowed overflow-hidden transition-colors text-sm`,
             rest.className ?? ""
           )}
           title={title}
@@ -469,9 +513,9 @@ const Select = forwardRef(
         >
           <RadixSelect.Value placeholder={placeholder} asChild>
             {multiple ? (
-              <div className="w-full flex flex-col gap-1 !pointer-events-auto">
+              <div className="w-full flex flex-col gap-1 pointer-events-auto!">
                 {/* //FIXME: Nested buttons in HTML */}
-                {selectedItems?.map((item) => (
+                {selectedItems.map((item) => (
                   <Chip
                     key={getItemValue({ item, valueAttr })}
                     label={getItemLabel({ item, textAttr })}
@@ -489,145 +533,161 @@ const Select = forwardRef(
             )}
           </RadixSelect.Value>
 
-          <RadixSelect.Icon className="text-neutral-700 data-[highlighted]:text-neutral-100 ml-auto" />
+          <RadixSelect.Icon className="text-neutral-700 data-highlighted:text-neutral-100 ml-auto" />
         </RadixSelect.Trigger>
-
-        {isOpen && (
-          <Portal.Root
-            className={
-              "absolute top-0 left-0 w-screen h-screen z-50 overflow-hidden " +
-              (!isOpen ? "pointer-events-none" : "")
-            }
-          >
-            <div
-              className="absolute top-0 left-0 w-full h-full z-10 bg-black/0"
-              onMouseDown={handleClickOutside}
-              ref={modalBodyRef}
-            />
-            <div
-              className="absolute shadow-md shadow-black/50 mx-auto max-w-md z-50 border-neutral-700 bg-neutral-900/0 border-[1px] rounded-md border-solid text-sm select-none backdrop-blur-sm"
-              style={{ [pos.yDir]: pos.y, left: pos.x }}
-              ref={selectContentRef}
-            >
-              <div className="relative flex align-middle">
-                <Input
-                  className="p-3 pe-10 hover:bg-neutral-800/80 w-full rounded-t-md transition-all"
-                  placeholder="Search"
-                  autoFocus
-                  value={search}
-                  onChange={handleSearchChange}
-                  onKeyDown={handleSearchKeydown}
-                  ref={searchInputRef}
-                  fullWidth
-                />
-
-                <CrossCircledIcon
-                  data-testid="clearSearch"
-                  height="24"
-                  width="24"
-                  className={
-                    "absolute end-2 m-0 top-[11px] text-neutral-400 hover:text-neutral-300 transition-all duration-500 cursor-pointer will-change-[filter,opacity] " +
-                    (search ? "opacity-100" : "opacity-0 pointer-events-none")
-                  }
-                  onClick={handleClearSearchClick}
-                />
-              </div>
-              <ScrollArea type="auto" ref={scrollContainerRef}>
+        <AnimatePresence initial={false}>
+          {isOpen && (
+            <Portal.Root>
+              <motion.div
+                className={
+                  "absolute top-0 left-0 w-screen h-screen z-50 overflow-hidden " +
+                  (!isOpen ? "pointer-events-none" : "")
+                }
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: { opacity: 1 },
+                }}
+                transition={{ duration: 0.1 }}
+                initial={"hidden"}
+                animate={"visible"}
+                exit={"hidden"}
+              >
                 <div
-                  className="max-h-72 bg-neutral-900/90"
-                  ref={scrollContainerRef}
+                  className="absolute top-0 left-0 w-full h-full z-10 bg-black/0"
+                  onMouseDown={handleClickOutside}
+                  ref={modalBodyRef}
+                />
+                <div
+                  className="absolute shadow-md shadow-black/50 mx-auto max-w-md z-50 border-neutral-700 bg-neutral-900/0 border-[1px] rounded-sm border-solid text-sm select-none backdrop-blur-xs overflow-hidden"
+                  style={{ top: pos.y, left: pos.x }}
+                  ref={selectContentRef}
                 >
-                  {!filteredItems?.length && (
-                    <div className="p-3 text-sm text-neutral-400">No items</div>
-                  )}
-                  {initializedGroups?.map(({ name: groupName }) => (
-                    <div key={groupName} className="h-full">
-                      {(groupName !== UNGROUPED_NAME ||
-                        groupName === UNGROUPED_NAME) &&
-                        (initializedGroups?.length ?? 0) > 1 &&
-                        groupedFilteredItems?.[groupName]?.length > 0 && (
-                          <div className="font-bold text-lg px-2 text-neutral-200 bg-neutral-900/90 w-[calc(100%_-_8px)] h-full sticky top-0 z-10 pt-1">
-                            {groupName}
-                          </div>
-                        )}
-                      <ul className="relative flex flex-col overflow-x-hidden bg-neutral-900/90">
-                        {groupedFilteredItems?.[groupName]?.map(
-                          (
-                            { item, index: itemIndex, groupItemIndex },
-                            index
-                          ) => {
-                            itemIndex ??= index;
-                            const isMultipleAndItemSelected =
-                              multiple &&
-                              value?.some(
-                                (v) => getItemValue({ item, valueAttr }) === v
-                              );
+                  <div className="relative flex align-middle">
+                    <Input
+                      className="p-3 pe-10 hover:bg-neutral-800/80 w-full transition-all"
+                      placeholder="Search"
+                      autoFocus
+                      value={search}
+                      onChange={handleSearchChange}
+                      onKeyDown={handleSearchKeydown}
+                      ref={searchInputRef}
+                      fullWidth
+                    />
 
-                            return (
-                              <li
-                                // role="listitem"
-                                ref={
-                                  selectedItemIdx === itemIndex
-                                    ? activeItemRef
-                                    : itemIndex === activeItem
-                                      ? selectedItemRef
-                                      : undefined
-                                }
-                                key={
-                                  (rest?.name ?? "") +
-                                  (typeof item === "object"
-                                    ? item?.[idAttr]
-                                    : item) +
-                                  index
-                                }
-                                className={
-                                  "flex justify-between p-2 first:rounded-t-none last:rounded-b-md transition-colors duration-75 truncate " +
-                                  (itemIndex === selectedItemIdx &&
-                                  activeItem === itemIndex
-                                    ? "bg-neutral-100"
-                                    : itemIndex === selectedItemIdx
-                                      ? "bg-neutral-800/50"
-                                      : activeItem === itemIndex
-                                        ? "bg-neutral-100 text-neutral-900"
-                                        : "hover:bg-neutral-900/70") +
-                                  (selectedItemIdx === itemIndex ||
-                                  isMultipleAndItemSelected
-                                    ? " text-primary"
-                                    : "")
-                                }
-                                title={
-                                  typeof item === "object"
-                                    ? item?.[textAttr]
-                                    : item
-                                }
-                                onClick={() =>
-                                  setValue(groupItemIndex, groupName)
-                                }
-                                onMouseUp={() =>
-                                  setValue(groupItemIndex, groupName)
-                                }
-                                onMouseEnter={() => setActiveItem(itemIndex)}
-                              >
-                                <div className="flex gap-3">
-                                  {typeof item === "object"
-                                    ? item?.[textAttr]
-                                    : item}
-                                  {isMultipleAndItemSelected && (
-                                    <CheckIcon className="text-primary size-5" />
-                                  )}
-                                </div>
-                              </li>
-                            );
-                          }
-                        )}
-                      </ul>
+                    <CrossCircledIcon
+                      data-testid="clearSearch"
+                      height="24"
+                      width="24"
+                      className={
+                        "absolute end-2 m-0 top-[11px] text-neutral-400 hover:text-neutral-300 transition-all duration-500 cursor-pointer will-change-[filter,opacity] " +
+                        (search
+                          ? "opacity-100"
+                          : "opacity-0 pointer-events-none")
+                      }
+                      onClick={handleClearSearchClick}
+                    />
+                  </div>
+                  <ScrollArea type="auto" ref={scrollContainerRefCallback}>
+                    <div className="max-h-72">
+                      {!filteredItems?.length && (
+                        <div className="p-3 text-sm text-neutral-400 bg-neutral-900/90">
+                          No items
+                        </div>
+                      )}
+                      {Object.keys(groupedFilteredItems)?.map((groupName) => (
+                        <div key={groupName} className="h-full">
+                          {(groupName !== UNGROUPED_NAME ||
+                            groupName === UNGROUPED_NAME) &&
+                            (initializedGroups?.length ?? 0) > 1 &&
+                            groupedFilteredItems?.[groupName]?.length > 0 && (
+                              <div className="font-bold text-lg px-2 text-neutral-200 bg-neutral-900/90 w-[calc(100%_-_8px)] h-full sticky top-0 z-10 pt-1">
+                                {groupName}
+                              </div>
+                            )}
+                          <ul className="relative flex flex-col bg-neutral-900/90 overflow-ellipsis ">
+                            {groupedFilteredItems?.[groupName]?.map(
+                              (
+                                { item, index: itemIndex, groupItemIndex },
+                                index
+                              ) => {
+                                itemIndex ??= index;
+                                const isMultipleAndItemSelected =
+                                  multiple &&
+                                  isArray(value) &&
+                                  value?.some(
+                                    (v) =>
+                                      getItemValue({ item, valueAttr }) === v
+                                  );
+
+                                return (
+                                  <li
+                                    // role="listitem"
+                                    ref={
+                                      selectedItemIdx === itemIndex
+                                        ? activeItemCallbackRef
+                                        : itemIndex === activeItem
+                                          ? selectedItemCallbackRef
+                                          : undefined
+                                    }
+                                    key={
+                                      (rest?.name ?? "") +
+                                      (typeof item === "object"
+                                        ? item?.[idAttr]
+                                        : item) +
+                                      index
+                                    }
+                                    className={
+                                      "flex justify-between p-2 first:rounded-t-none last:rounded-b-sm transition-colors duration-75 truncate " +
+                                      (itemIndex === selectedItemIdx &&
+                                      activeItem === itemIndex
+                                        ? "bg-neutral-100"
+                                        : itemIndex === selectedItemIdx
+                                          ? "bg-neutral-800/50"
+                                          : activeItem === itemIndex
+                                            ? "bg-neutral-100 text-neutral-900"
+                                            : "hover:bg-neutral-900/70") +
+                                      (selectedItemIdx === itemIndex ||
+                                      isMultipleAndItemSelected
+                                        ? " text-primary"
+                                        : "")
+                                    }
+                                    title={
+                                      typeof item === "object"
+                                        ? item?.[textAttr]
+                                        : item
+                                    }
+                                    // onClick={() =>
+                                    //   setValue(groupItemIndex, groupName)
+                                    // }
+                                    onMouseUp={() =>
+                                      setValue(groupItemIndex, groupName)
+                                    }
+                                    onMouseEnter={() =>
+                                      setActiveItem(itemIndex)
+                                    }
+                                  >
+                                    <div className="flex gap-3">
+                                      {typeof item === "object"
+                                        ? item?.[textAttr]
+                                        : item}
+                                      {isMultipleAndItemSelected && (
+                                        <CheckIcon className="text-primary size-5" />
+                                      )}
+                                    </div>
+                                  </li>
+                                );
+                              }
+                            )}
+                          </ul>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </ScrollArea>
                 </div>
-              </ScrollArea>
-            </div>
-          </Portal.Root>
-        )}
+              </motion.div>
+            </Portal.Root>
+          )}
+        </AnimatePresence>
       </RadixSelect.Root>
     );
   }

@@ -1,5 +1,6 @@
 import { MouseEvent, useCallback, useMemo, useState } from "react";
-import "./App.css";
+
+import "./index.css";
 import Canvas from "./Canvas/Canvas";
 import Stats from "./Stats";
 import MainForm from "./MainForm";
@@ -99,7 +100,7 @@ function App() {
 
   useIsConnected();
 
-  useConfig({
+  const { isFetching: isFetchingConfig } = useConfig({
     fetchPolicy: "eager",
   });
 
@@ -107,11 +108,13 @@ function App() {
     "apply-preset",
     (params: AppConfig["last_gen_config"]) => {
       if (backend === "comfy") {
-        params?.model && setModel(params.model);
-        params?.vae &&
-          !(params?.model ?? "").toLocaleLowerCase().includes("gguf") &&
+        if (params?.model) setModel(params.model);
+        if (
+          params?.vae &&
+          !(params?.model ?? "").toLocaleLowerCase().includes("gguf")
+        )
           setVae(params?.vae ?? "automatic");
-        params?.clip_models && setClipModels(params.clip_models);
+        if (params?.clip_models) setClipModels(params.clip_models);
       }
     }
   );
@@ -119,7 +122,6 @@ function App() {
   // const panelRef = useRef<HTMLDivElement>(null);
   // const { width } = useResize({ container: panelRef });
 
-  // TODO: refactor into a more relevant part of the code
   const dispatch = useAppDispatch();
 
   useCustomEventListener("custom-undo", (historyItem: HistoryItem) => {
@@ -142,10 +144,10 @@ function App() {
       <div className="relative flex h-full w-full ">
         <div
           // ref={panelRef}
-          className="absolute left-0 top-0 max-w-[20vw] md:w-[17vw] lg:w-[33vw] flex flex-1 h-full bg-black/90 backdrop-blur-sm flex-col z-10 transition-all"
+          className="absolute left-0 top-0  flex flex-1 h-full bg-black/90 backdrop-blur-xs flex-col z-10 transition-all"
         >
           <ScrollArea>
-            <div className="h-screen">
+            <div className="h-screen max-w-[20vw] md:w-[17vw] lg:w-[33vw]">
               <div className="flex p-4 px-6 flex-col gap-2">
                 <Button
                   className="justify-between h-9 mb-2 text-sm"
@@ -157,12 +159,13 @@ function App() {
                 </Button>
                 <ModelSelect
                   refetchOptions={refetchOptions}
-                  isModelLoading={isModelLoading}
+                  isModelLoading={isFetchingConfig || isModelLoading}
                   isVaeLoading={isVaeLoading}
                   models={models}
                   refetchModels={refetchModels}
                   setModel={setModel}
                   selectedModel={selectedModel && { name: selectedModel.name }}
+                  shouldSetDefaultValue={!isFetchingConfig}
                 />
                 <VaeSelect
                   refetchOptions={refetchOptions}
@@ -185,7 +188,7 @@ function App() {
             </div>
           </ScrollArea>
         </div>
-        <div className="relative flex-[9] w-full">
+        <div className="relative flex-9 w-full">
           <Stats />
           <Canvas />
           <Toolbar />
@@ -196,7 +199,6 @@ function App() {
         <SettingsModal
           open={isSettingsModalVisible}
           onClose={handleSettingsModalClose}
-          key={String(isSettingsModalVisible)}
         />
         {/* <ModelsModal /> */}
       </div>
@@ -297,7 +299,7 @@ export const ModelSelect = ({
         <Button
           variant="clear"
           onClick={handleModelRefreshClick}
-          className="rounded-tl-none rounded-bl-none !p-2"
+          className="rounded-tl-none rounded-bl-none p-2!"
           title="Refresh"
         >
           <ReloadIcon />
@@ -395,7 +397,7 @@ export const VaeSelect = ({
         <Button
           variant="clear"
           onClick={handleModelRefreshClick}
-          className="rounded-tl-none rounded-bl-none !p-2"
+          className="rounded-tl-none rounded-bl-none p-2!"
           title="Refresh"
         >
           <ReloadIcon />

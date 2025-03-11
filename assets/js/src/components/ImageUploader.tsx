@@ -131,7 +131,7 @@ const ImageUploader = ({ image, title, multiple = false, onChange }: Props) => {
     <div>
       <div
         style={{ ...(image && { backgroundImage: `url(${image}` }) }}
-        className={`relative border border-neutral-700 bg-neutral-800/80 hover:border-neutral-100 rounded  bg-clip-content bg-contain bg-no-repeat bg-center sm:h-28 2xl:h-56 hover:cursor-pointer transition-all duration-[250] ${
+        className={`relative border border-neutral-700 bg-neutral-800/80 hover:border-neutral-100 rounded  bg-clip-content bg-contain bg-no-repeat bg-center sm:h-28 2xl:h-56 hover:cursor-pointer transition-all duration-250 ${
           isDragging
             ? "outline-primary outline-dashed outline-2 outline-offset-2"
             : ""
@@ -151,7 +151,7 @@ const ImageUploader = ({ image, title, multiple = false, onChange }: Props) => {
         />
 
         <div
-          className="absolute bg-neutral-900/80 backdrop-blur-sm border border-neutral-700 hover:border-neutral-200 bottom-2 right-2 px-[10px] text-white flex-shrink-0 flex-grow-0 basis-auto h-[35px] rounded inline-flex text-[13px] leading-none items-center justify-center outline-none hover:bg-violet10 focus:relative focus:shadow-[0_0_0_2px] focus:shadow-violet7 transition-[border]"
+          className="absolute bg-neutral-900/80 backdrop-blur-xs border border-neutral-700 hover:border-neutral-200 bottom-2 right-2 px-[10px] text-white shrink-0 grow-0 basis-auto h-[35px] rounded-xs inline-flex text-[13px] leading-none items-center justify-center outline-hidden hover:bg-violet10 focus:relative focus:shadow-[0_0_0_2px] focus:shadow-violet7 transition-[border]"
           style={{ marginLeft: "auto" }}
           onClick={handlePaste}
           aria-label="Paste"

@@ -213,6 +213,7 @@ defmodule ExSd.ComfyClient do
       controlnet_preprocessors =
         preprocessors_node
         |> List.first()
+        |> Enum.filter(&(&1 != "none"))
         |> List.insert_at(0, "InpaintPreprocessor")
         |> List.insert_at(0, "Invert")
 

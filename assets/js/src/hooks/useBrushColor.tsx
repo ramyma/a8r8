@@ -3,6 +3,7 @@ import { selectActiveLayer } from "../state/layersSlice";
 import { selectBrushColor, selectMaskColor } from "../state/canvasSlice";
 import { selectControlnetLayerById } from "../state/controlnetSlice";
 import { selectPromptRegionLayerById } from "../state/promptRegionsSlice";
+import { isSketchLayer } from "../utils";
 
 const useBrushColor = (): string => {
   const activeLayer = useAppSelector(selectActiveLayer);
@@ -20,7 +21,7 @@ const useBrushColor = (): string => {
 
   if (activeLayer === "mask") return maskColor;
   if (
-    activeLayer === "sketch" ||
+    isSketchLayer(activeLayer) ||
     (activeLayer.startsWith("controlnet") && !activeLayer.includes("mask"))
   )
     return brushColor;

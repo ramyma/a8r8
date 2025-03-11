@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "../hooks";
 import {
   selectData,
@@ -20,6 +20,7 @@ export type UseDataProps<T> = {
    * @defaultValue `true`
    */
   condition?: boolean;
+  async?: boolean;
 };
 
 const useData = <T,>({
@@ -28,24 +29,42 @@ const useData = <T,>({
   fetchPolicy = "lazy",
   forceRequest = false,
   condition = true,
+  async: asyncData = true,
 }: UseDataProps<T>): {
   fetchData: () => Promise<T>;
   data: T;
   channel: Channel | null;
+  isFetching: boolean;
 } => {
   const { channel, getData } = useSocket();
+  const [isFetching, setIsFetching] = useState(false);
   const ref = useRef(false);
   const dataState = useAppSelector(selectData);
   const isConnected = useAppSelector(selectIsConnected);
   const data: T = dataState[name];
   const dispatch = useAppDispatch();
 
-  const fetchData = useCallback(async (): Promise<T> => {
-    const data: T = await getData(name);
-    callback && callback(data);
-    dispatch(updateData({ [name]: data }));
-    return data;
-  }, [callback, dispatch, getData, name]);
+  const fetchData = useCallback(
+    async (async: boolean = asyncData): Promise<T | undefined> => {
+      setIsFetching(true);
+      try {
+        const data: T = await getData({ name, async: async });
+
+        // if (!async) {
+        if (callback) {
+          await callback(data);
+        }
+        dispatch(updateData({ [name]: data }));
+        // }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setIsFetching(false);
+      }
+      return data;
+    },
+    [asyncData, callback, data, dispatch, getData, name]
+  );
 
   useEffect(() => {
     async function get() {
@@ -115,7 +134,7 @@ const useData = <T,>({
     }
   }, [callback, channel, dispatch, fetchPolicy, name]);
 
-  return { fetchData, data, channel };
+  return { fetchData, data, channel, isFetching };
 };
 
 export default useData;

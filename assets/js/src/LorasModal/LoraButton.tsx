@@ -82,12 +82,12 @@ export const LoraButton = ({
     <>
       <div
         key={name}
-        className={`relative h-full flex flex-col items-start gap-5 p-4 text-sm text-wrap select-none rounded bg-neutral-800/70 border border-neutral-800 w-full overflow-hidden place-items-center ease-in-out duration-300 transition-all  ${active ? "cursor-auto" : !hasActiveLora ? "hover:cursor-pointer hover:border-neutral-600 " : ""}`}
+        className={`relative h-full flex flex-col items-start gap-5 p-4 text-sm text-wrap select-none rounded-sm bg-neutral-800/70 border border-neutral-800 w-full overflow-hidden place-items-center ease-in-out duration-300 transition-all  ${active ? "cursor-auto" : !hasActiveLora ? "hover:cursor-pointer hover:border-neutral-600 " : ""}`}
         onClick={onClick}
         disabled={isDisabled}
       >
         <div
-          className={`flex flex-col gap-1 z-[3] text-lg font-semibold shrink-0 text-white text-shadow-sm shadow-black text-start max-w-[85%] break-words text-wrap overflow-hidden ${active ? "!select-text  z-[10]" : ""}`}
+          className={`flex flex-col gap-1 z-3 text-lg font-semibold shrink-0 text-white text-shadow-sm shadow-black text-start max-w-[85%] break-words text-wrap overflow-hidden ${active ? "select-text!  z-10" : ""}`}
         >
           <span>{alias}</span>
 
@@ -98,7 +98,7 @@ export const LoraButton = ({
           </span>
         </div>
         <div
-          className={`z-[3] absolute right-0 top-0 ${
+          className={`z-3 absolute right-0 top-0 ${
             isDisabled
               ? "bg-neutral-900/40"
               : isPony
@@ -124,7 +124,7 @@ export const LoraButton = ({
         </div>
         <>
           {!active && storedMetadata?.images?.[0] && (
-            <div className="absolute h-full w-full pointer-events-none bg-gradient-to-b from-black/80 to-transparent to-70% z-[2] top-0 left-0" />
+            <div className="absolute h-full w-full pointer-events-none bg-linear-to-b from-black/80 to-transparent to-70% z-2 top-0 left-0" />
           )}
           <AnimatePresence>
             <>
@@ -137,7 +137,7 @@ export const LoraButton = ({
                     // style={{
                     //   backgroundImage: `url(${storedMetadata?.images?.[0].url}`,
                     // }}
-                    className={`absolute z-[1] top-0 left-0 size-full bg-black/80 rounded overflow-hidden ${storedMetadata?.images?.[0].nsfwLevel > 2 ? "blur-md" : ""}`}
+                    className={`absolute z-1 top-0 left-0 size-full bg-black/80 rounded-sm overflow-hidden ${storedMetadata?.images?.[0].nsfwLevel > 2 ? "blur-md" : ""}`}
                   >
                     <img
                       className="object-cover bg-no-repeat size-full object-center"
@@ -151,12 +151,12 @@ export const LoraButton = ({
                   //   initial={{ opacity: 0 }}
                   //   exit={{ opacity: 0 }}
                   //   animate={{ opacity: 1 }}
-                  //   className="absolute z-[1] top-0 left-0 size-full bg-black/80 object-cover rounded"
+                  //   className="absolute z-1 top-0 left-0 size-full bg-black/80 object-cover rounded-sm"
                   // >
                   //   {/* <BlurHashCanvas hash={storedMetadata?.images?.[0].hash} /> */}
                   // </motion.div>
                   <motion.video
-                    className="absolute z-[1] top-0 left-0 size-full object-cover rounded"
+                    className="absolute z-1 top-0 left-0 size-full object-cover rounded-sm"
                     src={storedMetadata?.images?.[0].url}
                     autoPlay
                     loop
@@ -165,7 +165,7 @@ export const LoraButton = ({
                 ))}
 
               <Button
-                className={`absolute ${active ? "bottom-4 end-8" : "bottom-2 end-2"} z-10 ${isLoraSelected ? "!bg-danger/90 hover:!bg-red-500/90" : "!bg-green-600/90 hover:!bg-green-500/90"} hover:!text-white shadow-md shadow-black/20 pointer-events-auto backdrop-blur-md`}
+                className={`absolute ${active ? "bottom-4 end-8" : "bottom-2 end-2"} z-10 ${isLoraSelected ? "bg-danger/90! hover:bg-red-500/90!" : "bg-green-600/90! hover:bg-green-500/90!"} hover:text-white! shadow-md shadow-black/20 pointer-events-auto backdrop-blur-md`}
                 variant="clear"
                 onClick={handleAddOrRemove}
                 title={isLoraSelected ? "Remove Lora" : "Use Lora"}

@@ -73,15 +73,17 @@ const RegionalPromptsFields = () => {
         rules={{
           onChange: (event) => {
             const value = event.target.value;
-            value && setValue("isMultidiffusionEnabled", false);
-            value && setValue("isUltimateUpscaleEnabled", false);
+            if (value) {
+              setValue("isMultidiffusionEnabled", false);
+              setValue("isUltimateUpscaleEnabled", false);
+            }
             dispatch(setIsRegionalPromptEnabled(value));
           },
         }}
         render={({ field }) => (
           <ExpandCollapseCheckbox label="Regional Prompts" {...field}>
             <>
-              <div className="p-2 py-5 flex flex-col gap-5 bg-neutral-100/5 rounded-md">
+              <div className="p-2 py-5 flex flex-col gap-5 bg-neutral-100/5 rounded-sm border border-neutral-800/70">
                 <Controller
                   name="globalPromptWeight"
                   control={control}
@@ -220,8 +222,9 @@ const PromptRegion = ({
       <fieldset
         className="flex justify-between w-full cursor-pointer gap-4 sm:flex-col lg:flex-row"
         onClick={() => {
-          isRegionalPromptEnabled &&
+          if (isRegionalPromptEnabled) {
             dispatch(setActiveLayer(`regionMask${id ?? ""}`));
+          }
         }}
       >
         <div className="flex gap-3 place-items-center sm:flex-col 2xl:flex-row sm:items-start">
@@ -234,20 +237,20 @@ const PromptRegion = ({
             <Button
               variant="clear"
               className="p-1"
-              onClick={handleMoveDownClick}
-              title="Move Down"
-              disabled={index === regionsCount - 1}
-            >
-              <ArrowDownIcon />
-            </Button>
-            <Button
-              variant="clear"
-              className="p-1"
               onClick={handleMoveUpClick}
               title="Move Up"
               disabled={index === 0}
             >
               <ArrowUpIcon />
+            </Button>
+            <Button
+              variant="clear"
+              className="p-1"
+              onClick={handleMoveDownClick}
+              title="Move Down"
+              disabled={index === regionsCount - 1}
+            >
+              <ArrowDownIcon />
             </Button>
             <Button
               variant="clear"

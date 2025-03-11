@@ -67,6 +67,15 @@ defmodule ExSd.ComfyGenerationServer do
   @impl true
   def handle_info(
         :generate,
+        %{flow: []} =
+          state
+      ) do
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(
+        :generate,
         %{flow: flow, current_flow_item: current_flow_item, client_id: client_id, attrs: attrs} =
           state
       ) do

@@ -1,4 +1,4 @@
-import React, {
+import {
   KeyboardEvent,
   Ref,
   useCallback,
@@ -12,7 +12,6 @@ import { KonvaEventObject } from "konva/lib/Node";
 import { Stage } from "react-konva";
 import { Vector2d } from "konva/lib/types";
 import SelectionLayer from "../SelectionLayer";
-import ImageLayer from "../ImageLayer";
 import { Stage as StageType } from "konva/lib/Stage";
 import MaskLayer from "../MaskLayer";
 import { BrushStroke } from "../MaskLayer-types";
@@ -31,6 +30,8 @@ import {
   setTool,
   updateStagePosition,
   setIsbrushPreviewVisible,
+  Tool,
+  selectBrushHardness,
 } from "../state/canvasSlice";
 import {
   selectControlnetLines,
@@ -56,9 +57,16 @@ import {
 } from "../state/layersSlice";
 // import { setMaskLines as setStateMaskLines } from "./state/canvasSlice";
 
-import { roundToClosestMultipleOf8, scalePoint } from "../utils";
+import {
+  debugImage,
+  extractSketchLayerId,
+  hexToRgba,
+  isSketchLayer,
+  roundToClosestMultipleOf8,
+  saveImage,
+  scalePoint,
+} from "../utils";
 import useGlobalKeydown from "../hooks/useGlobalKeydown";
-import { selectGenerationParams } from "../state/generationParamsSlice";
 import {
   DEFAULT_HEIGHT_VALUE,
   DEFAULT_WIDTH_VALUE,
@@ -68,13 +76,16 @@ import useHistoryState from "../hooks/useHistoryState";
 import useSocket from "../hooks/useSocket";
 import useCustomEventsListener from "./hooks/useCustomEventsListener";
 import { CanvasDimensions } from "./Canvas.d";
-import { Rect } from "konva/lib/shapes/Rect";
 import { addHistoryItem } from "../state/historySlice";
 import useLines from "./hooks/useLines";
+import Konva from "konva";
+import useLayerState from "../hooks/useLayerState";
 
 const SCALE_BY = 1.1;
-// const BRUSH_SIZE = 40;
 const MIN_SCALE = 0.11;
+
+let lastX = 0;
+let lastY = 0;
 
 export default function Canvas() {
   const { broadcastSelectionBoxUpdate } = useSocket();
@@ -83,12 +94,8 @@ export default function Canvas() {
     selectionBoxRef,
     canvasContainerRef: ref,
   } = useContext(RefsContext);
-  // const stageRef = useRef<StageType | null>(null);
-  const { imageLayerRef } = useContext(RefsContext);
   const [dimensions, setDimensions] = useState<CanvasDimensions>();
   const [, setScale] = useState<Vector2d>({ x: 1.0, y: 1.0 });
-  // const [position, setPosition] = useState<Vector2d>({ x: 0, y: 0 });
-  // const [maskLines, setMaskLines] = useState<BrushStroke[]>([]);
   const {
     setHistoryStateItem: setMaskState,
     clearHistoryStateItem: clearMaskLines,
@@ -97,14 +104,23 @@ export default function Canvas() {
   } = useHistoryState<BrushStroke>({ topic: "canvas/mask" });
 
   const {
-    setHistoryStateItem: setSketchState,
-    clearHistoryStateItem: clearSketchLines,
-    dispatchHistoryEvent: _dispatchSketchHistoryEvent,
-    state: sketchLines,
-    setState: setSketchLines,
-  } = useHistoryState<BrushStroke>({ topic: "canvas/sketch" });
+    addLayerImage,
+    setLayerImage,
+    clearLayer: clearSketchLayer,
+  } = useLayerState({
+    stageRef: stageRef,
+  });
 
   const dispatch = useAppDispatch();
+
+  const tempLines = useRef<BrushStroke[]>([]);
+  const setTempLines = (input) => {
+    if (typeof input == "function") {
+      tempLines.current = input(tempLines.current);
+    } else {
+      tempLines.current = input;
+    }
+  };
 
   const [tempControlnetLines, dispatchTempControlnetLines] = useLines();
   const controlnetLines = useAppSelector(selectControlnetLines);
@@ -141,6 +157,8 @@ export default function Canvas() {
   const isDrawing = useRef(false);
   const brushPreviewRef = useRef<BrushPreviewNode>();
   const brushSize = useAppSelector(selectBrushSize);
+  const brushHardness = useAppSelector(selectBrushHardness);
+
   // const [color, setColor] = useState<string>("");
   const brushColor = useAppSelector(selectBrushColor);
   const mode = useAppSelector(selectMode);
@@ -322,8 +340,11 @@ export default function Canvas() {
         // const layerId = layer.replace("regionMask", "");
         setRegionMaskLayerLines([], layer, true, true);
       }
-      if (layer === "sketch" && sketchLines.length > 0) {
-        clearSketchLines("Clear sketch");
+      if (isSketchLayer(layer)) {
+        const extractedLayerId = extractSketchLayerId(layer);
+        if (extractedLayerId) {
+          clearSketchLayer(extractedLayerId);
+        }
       }
       if (layer.startsWith("controlnet")) {
         // const layerId = layer.replace("controlnet", "");
@@ -333,15 +354,96 @@ export default function Canvas() {
     [
       activeLayer,
       maskLines.length,
-      sketchLines.length,
       clearMaskLines,
       setRegionMaskLayerLines,
-      clearSketchLines,
+      clearSketchLayer,
       setControlnetLayerLines,
     ]
   );
 
-  useCustomEventsListener({ clearLines });
+  const fillActiveLayer = useCallback(() => {
+    const layer = stageRef?.current?.getChildren(
+      (child) =>
+        child instanceof Konva.Layer &&
+        child.attrs.id === extractSketchLayerId(activeLayer)
+    )?.[0];
+    if (layer) {
+      fill({
+        layer,
+        setLayerImage,
+        color: brushColor,
+        dimensions: selectionBoxRef!.current!.getSize(),
+        position: selectionBoxRef!.current!.getPosition(),
+      });
+    }
+  }, [activeLayer, brushColor, selectionBoxRef, setLayerImage, stageRef]);
+
+  const zoomCanvas = useCallback(
+    ({
+      stage,
+      direction = 1,
+      zoomPercentage,
+      scaleOrigin = "pointer",
+    }: {
+      stage: StageType;
+      direction?: number;
+      zoomPercentage?: number;
+      scaleOrigin?: "pointer" | "canvasCenter";
+    }) => {
+      if ((stage?.scaleX() ?? 1) > MIN_SCALE || direction > 0) {
+        const oldScale = stage?.scale() ?? { x: 1, y: 1 };
+        const stagePosition = stage?.getPosition() ?? { x: 0, y: 0 };
+
+        const scaleComponent = zoomPercentage
+          ? zoomPercentage / 100
+          : Math.min(
+              10,
+              direction > 0 ? oldScale.x * SCALE_BY : oldScale.x / SCALE_BY
+            );
+        const newScale = { x: scaleComponent, y: scaleComponent };
+
+        dispatch(updateStageScale(newScale.x));
+
+        stage?.scale(newScale);
+
+        const oldPos = stage.getPosition();
+
+        setScale(newScale);
+
+        let newPos: Vector2d = { x: 0, y: 0 };
+
+        if (scaleOrigin === "pointer") {
+          const pointer = stage?.getPointerPosition() ?? { x: 0, y: 0 };
+          const mousePointTo = scalePoint(pointer, oldScale, stagePosition);
+          newPos = {
+            x: pointer.x - mousePointTo.x * newScale.x,
+            y: pointer.y - mousePointTo.y * newScale.y,
+          };
+        } else {
+          const stageCenterX = stage.width() / 2;
+          const stageCenterY = stage.height() / 2;
+          newPos = {
+            x: oldPos.x + stageCenterX * (oldScale.x - newScale.x),
+            y: oldPos.y + stageCenterY * (oldScale.y - newScale.y),
+          };
+        }
+
+        stage?.position(newPos);
+      }
+    },
+    [dispatch]
+  );
+
+  const updateZoom = (zoomPercentage: number) => {
+    if (stageRef?.current)
+      zoomCanvas({
+        stage: stageRef.current,
+        zoomPercentage,
+        scaleOrigin: "canvasCenter",
+      });
+  };
+
+  useCustomEventsListener({ clearLines, fillActiveLayer, updateZoom });
 
   useLayoutEffect(() => {
     if (ref?.current) {
@@ -365,44 +467,6 @@ export default function Canvas() {
       });
     }
   }, [dispatch, broadcastSelectionBoxUpdate, ref]);
-
-  const zoomCanvas = useCallback(
-    (stage: StageType, direction: number) => {
-      if ((stage?.scaleX() ?? 1) > MIN_SCALE || direction > 0) {
-        const oldScale = stage?.scale() ?? { x: 1, y: 1 };
-        const pointer = stage?.getPointerPosition() ?? { x: 0, y: 0 };
-        const stagePosition = stage?.getPosition() ?? { x: 0, y: 0 };
-        const mousePointTo = scalePoint(pointer, oldScale, stagePosition);
-
-        const scaleComponent = Math.min(
-          10,
-          direction > 0 ? oldScale.x * SCALE_BY : oldScale.x / SCALE_BY
-        );
-        const newScale = { x: scaleComponent, y: scaleComponent };
-
-        dispatch(updateStageScale(newScale.x));
-
-        stage?.scale(newScale);
-        // newScale = Math.round(newScale * 100) / 100;
-        // console.log({ newScale });
-
-        setScale(newScale);
-
-        // brushPreviewRef?.current?.radius(brushSize / 2 / newScale.x);
-        // console.log(brushSize, newScale);
-        // dispatch(updateBrushSize(brushSize / newScale.x));
-
-        //TODO: update brush size in state
-        const newPos = {
-          x: pointer.x - mousePointTo.x * newScale.x,
-          y: pointer.y - mousePointTo.y * newScale.y,
-        };
-        // setPosition(newPos);
-        stage?.position(newPos);
-      }
-    },
-    [dispatch]
-  );
 
   const handleWindowResize = useCallback(() => {
     if (ref?.current) {
@@ -435,54 +499,62 @@ export default function Canvas() {
       // TODO: control brush size instead
       direction = -direction;
     }
-    stage && zoomCanvas(stage, direction);
+    if (stage) {
+      zoomCanvas({ stage, direction });
+    }
   };
 
   const handleKeydown = useCallback(
     async (e: KeyboardEvent) => {
       if (e.key === "1") {
-        const stage = stageRef?.current;
-        const oldScale = stage?.scale() ?? { x: 1, y: 1 };
-        const stagePosition = stage?.getPosition() ?? { x: 0, y: 0 };
+        const stage = stageRef?.current as Konva.Stage;
 
-        stage?.scale({ x: 1, y: 1 });
-        const pointer = stage?.getPointerPosition() ?? { x: 0, y: 0 };
-        const mousePointTo = scalePoint(pointer, oldScale, stagePosition);
-
-        const newPos = {
-          x: pointer.x - mousePointTo.x,
-          y: pointer.y - mousePointTo.y,
-        };
-        stageRef?.current?.position(newPos); //{ x: 0, y: 0 });
-        dispatch(updateStagePosition(newPos));
-        dispatch(updateStageScale(1));
+        zoomCanvas({ stage, zoomPercentage: 100, scaleOrigin: "canvasCenter" });
       }
       if (e.key === "+") {
         const stage = stageRef?.current;
         const direction = 1;
 
-        stage && zoomCanvas(stage, direction);
+        if (stage)
+          zoomCanvas({ stage, direction, scaleOrigin: "canvasCenter" });
       }
       if (e.key === "-") {
         const stage = stageRef?.current;
         const direction = -1;
 
-        stage && zoomCanvas(stage, direction);
+        if (stage)
+          zoomCanvas({ stage, direction, scaleOrigin: "canvasCenter" });
       }
       if (e.key === "[") {
-        if (brushSize > 5) dispatch(decrementBrushSize(e.ctrlKey ? 0.1 : 1));
+        if (brushSize > 10) dispatch(decrementBrushSize(e.ctrlKey ? 0.2 : 2));
       }
       if (e.key === "{") {
-        if (brushSize > 5) dispatch(decrementBrushSize(10));
+        if (brushSize > 10) dispatch(decrementBrushSize(10));
       }
       if (e.key === "]") {
-        dispatch(incrementBrushSize(e.ctrlKey ? 0.1 : 1));
+        dispatch(incrementBrushSize(e.ctrlKey ? 0.2 : 2));
       }
       if (e.key === "}") {
         dispatch(incrementBrushSize(10));
       }
       if (e.key.toLocaleLowerCase() === "c" && !e.ctrlKey) {
         clearLines();
+      }
+      if (e.key.toLocaleLowerCase() === "f") {
+        const layer = stageRef?.current?.getChildren(
+          (child) =>
+            child instanceof Konva.Layer &&
+            child.attrs.id === extractSketchLayerId(activeLayer)
+        )?.[0];
+        if (layer) {
+          fill({
+            layer,
+            setLayerImage,
+            color: brushColor,
+            dimensions: selectionBoxRef!.current!.getSize(),
+            position: selectionBoxRef!.current!.getPosition(),
+          });
+        }
       }
       if (e.key.toLocaleLowerCase() === "e") {
         if (tool !== "eraser") dispatch(setTool("eraser"));
@@ -499,7 +571,7 @@ export default function Canvas() {
       }
       if (e.key.toLocaleLowerCase() === "s" && e.ctrlKey) {
         e.preventDefault();
-        await saveImage(stageRef, imageLayerRef, selectionBoxRef);
+        await saveImage(stageRef!, selectionBoxRef);
       } else if (e.key.toLocaleLowerCase() === "s") {
         if (mode === "selection") dispatch(setMode("paint"));
         else dispatch(setMode("selection"));
@@ -507,7 +579,7 @@ export default function Canvas() {
 
       if (e.key.toLocaleLowerCase() === "m") {
         if (activeLayer === "mask") {
-          dispatch(setActiveLayer("sketch"));
+          // dispatch(setActiveLayer("sketch"));
         } else {
           dispatch(setActiveLayer("mask"));
         }
@@ -519,11 +591,12 @@ export default function Canvas() {
       zoomCanvas,
       brushSize,
       clearLines,
-      tool,
-      selectionBoxRef,
-      imageLayerRef,
-      mode,
       activeLayer,
+      setLayerImage,
+      brushColor,
+      selectionBoxRef,
+      tool,
+      mode,
     ]
   );
   useGlobalKeydown({ handleKeydown });
@@ -548,19 +621,50 @@ export default function Canvas() {
             ? setMaskLines
             : activeLayer.startsWith("regionMask")
               ? setRegionMaskLayerLines
-              : activeLayer === "sketch"
-                ? setSketchLines
+              : isSketchLayer(activeLayer)
+                ? setTempLines
                 : setControlnetLayerLines;
 
-        setFunc((lines) => [
-          ...lines,
-          {
-            tool,
-            points: [pos.x, pos.y],
+        if (isSketchLayer(activeLayer)) {
+          const pos: Vector2d = scalePoint(
+            stage?.getPointerPosition() ?? { x: 0, y: 0 },
+            stage?.scale() ?? { x: 1, y: 1 },
+            stage?.position() ?? { x: 0, y: 0 }
+          );
+          lastX = pos.x;
+          lastY = pos.y;
+
+          const layer = stageRef?.current?.getChildren(
+            (child) =>
+              child instanceof Konva.Layer &&
+              child.attrs.id === extractSketchLayerId(activeLayer)
+          )?.[0];
+
+          const linesGroup = layer?.getChildren(
+            (item) => item instanceof Konva.Group && item.attrs.id == "lines"
+          )[0] as Konva.Group;
+
+          drawStamp({
+            parent: linesGroup,
+            x: lastX,
+            y: lastY,
+            brushSize,
+            brushHardness,
             brushColor,
-            brushSize, //: brushSize / stage.scaleX(),
-          },
-        ]);
+            tool,
+          });
+        } else {
+          setFunc((lines) => [
+            ...lines,
+            {
+              tool,
+              points: [pos.x, pos.y],
+              brushColor,
+              brushSize, //: brushSize / stage.scaleX(),
+            },
+          ]);
+        }
+        // }
       }
       // if (e.evt.buttons === 1 && mode === "selection") {
       //   selectionAnchorId.current = e.target.attrs.id;
@@ -579,11 +683,12 @@ export default function Canvas() {
       activeLayer,
       setMaskLines,
       setRegionMaskLayerLines,
-      setSketchLines,
       setControlnetLayerLines,
-      tool,
-      brushColor,
+      stageRef,
       brushSize,
+      brushHardness,
+      brushColor,
+      tool,
     ]
   );
 
@@ -629,13 +734,14 @@ export default function Canvas() {
               ? maskLines
               : activeLayer.startsWith("regionMask")
                 ? getRegionMaskLayerLines()
-                : activeLayer === "sketch"
-                  ? sketchLines
+                : isSketchLayer(activeLayer)
+                  ? tempLines.current
                   : getControlnetLayerLines();
-          const lastLine = linesArr[linesArr.length - 1];
+
+          const lastLine = linesArr?.[linesArr.length - 1];
           // add point
           // lastLine.points = lastLine.points.concat([point.x, point.y]);
-          const newLastLine = {
+          const newLastLine = lastLine?.points && {
             ...lastLine,
             points: lastLine.points.concat([point.x, point.y]),
           };
@@ -654,7 +760,46 @@ export default function Canvas() {
           if (activeLayer.startsWith("regionMask"))
             setRegionMaskLayerLines(newLinesArr.concat());
 
-          if (activeLayer === "sketch") setSketchLines(newLinesArr.concat());
+          if (isSketchLayer(activeLayer)) {
+            const layer = stageRef?.current?.getChildren(
+              (child) =>
+                child instanceof Konva.Layer &&
+                child.attrs.id === extractSketchLayerId(activeLayer)
+            )?.[0];
+
+            const linesGroup = layer?.getChildren(
+              (item) => item instanceof Konva.Group && item.attrs.id == "lines"
+            )[0] as Konva.Group;
+
+            const spacing = 10;
+
+            const dx = point.x - lastX;
+            const dy = point.y - lastY;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist === 0) return;
+
+            const steps = Math.floor(dist / spacing);
+            const dirX = dx / dist;
+            const dirY = dy / dist;
+
+            for (let i = 1; i <= steps; i++) {
+              const currentX = lastX + dirX * i * spacing;
+              const currentY = lastY + dirY * i * spacing;
+              drawStamp({
+                x: currentX,
+                y: currentY,
+                parent: linesGroup,
+                brushColor,
+                brushHardness,
+                brushSize,
+                tool,
+              });
+            }
+
+            lastX += dirX * steps * spacing;
+            lastY += dirY * steps * spacing;
+          }
 
           if (activeLayer.startsWith("controlnet"))
             setControlnetLayerLines(newLinesArr.concat());
@@ -690,18 +835,21 @@ export default function Canvas() {
       activeLayer,
       maskLines,
       getRegionMaskLayerLines,
-      sketchLines,
       getControlnetLayerLines,
       setRegionMaskLayerLines,
-      setSketchLines,
       setControlnetLayerLines,
       setMaskLines,
+      stageRef,
+      brushColor,
+      brushHardness,
+      brushSize,
+      tool,
       dispatch,
     ]
   );
 
   const handleMouseUp = useCallback(
-    (_e: KonvaEventObject<MouseEvent>) => {
+    async (_e: KonvaEventObject<MouseEvent>) => {
       if (isDrawing.current) {
         // console.log(e);
         isDrawing.current = false;
@@ -711,8 +859,8 @@ export default function Canvas() {
             ? maskLines
             : activeLayer.startsWith("regionMask")
               ? getRegionMaskLayerLines()
-              : activeLayer === "sketch"
-                ? sketchLines
+              : isSketchLayer(activeLayer)
+                ? tempLines.current
                 : getControlnetLayerLines();
         const lastLine = linesArr[linesArr.length - 1];
         // console.log(lastLine.points, lastLine.points.length);
@@ -741,9 +889,6 @@ export default function Canvas() {
           if (activeLayer.startsWith("regionMask"))
             setRegionMaskLayerLines(newLinesArr, undefined, undefined, true);
 
-          if (activeLayer === "sketch") {
-            setSketchState(newLinesArr, "Add sketch", true);
-          }
           if (activeLayer.startsWith("controlnet"))
             setControlnetLayerLines(newLinesArr, undefined, undefined, true);
           // layerId?: string,
@@ -757,14 +902,110 @@ export default function Canvas() {
 
           if (activeLayer.startsWith("regionMask"))
             setRegionMaskLayerLines(linesArr, undefined, undefined, true);
-
-          if (activeLayer === "sketch") {
-            setSketchState(linesArr, "Add sketch", true);
-          }
-          // if (activeLayer === "sketch") setSketchLines(newLinesArr.concat());
-          if (activeLayer.startsWith("controlnet"))
-            setControlnetLayerLines(linesArr, undefined, undefined, true);
         }
+        if (isSketchLayer(activeLayer)) {
+          const layer = stageRef?.current?.getChildren(
+            (child) =>
+              child instanceof Konva.Layer &&
+              child.attrs.id === extractSketchLayerId(activeLayer)
+          )?.[0] as Konva.Layer;
+          // drawLines({ layer, lines: linesArr });
+
+          // setSketchLines(newLinesArr.concat());
+          // clearSketchLines("Clear sketch");
+          // const oldStageScale = stageRef?.current?.scale();
+
+          const linesGroup = layer?.getChildren(
+            (item) => item instanceof Konva.Group && item.attrs.id == "lines"
+          )[0] as Konva.Group;
+
+          const strokes = linesGroup.children as Konva.Line[];
+
+          let minX = Infinity;
+          let minY = Infinity;
+          let maxX = -Infinity;
+          let maxY = -Infinity;
+          strokes.forEach((stroke) => {
+            if (stroke.globalCompositeOperation() !== "source-over") return;
+            const { x, y } = {
+              x: stroke.attrs.x,
+              y: stroke.attrs.y,
+            };
+            if (x - brushSize / 2 < minX) minX = x - brushSize / 2;
+            if (x + brushSize / 2 > maxX) maxX = x + brushSize / 2;
+            if (y - brushSize / 2 < minY) minY = y - brushSize / 2;
+            if (y + brushSize / 2 > maxY) maxY = y + brushSize / 2;
+          });
+
+          const stagePos = stageRef!.current!.position();
+
+          const clonedLayer = layer?.clone({
+            position: stagePos,
+            // scale: { x: 1, y: 1 },
+          });
+          const imageGroup = clonedLayer?.children?.find(
+            (item) => item.attrs.id == "sketch-image"
+          ) as Konva.Group | undefined;
+
+          const img = imageGroup?.children.find(
+            (item) => item instanceof Konva.Image
+          );
+          minX = Math.min(minX, img?.x() ?? Infinity);
+          maxX = Math.max(maxX, img ? img?.x() + img?.width() : -Infinity);
+          minY = Math.min(minY, img?.y() ?? Infinity);
+          maxY = Math.max(maxY, img ? img?.y() + img?.height() : -Infinity);
+
+          // if (minX % 1 || maxX % 1 || minY % 1 || maxY % 1)
+          //   console.warn(
+          //     "Decimal position, will cause location shifts on update!"
+          //   );
+          clonedLayer?.visible(true);
+          clonedLayer?.cache({ imageSmoothingEnabled: false });
+          // console.log(brushSize);
+          const layerDataUrl =
+            (await clonedLayer?.toDataURL({
+              x: minX + stagePos.x, //stagContainer.clientWidth / 2 - 512 / 2,
+              y: minY + stagePos.y,
+              width: Math.ceil(maxX - minX),
+              height: Math.ceil(maxY - minY),
+              imageSmoothingEnabled: false,
+              // pixelRatio: 1 / stageRef?.current.scaleX(),
+            })) ?? "";
+
+          // stageRef?.current?.scale(oldStageScale);
+          debugImage(layerDataUrl, "test");
+
+          // const imageObj = new Image();
+          // imageObj.onload = function () {
+          //   // const image = new Konva.Image({
+          //   //   x: minX,
+          //   //   y: minY,
+          //   //   image: imageObj,
+          //   //   // width: maxX - minX,
+          //   //   // height: maxY - minY,
+          //   // });
+          //   // imageGroup.destroyChildren();
+          //   // imageGroup.add(image);
+          //   // sketchLayerRef?.current.clearCache();
+          // };
+          // imageObj.src = maskDataUrl;
+
+          await setLayerImage({
+            dataUrl: layerDataUrl,
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY,
+            layerId: extractSketchLayerId(activeLayer),
+          });
+
+          setTempLines([]);
+          clonedLayer?.destroy();
+          clearLayerTempLines({ layer });
+        }
+
+        if (activeLayer.startsWith("controlnet"))
+          setControlnetLayerLines(linesArr, undefined, undefined, true);
       }
       // else {
       //   imageLayerRef?.current?.clearCache();
@@ -775,12 +1016,13 @@ export default function Canvas() {
       activeLayer,
       maskLines,
       getRegionMaskLayerLines,
-      sketchLines,
       getControlnetLayerLines,
-      setRegionMaskLayerLines,
       setControlnetLayerLines,
+      setRegionMaskLayerLines,
       setMaskState,
-      setSketchState,
+      stageRef,
+      setLayerImage,
+      brushSize,
     ]
   );
   const handleMouseLeave = () => {
@@ -789,6 +1031,7 @@ export default function Canvas() {
   const handleMouseEnter = () => {
     dispatch(setIsbrushPreviewVisible(true));
   };
+
   return (
     <div ref={ref} className="w-full h-full">
       {dimensions && (
@@ -806,8 +1049,8 @@ export default function Canvas() {
           // y={position.y}
           ref={stageRef}
         >
-          <ImageLayer />
-          <SketchLayer dimensions={dimensions} lines={sketchLines} />
+          <SketchLayer addLayerImage={addLayerImage} />
+
           <ControlnetLayer
             dimensions={dimensions}
             lines={controlnetLines}
@@ -843,30 +1086,130 @@ export default function Canvas() {
     </div>
   );
 }
-export async function saveImage(
-  stageRef: React.RefObject<StageType> | null,
-  imageLayerRef,
-  selectionBoxRef: React.RefObject<Rect> | null
-) {
-  const stage = stageRef?.current;
-  const selectionBox = selectionBoxRef?.current;
 
-  const stageOriginalScale = stage?.scale();
-  stage?.scale({ x: 1, y: 1 });
-
-  const dataUrl = await imageLayerRef?.current?.toDataURL({
-    x: selectionBox?.getAbsolutePosition().x,
-    y: selectionBox?.getAbsolutePosition().y,
-    width: selectionBox?.width(),
-    height: selectionBox?.height(),
-    // imageSmoothingEnabled: false,
-    pixelRatio: 1,
+const fill = async ({
+  layer,
+  setLayerImage,
+  color,
+  dimensions,
+  position,
+}: {
+  layer: Konva.Layer;
+  setLayerImage: ReturnType<typeof useLayerState>["setLayerImage"];
+  color: string;
+  dimensions: CanvasDimensions;
+  position: Vector2d;
+}) => {
+  const rect = new Konva.Rect({
+    fill: color || "#df4b26",
+    x: position.x,
+    y: position.y,
+    width: dimensions.width,
+    height: dimensions.height,
   });
-  stage?.scale(stageOriginalScale);
-  const link = document.createElement("a");
-  link.href = dataUrl ?? "";
-  link.download = `image.png`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  layer.add(rect);
+
+  let minX = position.x;
+  let minY = position.y;
+  let maxX = position.x + dimensions.width;
+  let maxY = position.y + dimensions.height;
+
+  const stagePos = layer.getStage().position();
+
+  const clonedLayer = layer.clone({
+    position: stagePos,
+    // scale: { x: 1, y: 1 },
+  });
+
+  const imageGroup = layer?.children.find(
+    (item) => item.attrs.id == "sketch-image"
+  ) as Konva.Group;
+
+  const img = imageGroup.children.find((item) => item instanceof Konva.Image);
+
+  minX = Math.min(minX, img?.x() ?? Infinity);
+  maxX = Math.max(maxX, img ? img?.x() + img?.width() : -Infinity);
+  minY = Math.min(minY, img?.y() ?? Infinity);
+  maxY = Math.max(maxY, img ? img?.y() + img?.height() : -Infinity);
+
+  if (minX % 1 || maxX % 1 || minY % 1 || maxY % 1)
+    console.warn("Decimal position, will cause location shifts on update!");
+  clonedLayer.visible(true);
+  clonedLayer.cache({ imageSmoothingEnabled: false });
+
+  const maskDataUrl =
+    (await clonedLayer.toDataURL({
+      x: minX + stagePos.x, //stagContainer.clientWidth / 2 - 512 / 2,
+      y: minY + stagePos.y,
+      width: maxX - minX,
+      height: maxY - minY,
+      imageSmoothingEnabled: false,
+      // pixelRatio: 1 / stageRef?.current.scaleX(),
+    })) ?? "";
+  // stageRef?.current?.scale(oldStageScale);
+
+  debugImage(maskDataUrl, "test");
+
+  const imageObj = new Image();
+  imageObj.onload = function () {};
+  imageObj.src = maskDataUrl;
+  await setLayerImage({
+    layerId: layer.attrs.id,
+    dataUrl: maskDataUrl,
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  });
+  clonedLayer?.destroy();
+  rect.destroy();
+};
+
+const clearLayerTempLines = ({ layer }: { layer: Konva.Layer }) => {
+  const linesGroup = layer?.getChildren(
+    (item) => item instanceof Konva.Group && item.attrs.id == "lines"
+  )[0] as Konva.Group;
+  if (linesGroup) {
+    linesGroup.clearCache();
+    linesGroup.destroyChildren();
+  }
+};
+
+function drawStamp({
+  parent,
+  x,
+  y,
+  brushSize,
+  brushColor,
+  brushHardness,
+  tool,
+}: {
+  parent: Konva.Layer | Konva.Group;
+  x: number;
+  y: number;
+  brushSize: number;
+  brushColor: string;
+  brushHardness: number;
+  tool: Tool;
+}) {
+  parent.add(
+    new Konva.Circle({
+      x: Math.floor(x),
+      y: Math.floor(y),
+      width: brushSize,
+      height: brushSize,
+      globalCompositeOperation:
+        tool === "eraser" ? "destination-out" : "source-over",
+      fillRadialGradientStartRadius: 0,
+      fillRadialGradientEndRadius: brushSize / 2,
+      fillRadialGradientColorStops: [
+        0,
+        hexToRgba(brushColor),
+        brushHardness,
+        hexToRgba(brushColor),
+        1,
+        hexToRgba(brushColor, 0),
+      ],
+    })
+  );
 }

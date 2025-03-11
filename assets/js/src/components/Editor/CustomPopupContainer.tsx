@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import { FC } from "react";
 import { FloatingWrapper } from "@remirror/react";
 import { useExtras } from "./useExtras";
 import ScrollArea from "../ScrollArea";
@@ -23,31 +23,32 @@ export const CustomPopupComponent: FC = () => {
     <FloatingWrapper
       positioner="cursor"
       enabled={enabled}
-      placement="auto-end"
+      placement="bottom-end"
       renderOutsideEditor
       blurOnInactive={false}
       containerClass="z-20"
     >
-      <ScrollArea className="bg-neutral-900/95 border border-neutral-700 backdrop-blur-sm rounded text-sm shadow-md shadow-black">
-        <div {...getMenuProps()} className={"max-h-96"}>
+      <ScrollArea className="bg-neutral-900/90 border border-neutral-700 backdrop-blur-xs rounded-sm text-sm shadow-md shadow-black">
+        <ul {...getMenuProps()} className={"max-h-96 max-w-72"}>
           {enabled &&
             (state?.list ?? emptyList).map((extra, index) => {
               const isHighlighted = indexIsSelected(index);
               const isHovered = indexIsHovered(index);
-
+              const text =
+                typeof extra === "object" ? extra.alias || extra.name : extra;
               return (
-                <div
+                <li
                   key={typeof extra === "object" ? extra.path : extra}
-                  className={
-                    "p-1 px-2 data-[state=checked]:text-primary select-none " +
-                    (isHighlighted || isHovered
+                  className={`p-1 px-2 data-[state=checked]:text-primary overflow-ellipsis overflow-hidden text-nowrap select-none  ${
+                    isHighlighted || isHovered
                       ? "text-neutral-900 bg-neutral-200 "
-                      : "")
-                  }
+                      : ""
+                  }`}
                   {...getItemProps({
                     item: extra,
                     index,
                   })}
+                  title={text}
                 >
                   <span
                     className={
@@ -56,14 +57,12 @@ export const CustomPopupComponent: FC = () => {
                         : "text-white"
                     }
                   >
-                    {typeof extra === "object"
-                      ? extra.alias || extra.name
-                      : extra}
+                    {text}
                   </span>
-                </div>
+                </li>
               );
             })}
-        </div>
+        </ul>
       </ScrollArea>
     </FloatingWrapper>
   );

@@ -21,7 +21,7 @@ const Input = forwardRef<HTMLInputElement, Props>(
       >
         <input
           className={twMerge(
-            `rounded p-1 px-2 w-full text-neutral-200 disabled:text-neutral-700 bg-neutral-800/80 enabled:hover:bg-neutral-700/80 border border-neutral-700 transition-colors duration-300 text-sm enabled:placeholder:text-neutral-400`,
+            `rounded-sm p-1 px-2 w-full text-neutral-200 disabled:text-neutral-700 bg-neutral-800/80 enabled:hover:bg-neutral-700/80 border border-neutral-700 transition-colors duration-300 text-sm enabled:placeholder:text-neutral-400`,
             className
           )}
           {...rest}
@@ -31,7 +31,7 @@ const Input = forwardRef<HTMLInputElement, Props>(
           <div className="absolute end-0 top-0 flex h-full place-items-center">
             <Button
               variant="clear"
-              className="rounded-full focus:outline-none enabled:text-neutral-400 enabled:hover:text-neutral-100"
+              className="rounded-full focus:outline-hidden enabled:text-neutral-400 enabled:hover:text-neutral-100"
               tabIndex={-1}
               onClick={handleClearClick}
               disabled={rest.disabled}

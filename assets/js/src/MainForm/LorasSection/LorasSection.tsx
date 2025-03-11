@@ -27,15 +27,15 @@ const LorasSection = () => {
     <div className="flex flex-col gap-2">
       <div className="flex place-items-center justify-between">
         <Label>Loras</Label>
-        <Button onClick={showLorasModal}>
+        <Button onClick={showLorasModal} className="size-7 p-1.5">
           <PlusIcon />
         </Button>
       </div>
-      <ScrollArea className="bg-neutral-900/80 min-h-14 rounded border border-neutral-800/70 ">
-        <div className="flex gap-3 flex-col px-5">
+      <ScrollArea className="bg-neutral-900/80 min-h-14 rounded-sm border border-neutral-800/70 ">
+        <div className="flex gap-3 flex-col px-2 pe-6">
           <div className="max-h-[26rem]">
             {!lorasWithState?.length && (
-              <div className="text-sm pt-4">
+              <div className="text-xs pt-4">
                 <Link onClick={showLorasModal}>Add Lora</Link>
               </div>
             )}

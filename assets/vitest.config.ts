@@ -1,6 +1,7 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import svgr from "vite-plugin-svgr";
+import tailwindcss from "@tailwindcss/vite";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ command }: any) => {
@@ -24,10 +25,11 @@ export default defineConfig(({ command }: any) => {
       react({
         babel: {
           plugins: [
-            ["@babel/plugin-proposal-decorators", { version: "legacy" }],
+            ["@babel/plugin-proposal-decorators", { version: "2023-11" }],
           ],
         },
       }),
+      tailwindcss(),
     ],
     test: {
       environment: "jsdom", //"happy-dom", //"jsdom",

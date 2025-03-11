@@ -7,6 +7,7 @@ import "@testing-library/jest-dom";
 
 import { AppStore, RootState, setupStore } from "./store";
 import ThemeContext, { theme } from "./context/ThemeContext";
+
 // As a basic setup, import your same slice reducers
 
 // This type interface extends the default options for render from RTL, as well

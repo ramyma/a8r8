@@ -30,7 +30,7 @@ const Toggle = forwardRef(
     <RadixToggle.Root
       aria-label="Toggle italic"
       className={twMerge(
-        "flex size-[35px] items-center justify-center rounded text-base leading-4 p-0 data-[state=on]:text-primary border-none bg-transparent transition-colors",
+        "flex size-[35px] items-center justify-center rounded-xs text-base leading-4 p-0 data-[state=on]:text-primary border-none bg-transparent transition-colors",
         className
       )}
       pressed={pressed ?? value}

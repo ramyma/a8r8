@@ -100,7 +100,9 @@ const Notifications = () => {
       return () => {
         channel?.off("error", ref);
         channel?.off("message", messageRef);
-        timeout && clearTimeout(timeout);
+        if (timeout) {
+          clearTimeout(timeout);
+        }
       };
     }
   }, [addNotification, channel, handleCloseNotification]);
@@ -130,7 +132,7 @@ const Notifications = () => {
             }}
             transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
             className={
-              "flex relative backdrop-blur-sm p-4 z-50 w-60 rounded flex-col gap-3 shadow-md shadow-black/30 break-words " +
+              "flex relative backdrop-blur-xs p-4 z-50 w-60 rounded-xs flex-col gap-3 shadow-md shadow-black/30 break-words " +
               (type === "success"
                 ? "bg-success/70"
                 : type === "warning"

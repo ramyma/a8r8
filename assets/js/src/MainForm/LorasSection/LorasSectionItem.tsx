@@ -26,34 +26,39 @@ const LorasSectionItem = ({ lora, index }: Props) => {
       .includes("3.5") ||
     lora.metadata?.ss_sd_model_name?.toLowerCase().includes("3.5") ||
     lora.metadata?.baseModel?.toLowerCase().includes("3.5");
-  const isSdxl =
-    (lora.stored_metadata?.baseModel || lora.name)
-      ?.toLowerCase()
-      .includes("xl") ||
-    lora.metadata?.ss_sd_model_name?.toLowerCase().includes("xl") ||
-    lora.metadata?.baseModel?.toLowerCase().includes("xl");
   const isPony =
     (lora.stored_metadata?.baseModel || lora.name)
       ?.toLowerCase()
       .includes("pony") ||
     lora.metadata?.ss_sd_model_name?.toLowerCase().includes("pony") ||
     lora.metadata?.baseModel?.toLowerCase().includes("pony");
+  const isSdXl =
+    !isPony &&
+    ((lora.stored_metadata?.baseModel || lora.name)
+      ?.toLowerCase()
+      .includes("xl") ||
+      lora.metadata?.ss_sd_model_name?.toLowerCase().includes("xl") ||
+      lora.metadata?.baseModel?.toLowerCase().includes("xl"));
 
-  const isSd =
+  const isSd15 =
     (lora.stored_metadata?.baseModel || lora.name)
       ?.toLowerCase()
       .includes("1.5") ||
     lora.metadata?.ss_sd_model_name?.toLowerCase().includes("1.5") ||
-    lora.metadata?.baseModel?.toLowerCase().includes("1.5");
+    lora.metadata?.baseModel?.toLowerCase().includes("1.5") ||
+    !(isFlux || isSd35 || isSdXl || isPony);
+
   const handleTitleClick = (lora: Props["lora"]) => {
     emitCustomEvent("setActiveLora", lora);
     emitCustomEvent("showLorasModal");
   };
+
   const isInCompatible =
     !(model.isFlux && isFlux) &&
     !(model.isSd35 && isSd35) &&
-    !(model.isPony && (isPony || isSdxl)) &&
-    !(model.isSdXl && isSdxl);
+    !(model.isPony && (isPony || isSdXl)) &&
+    !(model.isSdXl && isSdXl) &&
+    !(model.modelType === "sd1.5" && isSd15);
 
   const isDisabled = !lora.isEnabled;
 
@@ -78,7 +83,7 @@ const LorasSectionItem = ({ lora, index }: Props) => {
   const firstImage = lora?.stored_metadata?.images?.[0];
 
   return (
-    <div className="group flex flex-col gap-3 aria-disabled:text-neutral-500 border-b last:border-none py-6 border-neutral-800 text-sm">
+    <div className="group flex flex-col gap-3 aria-disabled:text-neutral-500 border-b last:border-none py-5 border-neutral-800 text-sm">
       <div
         className={`flex gap-5 place-items-start justify-between ${isDisabled ? "text-neutral-400" : ""} `}
       >
@@ -86,7 +91,7 @@ const LorasSectionItem = ({ lora, index }: Props) => {
           className={`flex gap-2 place-items-start ${isDisabled ? "grayscale" : ""}`}
         >
           {firstImage && (
-            <div className="flex size-9 flex-grow flex-shrink-0 rounded overflow-hidden bg-black/70">
+            <div className="flex size-9 grow shrink-0 rounded-sm overflow-hidden bg-black/70">
               <div
                 className={`flex flex-1 ${firstImage?.nsfwLevel > 2 ? "blur-lg" : ""}`}
               >
@@ -110,7 +115,7 @@ const LorasSectionItem = ({ lora, index }: Props) => {
             </div>
           )}
           <div
-            className={`cursor-pointer select-none ${isInCompatible ? "text-warning" : ""}`}
+            className={`text-xs cursor-pointer select-none ${isInCompatible ? "text-warning" : ""}`}
             onClick={() => handleTitleClick(lora)}
           >
             {lora.alias || lora.name}
@@ -131,7 +136,7 @@ const LorasSectionItem = ({ lora, index }: Props) => {
           {lora?.stored_metadata?.trainedWords.map((word, wordIndex) => (
             <div
               key={(word ?? "") + wordIndex}
-              className={`border border-neutral-700 p-2 rounded size-fit max-h-10 max-w-32 overflow-hidden text-ellipsis text-nowrap group-aria-[disabled=false]:cursor-pointer ${lora.triggerWords?.includes(word) ? "group-aria-[disabled=false]:border-primary group-disabled:border-neutral-800 group-aria-[disabled=false]:bg-neutral-800 bg-neutral-800" : "group-aria-disabled:border-neutral-800"} transition-colors select-none`}
+              className={`border border-neutral-700 p-2 rounded-sm size-fit max-h-10 max-w-32 overflow-hidden text-ellipsis text-nowrap group-aria-[disabled=false]:cursor-pointer ${lora.triggerWords?.includes(word) ? "group-aria-[disabled=false]:border-primary group-disabled:border-neutral-800 group-aria-[disabled=false]:bg-neutral-800 bg-neutral-800" : "group-aria-disabled:border-neutral-800"} transition-colors select-none`}
               title={word}
               onClick={() =>
                 !isDisabled && handleToggleTriggerWord(index, word)

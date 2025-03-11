@@ -135,7 +135,7 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_info(
-        {ref, {seed, images_base64, position, dimensions, batch_size}},
+        {ref, {seed, images_base64, position, dimensions, batch_size, attrs}},
         state
       )
       when state.task.ref == ref do
@@ -149,7 +149,8 @@ defmodule ExSd.SdServer do
         |> Enum.map(fn image_base64 -> "data:image/png;base64,#{image_base64}" end),
       position: position,
       dimensions: dimensions,
-      seed: seed
+      seed: seed,
+      layer: attrs["layer"]
     })
 
     Sd.broadcast_progress(%{
@@ -247,7 +248,8 @@ defmodule ExSd.SdServer do
         |> Enum.map(fn image_base64 -> "data:image/png;base64,#{image_base64}" end),
       position: attrs["position"],
       dimensions: dimensions,
-      seed: seed
+      seed: seed,
+      layer: attrs["layer"]
     })
 
     ExSd.Sd.broadcast_progress(%{

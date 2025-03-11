@@ -6,9 +6,12 @@ import {
 } from "./state/controlnetSlice";
 import { RemirrorJSON } from "remirror";
 import { Group as GroupType } from "konva/lib/Group";
-import { layersSlice } from "./state/layersSlice";
+import { ActiveLayer, layersSlice } from "./state/layersSlice";
 import { RefsContextProps } from "./context/RefsContext";
 import { PromptRegionLayer } from "./state/promptRegionsSlice";
+import { Rect } from "konva/lib/shapes/Rect";
+import { Stage as StageType } from "konva/lib/Stage";
+import React from "react";
 
 export type PngInfo = {
   prompt: string;
@@ -739,3 +742,80 @@ export const checkIsSd35Model = (modelName: string): boolean =>
 export const checkIsIpAdapterControlnetModel = (
   modelName: string = ""
 ): boolean => /ip\Sadapter/i.test(modelName);
+
+export const getImage = async (imgDataUrl): Promise<CanvasImageSource> =>
+  new Promise((resolve) => {
+    const imageObj = new Image();
+    imageObj.onload = function () {
+      resolve(imageObj);
+    };
+    imageObj.src = imgDataUrl;
+  });
+
+export async function saveImage(
+  stageRef: React.RefObject<StageType>,
+  selectionBoxRef: React.RefObject<Rect> | null
+) {
+  const stage = stageRef.current!;
+  const selectionBox = selectionBoxRef?.current;
+
+  const stageOriginalScale = stage.scale();
+  const originalVisibility: Record<string, boolean> = {};
+  stage?.children.forEach((child) => {
+    originalVisibility[child.id()] = child.visible();
+    if (!isSketchLayer(child.attrs.name)) child.visible(false);
+  });
+  stage?.scale({ x: 1, y: 1 });
+
+  const dataUrl = await stage?.toDataURL({
+    x: selectionBox?.getAbsolutePosition().x,
+    y: selectionBox?.getAbsolutePosition().y,
+    width: selectionBox?.width(),
+    height: selectionBox?.height(),
+    imageSmoothingEnabled: false,
+    pixelRatio: 1,
+  });
+  stage?.scale(stageOriginalScale);
+  stage?.children.forEach((child) => {
+    child.visible(originalVisibility[child.id()]);
+  });
+
+  const link = document.createElement("a");
+  link.href = dataUrl ?? "";
+  link.download = `image.png`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+export const hexToRgba = (hex: string, alpha?: number) => {
+  // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+  const shorthandRegex = /^#([a-f\d])([a-f\d])([a-f\d])$/i;
+
+  hex = hex.replace(
+    shorthandRegex,
+    (m, r, g, b) => "#" + r + r + g + g + b + b
+  );
+
+  // Check if the hex includes an alpha component
+  const fullHexRegex = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i;
+
+  if (fullHexRegex.test(hex)) {
+    // If the input includes an alpha component, parse it
+    const result = fullHexRegex.exec(hex)!;
+    return `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${alpha ?? parseInt(result[4], 16) / 255})`;
+  } else if (hex.length === 7) {
+    // If the input is a full-length hex without an alpha component, use the provided alpha value
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${alpha ?? 1})`;
+  } else {
+    // If the input is not in a valid format, return a default black color with full opacity
+    return "rgba(0,0,0,1)";
+  }
+};
+
+export const isSketchLayer = (layer: ActiveLayer) =>
+  layer?.startsWith("sketch") ?? false;
+
+export const extractSketchLayerId = (layerName: string) =>
+  layerName.replace("sketch", "");

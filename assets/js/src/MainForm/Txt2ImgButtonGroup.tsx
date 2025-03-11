@@ -9,14 +9,16 @@ interface Txt2ImageButtonGroupProps {
 const Txt2ImageButtonGroup = forwardRef(
   ({ value, onChange }: Txt2ImageButtonGroupProps, _ref) => {
     const handleChange = (newValue) => {
-      newValue && onChange(newValue === "txt2img");
+      if (newValue) {
+        onChange(newValue === "txt2img");
+      }
     };
 
     const toggleGroupItemClasses =
-      "data-[state=on]:bg-neutral-800/90 data-[state=on]:border-primary flex h-[35px] w-[35px] items-center justify-center bg-neutral-900/80 hover:bg-neutral-700/80 hover:border-neutral-500 text-base leading-4 first:rounded-l last:rounded-r focus:z-10 focus:shadow-black focus:outline-none text-white text-sm flex-1 transition-colors duration-300 ease-in-out border-neutral-700 border";
+      "data-[state=on]:bg-neutral-800/90 data-[state=on]:border-primary flex h-[35px] w-[35px] items-center justify-center bg-neutral-900/80 hover:bg-neutral-700/80 hover:border-neutral-500 text-base leading-4 first:rounded-l last:rounded-r focus:z-10 focus:shadow-black focus:outline-hidden text-white text-sm flex-1 transition-colors duration-300 ease-in-out border-neutral-700 border";
     return (
       <RadixToggleGroup.Root
-        className="inline-flex rounded shadow-black/30 justify-between "
+        className="inline-flex rounded-xs shadow-black/30 justify-between "
         type="single"
         defaultValue="center"
         aria-label="Text alignment"

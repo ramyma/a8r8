@@ -3,7 +3,6 @@ import "vite/modulepreload-polyfill";
 import React, { createRef } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
-import "./index.css";
 import { store } from "./store";
 import { Provider } from "react-redux";
 import SocketProvider from "./context/SocketProvider";
@@ -25,7 +24,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
             overlayLayerRef: createRef(),
             selectionBoxLayerRef: createRef(),
             selectionBoxRef: createRef(),
-            sketchLayerRef: createRef(),
+
             stageRef: createRef(),
             batchResultPreviewImageRef: createRef(),
           }}

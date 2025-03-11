@@ -4,7 +4,7 @@ import { RootState } from "../store";
 export type HistoryTopic =
   | "canvas/image"
   | "canvas/mask"
-  | "canvas/sketch"
+  | `canvas/sketch${string}`
   | "controlnet/image"
   | "canvas/line";
 

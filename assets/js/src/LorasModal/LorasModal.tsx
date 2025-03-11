@@ -210,7 +210,7 @@ const LorasModal = (props: ModalProps) => {
             Math.ceil((filteredLoras?.length ?? 0) / 5) * loraItemHeight + 32,
         }}
       >
-        <div className="flex sticky top-0 place-items-center justify-between w-[calc(100%_+_64px)] z-20 flex-grow-0 flex-shrink bg-neutral-950/80 border-b border-neutral-800/90 backdrop-blur-sm px-8 py-4 ms-[-32px] mt-[-32px]">
+        <div className="flex sticky top-0 place-items-center justify-between w-[calc(100%_+_64px)] z-20 grow-0 shrink bg-neutral-950/80 border-b border-neutral-800/90 backdrop-blur-xs px-8 py-4 ms-[-32px] mt-[-32px]">
           <AnimatePresence>
             <div className="flex justify-between w-full transition-opacity">
               {activeLora ? (
@@ -236,6 +236,7 @@ const LorasModal = (props: ModalProps) => {
                   onClear={handleFilterTextClear}
                   value={filterText}
                   placeholder="Search"
+                  autoFocus
                 />
               )}
               <div className="flex justify-between place-items-center gap-5 justify-self-end">
@@ -267,7 +268,7 @@ const LorasModal = (props: ModalProps) => {
         <Content>
           <motion.div
             // variants={variants}
-            className="relative w-full text-center inline-flex flex-wrap gap-5 justify-stretch content-start flex-1 flex-shrink-0"
+            className="relative w-full text-center inline-flex flex-wrap gap-5 justify-stretch content-start flex-1 shrink-0"
             ref={lorasContainerRef}
           >
             {/* {transitions((style, { active, lora, index }) => ( */}

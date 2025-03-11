@@ -22,13 +22,13 @@ const TriggerWord = ({ children: word }: Props) => {
   };
   return (
     <Button
-      className="p-1 h-fit enabled:bg-success/80 enabled:hover:bg-success/95 rounded enabled:border-green-600/80 enabled:hover:border-green-600/80 enabled:text-green-50 transition-all text-start w-fit gap-3 flex"
+      className="p-1 h-fit enabled:bg-success/80 enabled:hover:bg-success/95 rounded-xs enabled:border-green-600/80 enabled:hover:border-green-600/80 enabled:text-green-50 transition-all text-start w-fit gap-3 flex"
       onClick={handleClick}
       title="Copy"
     >
       {/* {isCopied ? "Copied!" : word} */}
       <span>{word}</span>
-      <span className="flex-1 flex-shrink-0">
+      <span className="flex-1 shrink-0">
         {isCopied ? <CheckIcon /> : <CopyIcon />}
       </span>
     </Button>

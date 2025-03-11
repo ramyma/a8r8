@@ -33,16 +33,22 @@ const useSocket = () => {
     [presenceChannel]
   );
 
-  const sendMessageAndReceive: <T>(
-    message: string,
-    ...args: any
-  ) => Promise<T> = useCallback(
-    (message, ...args) => {
-      return new Promise((resolve, _) =>
+  const sendMessageAndReceive: <T>({
+    message,
+    async,
+    args,
+  }: {
+    message: string;
+    async: boolean;
+    args?: any[];
+  }) => Promise<T | undefined> = useCallback(
+    ({ message, async = true, args = [] }) => {
+      return new Promise((resolve, _) => {
         sendMessage(message, ...args)?.receive("ok", (params) => {
           resolve(params);
-        })
-      );
+        });
+        if (async) resolve(undefined);
+      });
     },
     [sendMessage]
   );
@@ -71,7 +77,18 @@ const useSocket = () => {
   );
 
   const getData = useCallback(
-    (name: string, ...args) => sendMessageAndReceive(`get_${name}`, ...args),
+    ({
+      name,
+      async = true,
+      args = [],
+    }: {
+      name: string;
+      async?: boolean;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      args?: any[];
+    }) => {
+      return sendMessageAndReceive({ message: `get_${name}`, async, args });
+    },
     [sendMessageAndReceive]
   );
 

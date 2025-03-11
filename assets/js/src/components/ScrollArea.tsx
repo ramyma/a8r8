@@ -1,5 +1,5 @@
-import React, { PropsWithoutRef, ReactNode, Ref, forwardRef } from "react";
-import * as RadixScrollArea from "@radix-ui/react-scroll-area";
+import { PropsWithoutRef, ReactNode, Ref, forwardRef } from "react";
+import { ScrollArea as RadixScrollArea } from "radix-ui";
 import { twMerge } from "tailwind-merge";
 interface Props extends RadixScrollArea.ScrollAreaProps {
   children: ReactNode;
@@ -8,6 +8,7 @@ interface Props extends RadixScrollArea.ScrollAreaProps {
   disable?: boolean;
   orientation?: "horizontal" | "vertical" | "both";
   scroll?: boolean;
+  scrollBarClassNames?: string;
 }
 const ScrollArea = forwardRef(
   (
@@ -18,20 +19,18 @@ const ScrollArea = forwardRef(
       disable = false,
       orientation = "vertical",
       scroll = true,
+      scrollBarClassNames = "",
       ...rest
     }: Props,
     ref: Ref<HTMLDivElement>
   ) =>
     scroll ? (
       <RadixScrollArea.Root
-        className={twMerge(
-          "w-full h-full flex-1 rounded overflow-hidden",
-          className
-        )}
+        className={twMerge("w-full h-full flex-1 rounded-xs", className)}
         {...rest}
       >
         <RadixScrollArea.Viewport
-          className="size-full rounded !min-w-[auto]"
+          className="size-full rounded-xs min-w-[auto]! *:block!"
           ref={ref}
           {...viewportProps}
         >
@@ -41,7 +40,10 @@ const ScrollArea = forwardRef(
           <>
             {(orientation == "vertical" || orientation == "both") && (
               <RadixScrollArea.Scrollbar
-                className="flex select-none touch-none p-0.5 rounded bg-neutral-900/60 transition-colors duration-[160ms] ease-out hover:bg-neutral-800/50 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:h-2.5 z-10"
+                className={twMerge(
+                  "flex select-none touch-none p-0.5 rounded-xs bg-neutral-900/60 transition-colors duration-[160ms] ease-out hover:bg-neutral-800/50 data-[orientation=vertical]:w-2.5 data-[orientation=horizontal]:flex-col data-[orientation=horizontal]:h-2.5",
+                  scrollBarClassNames
+                )}
                 orientation="vertical"
               >
                 <RadixScrollArea.Thumb className="flex-1 bg-neutral-700 rounded-[10px] relative before:content-[''] before:absolute before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:w-full before:h-full before:min-w-[44px] before:min-h-[44px]" />

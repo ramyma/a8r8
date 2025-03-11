@@ -273,7 +273,7 @@ export class CustomExtension extends NodeExtension<ExtrasOptions> {
           {
             class:
               // ExtensionextraTheme.extra_WRAPPER +
-              " bg-white rounded text-primary p-1",
+              " bg-white rounded-xs text-primary p-1",
             // [extra_DATA_ATTRIBUTE]: extra[this.options.identifier],
           },
           `<lora:${code.alias || code.name}:${value}>`,

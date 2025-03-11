@@ -30,7 +30,10 @@ import {
 } from "../state/controlnetSlice";
 import { selectIsConnected, selectIsGenerating } from "../state/statsSlice";
 import Checkbox from "../components/Checkbox";
-import { selectIsMaskLayerVisible } from "../state/layersSlice";
+import {
+  selectGenerationLayer,
+  selectIsMaskLayerVisible,
+} from "../state/layersSlice";
 import Slider from "../components/Slider";
 import useGlobalKeydown from "../hooks/useGlobalKeydown";
 import useClipboard from "../hooks/useClipboard";
@@ -40,6 +43,10 @@ import {
   getLayers,
   roundToClosestMultipleOf8Down,
   checkIsIpAdapterControlnetModel,
+  checkIsSdXlModel,
+  checkIsSdFluxModel,
+  checkIsPonyModel,
+  checkIsSd35Model,
 } from "../utils";
 import Editor from "../components/Editor";
 
@@ -63,6 +70,7 @@ import {
   selectSelectedClipModels,
   selectSelectedModel,
   selectSelectedVae,
+  setSelectedModel,
 } from "../state/optionsSlice";
 import useSchedulers from "../hooks/useSchedulers";
 import SoftInpaintingFields, {
@@ -113,6 +121,7 @@ export type MainFormValues = Record<string, any> & {
   skimmedCfg: SkimmedCfgArgs;
   splitRender: SplitRenderArgs;
   cfg_scale: number;
+  rescale_cfg_multiplier: number;
   flux_guidance: number;
   isTiledDiffusionEnabled: boolean;
   isRegionalPromptingEnabled: boolean;
@@ -217,6 +226,8 @@ const MainForm = () => {
 
   const isConnected = useAppSelector(selectIsConnected);
 
+  const generationLayer = useAppSelector(selectGenerationLayer);
+
   const isBatchDisabled =
     (hasTiledDiffusion && isTiledDiffusionEnabled) ||
     (!txt2img && hasUltimateUpscale && isUltimateUpscaleEnabled) ||
@@ -259,24 +270,41 @@ const MainForm = () => {
   const [prevSelectedModel, setPrevSelectedModel] =
     useState<typeof selectedModel>();
 
-  const applyModelConfig = async () => {
+  const applyModelConfig = async (selectedModel) => {
     const modelConfig = await loadModelConfig(selectedModel.name);
+    dispatch(
+      setSelectedModel({
+        ...selectedModel,
+        ...(modelConfig?.modelType && {
+          isSdXl: checkIsSdXlModel(modelConfig.modelType),
+          isFlux: checkIsSdFluxModel(modelConfig.modelType),
+          isPony: checkIsPonyModel(modelConfig.modelType),
+          isSd35: checkIsSd35Model(modelConfig.modelType),
+          modelType: modelConfig.modelType,
+        }),
+      })
+    );
+
+    // FIXME: circural apply preset between last gen config and
+    //  applying selected model config here
     if (modelConfig) emitCustomEvent("apply-preset", modelConfig);
   };
 
-  if (selectedModel !== prevSelectedModel) {
+  if (selectedModel?.name !== prevSelectedModel?.name) {
     setPrevSelectedModel(selectedModel);
-    applyModelConfig();
+    if (selectedModel?.name) {
+      applyModelConfig(selectedModel);
+    }
   }
 
-  // apply last gen config
+  // apply model and last gen config
   useCustomEventListener("apply-preset", (params: Partial<MainFormValues>) => {
-    params?.clip_skip && setValue("clip_skip", params.clip_skip);
-    params?.cfg_scale && setValue("cfg_scale", params.cfg_scale);
-    params?.flux_guidance && setValue("flux_guidance", params.flux_guidance);
-    params?.sampler_name && setValue("sampler_name", params.sampler_name);
-    params?.scheduler && setValue("scheduler", params.scheduler);
-    params?.steps && setValue("steps", params.steps);
+    if (params?.clip_skip) setValue("clip_skip", params.clip_skip);
+    if (params?.cfg_scale) setValue("cfg_scale", params.cfg_scale);
+    if (params?.flux_guidance) setValue("flux_guidance", params.flux_guidance);
+    if (params?.sampler_name) setValue("sampler_name", params.sampler_name);
+    if (params?.scheduler) setValue("scheduler", params.scheduler);
+    if (params?.steps) setValue("steps", params.steps);
 
     if (params?.width && params?.height && canvasContainerRef?.current) {
       const width = params.width;
@@ -308,7 +336,7 @@ const MainForm = () => {
         height,
       });
     }
-    params?.scale && setValue("scale", params.scale);
+    if (params?.scale) setValue("scale", params.scale);
   });
 
   const selectionBox = useAppSelector(selectSelectionBox);
@@ -392,6 +420,7 @@ const MainForm = () => {
       fooocus_inpaint,
       splitRender,
       skimmedCfg,
+      rescale_cfg_multiplier,
       ...rest
     } = data;
 
@@ -675,12 +704,14 @@ const MainForm = () => {
               args: [
                 // enable
                 isRegionalPromptingEnabled,
+                //disable_hr
+                txt2img && scale > 1,
                 // mode
                 "Mask", //"Basic", "Advanced"
                 // separator
                 REGIONAL_PROMPTS_SEPARATOR,
                 // direction
-                "Horizontal", //Vertical", //"Horizontal",
+                null, //"Horizontal", //Vertical", //"Horizontal",
                 // background
                 basePrompt && globalPromptWeight ? "First Line" : "None", //"First Line", // "None",
                 // bg_weight,
@@ -731,7 +762,7 @@ const MainForm = () => {
         : {}),
       ...(backend === "comfy" && !txt2img
         ? { mask_blur: comfySoftInpainting.maskBlur }
-        : {}),
+        : { mask_blur: 20 }),
       ...(backend === "comfy" && skimmedCfg?.is_enabled
         ? { skimmed_cfg: skimmedCfg }
         : {}),
@@ -743,13 +774,21 @@ const MainForm = () => {
             },
           }
         : {}),
+      ...(backend === "comfy" && rescale_cfg_multiplier
+        ? {
+            rescale_cfg_multiplier,
+          }
+        : {}),
       ultimate_upscale: isUltimateUpscaleEnabled,
       clip_skip: clipSkip,
+      layer: generationLayer,
     };
 
     // console.log(image, { attrs });
 
-    batchImageResults?.length && dispatch(setBatchImageResults([]));
+    if (batchImageResults?.length) {
+      dispatch(setBatchImageResults());
+    }
 
     sendMessage("generate", {
       image,
@@ -887,17 +926,20 @@ const MainForm = () => {
   useEffect(() => {
     const ref = channel?.on("image", (data) => {
       const { seed } = data;
-      !isSeedPinned &&
-        (batchSize === 1 || isBatchDisabled) &&
+      if (!isSeedPinned && (batchSize === 1 || isBatchDisabled))
         setValue("seed", seed);
     });
     return () => {
-      ref && channel?.off("image", ref);
+      if (ref) {
+        channel?.off("image", ref);
+      }
     };
   }, [channel, dispatch, isSeedPinned, setValue, batchSize, isBatchDisabled]);
 
   useCustomEventListener("updateSeed", (seed: MainFormValues["seed"]) => {
-    !isSeedPinned && setValue("seed", seed);
+    if (!isSeedPinned) {
+      setValue("seed", seed);
+    }
   });
 
   const showFullScalePass =
@@ -959,14 +1001,14 @@ const MainForm = () => {
           <Button
             fullWidth
             type="submit"
-            className="mb-2 sticky top-2 w-[100%] z-[20] shadow-md shadow-black/50 enabled:bg-neutral-700 enabled:hover:bg-neutral-600 enabled:hover:text-white "
+            className="mb-2 sticky top-2 w-[100%] z-20 shadow-black/50 enabled:bg-neutral-700 enabled:hover:bg-neutral-600 enabled:hover:text-white "
             disabled={!isConnected}
           >
             Generate
           </Button>
         ) : (
           <Button
-            className="mb-2 bg-red-600 enabled:hover:bg-red-700 enabled:hover:border-red-800 hover:text-white sticky top-2 z-[20]"
+            className="mb-2 bg-red-600 enabled:hover:bg-red-700 enabled:hover:border-red-800 hover:text-white sticky top-2 z-20"
             fullWidth
             onClick={handleInterrupt}
           >
@@ -1117,6 +1159,22 @@ const MainForm = () => {
             <Slider step={0.1} min={1} max={32} label="CFG Scale" {...field} />
           )}
         />
+
+        {/* <Controller
+          name="rescale_cfg_multiplier"
+          control={control}
+          defaultValue={1}
+          // rules={{ required: true }}
+          render={({ field }) => (
+            <Slider
+              step={0.1}
+              min={0.1}
+              max={1}
+              label="Rescale CFG"
+              {...field}
+            />
+          )}
+        /> */}
 
         {backend === "comfy" && (
           <>
@@ -1287,8 +1345,10 @@ const MainForm = () => {
             rules={{
               onChange: (e: ChangeEvent<HTMLInputElement>) => {
                 const value = e.target.value;
-                value && setValue("isUltimateUpscaleEnabled", false);
-                value && upscaler === "Latent" && setValue("upscaler", "None");
+                if (value) {
+                  setValue("isUltimateUpscaleEnabled", false);
+                  if (upscaler === "Latent") setValue("upscaler", "None");
+                }
               },
             }}
             render={({ field }) => (
@@ -1304,7 +1364,7 @@ const MainForm = () => {
             rules={{
               onChange: (e: ChangeEvent<HTMLInputElement>) => {
                 const value = e.target.value;
-                value && setValue("isUltimateUpscaleEnabled", false);
+                if (value) setValue("isUltimateUpscaleEnabled", false);
               },
             }}
             render={({ field }) => (
@@ -1328,9 +1388,11 @@ const MainForm = () => {
             rules={{
               onChange: (e: ChangeEvent<HTMLInputElement>) => {
                 const value = e.target.value;
-                value && setValue("isTiledDiffusionEnabled", false);
-                value && setValue("isMultidiffusionEnabled", false);
-                value && upscaler === "Latent" && setValue("upscaler", "None");
+                if (value) {
+                  setValue("isTiledDiffusionEnabled", false);
+                  setValue("isMultidiffusionEnabled", false);
+                  if (upscaler === "Latent") setValue("upscaler", "None");
+                }
               },
             }}
             disabled={hasRegionalPrompting && isRegionalPromptingEnabled}
@@ -1418,7 +1480,7 @@ const MainForm = () => {
           Inpaint full res
           <input
             id="inpaintFull"
-            className="rounded flex-1 p-2 w-fit"
+            className="rounded-xs flex-1 p-2 w-fit"
             type="checkbox"
             {...register("inpaint_full_res")}
           />

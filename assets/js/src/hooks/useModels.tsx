@@ -62,9 +62,15 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
   const loadModelConfig = async (
     modelName: string
   ): Promise<Partial<MainFormValues> & { vae: string }> =>
-    sendMessageAndReceive("load_model_config", {
-      model_name: modelName,
-      backend,
+    sendMessageAndReceive({
+      message: "load_model_config",
+      args: [
+        {
+          model_name: modelName,
+          backend,
+        },
+      ],
+      async: false,
     });
 
   const setModel = async (model: Model["sha256"] | Model["model_name"]) => {
@@ -72,14 +78,18 @@ const useModels = ({ fetchPolicy }: Props = {}) => {
       if (backend === "auto" || backend === "forge") {
         const modelObj = models?.find(({ model_name }) => model === model_name);
         if (modelObj) {
-          selectedModel?.hash &&
-          selectedModel.hash !== model &&
-          backend === "auto"
-            ? sendMessage("set_model", modelObj.title)
-            : sendMessage("set_model", {
-                title: /\S*/i.exec(modelObj.title)?.[0] ?? "",
-                hash: modelObj.sha256,
-              });
+          if (
+            selectedModel?.hash &&
+            selectedModel.hash !== model &&
+            backend === "auto"
+          ) {
+            sendMessage("set_model", modelObj.title);
+          } else {
+            sendMessage("set_model", {
+              title: /\S*/i.exec(modelObj.title)?.[0] ?? "",
+              hash: modelObj.sha256,
+            });
+          }
 
           const isSdXl = checkIsSdXlModel(modelObj.model_name);
           const isFlux = checkIsSdFluxModel(modelObj.model_name);

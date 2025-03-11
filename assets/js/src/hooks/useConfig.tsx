@@ -30,7 +30,11 @@ export type AppConfig = {
 };
 
 const useConfig = ({ fetchPolicy }: Props = {}) => {
-  const { fetchData, data: config } = useData<AppConfig>({
+  const {
+    fetchData,
+    data: config,
+    isFetching,
+  } = useData<AppConfig>({
     name: "config",
     fetchPolicy,
     callback: (data) => {
@@ -38,7 +42,7 @@ const useConfig = ({ fetchPolicy }: Props = {}) => {
     },
   });
 
-  return { config, fetchData };
+  return { config, fetchData, isFetching };
 };
 
 export default useConfig;

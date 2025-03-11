@@ -1,7 +1,7 @@
-import { KeyboardEventHandler, useCallback, useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 interface Props {
-  handleKeydown: KeyboardEventHandler;
+  handleKeydown: (event: KeyboardEvent) => void;
   /**
    * Accept key events from any target element.
    * When false, only events from the `body` element is processed
@@ -11,16 +11,22 @@ interface Props {
 
 const useGlobalKeydown = ({ handleKeydown, override = false }: Props) => {
   const handler = useCallback(
-    (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
+    (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
       if (["TEXTAREA", "INPUT"].includes(target.nodeName)) {
-        if (e.key !== "Enter" || !e.ctrlKey) {
-          e.stopPropagation();
+        if (event.key !== "Enter" || !event.ctrlKey) {
+          event.stopPropagation();
           return;
         }
       }
-      if (target.nodeName === "BODY" || override) {
-        handleKeydown(e);
+      if (
+        (target.role !== "textbox" &&
+          target.role !== "input" &&
+          target.role !== "combobox" &&
+          target.role !== "slider") ||
+        override
+      ) {
+        handleKeydown(event);
       }
     },
     [handleKeydown, override]

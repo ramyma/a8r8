@@ -30,7 +30,7 @@ const Stats = () => {
         </div>
       )}
       <Select
-        className="!w-fit"
+        className="w-fit!"
         items={[
           { label: "A1111", value: "auto" },
           { label: "Forge", value: "forge" },
@@ -41,7 +41,7 @@ const Stats = () => {
         disabled={!!stats.progress}
         onChange={handleBackendChange}
       />
-      <div className="text-xs flex w-fit flex-col gap-1 bg-black/90 backdrop-blur-sm rounded p-4 shadow-md shadow-black/20">
+      <div className="text-xs flex w-fit flex-col gap-1 bg-black/90 backdrop-blur-xs rounded-sm p-4 shadow-md shadow-black/20">
         {isConnected && stats.progress !== 0 && (
           <>
             {stats?.progress > 1 &&

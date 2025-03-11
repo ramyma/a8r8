@@ -60,13 +60,13 @@ const BatchImageResults = (props: Props) => {
   });
 
   useEffect(() => {
-    isVisible && setBatchImagesState(batchImageResults);
-  }, [isVisible]);
+    if (isVisible) setBatchImagesState(batchImageResults);
+  }, [batchImageResults, isVisible]);
 
   const style = useSpring({
     y: batchImageResults?.length ? 0 : 300,
     onRest: () => {
-      !batchImageResults.length && setBatchImagesState([]);
+      if (!batchImageResults.length) setBatchImagesState([]);
     },
     ref: springRef,
   });
@@ -79,20 +79,21 @@ const BatchImageResults = (props: Props) => {
 
   return (
     <div className="absolute bottom-0 flex justify-center w-full p-2 z-50 pointer-events-none">
+      {/* TODO: migrate to motion */}
       <animated.div
         style={style}
-        className="flex gap-2 pointer-events-auto bg-neutral-950/80 p-4 pe-3 rounded backdrop-blur"
+        className="flex gap-2 pointer-events-auto bg-neutral-950/80 p-4 pe-3 rounded-xs backdrop-blur-xs"
       >
         {transitions((style, imageResult, _, index) => (
           <animated.div
             key={index}
             style={style}
-            className={`size-40 rounded border border-neutral-700 cursor-pointer ${activeBatchImageResultIndex === index ? "outline outline-neutral-200" : ""}`}
+            className={`size-40 rounded-xs border border-neutral-700 cursor-pointer ${activeBatchImageResultIndex === index ? "outline outline-neutral-200" : ""}`}
           >
             <img
               draggable={false}
               src={imageResult}
-              className="w-full h-full object-contain bg-black/80 backdrop-blur-sm rounded"
+              className="w-full h-full object-contain bg-black/80 backdrop-blur-xs rounded-xs"
               onClick={() => {
                 if (activeBatchImageResultIndex !== index) {
                   dispatch(setActiveBatchImageResultIndex(index));
@@ -108,15 +109,15 @@ const BatchImageResults = (props: Props) => {
               onClick={() => {
                 emitCustomEvent("applyActiveBatchImage");
               }}
-              className="text-success border-success hover:text-success hover:!border-success"
+              className="text-success border-success hover:text-success hover:border-success!"
               title="Accept"
               {...(!isVisible && { tabIndex: -1 })}
             >
               <CheckIcon />
             </Button>
             <Button
-              onClick={() => dispatch(setBatchImageResults([]))}
-              className="text-danger border-danger hover:text-danger hover:!border-danger"
+              onClick={() => dispatch(setBatchImageResults())}
+              className="text-danger border-danger hover:text-danger hover:border-danger!"
               title="Cancel"
               {...(!isVisible && { tabIndex: -1 })}
             >
@@ -129,7 +130,7 @@ const BatchImageResults = (props: Props) => {
             title="Show/Hide"
             pressedIconComponent={EyeOpenIcon}
             unpressedIconComponent={EyeNoneIcon}
-            className="border border-neutral-700 bg-neutral-900/50 backdrop-blur-sm"
+            className="border border-neutral-700 bg-neutral-900/50 backdrop-blur-xs"
             {...(!isVisible && { tabIndex: -1 })}
           />
         </div>

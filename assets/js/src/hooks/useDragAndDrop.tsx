@@ -1,8 +1,8 @@
 import { useCallback, useEffect } from "react";
 import usePngInfo from "./usePngInfo";
-import { PngInfo, updateControlnetArgs } from "../utils";
+import { isSketchLayer, PngInfo, updateControlnetArgs } from "../utils";
 import { useAppDispatch, useAppSelector } from "../hooks";
-import { emitCustomEvent, useCustomEventListener } from "react-custom-events";
+import { useCustomEventListener } from "react-custom-events";
 import { selectActiveLayer } from "../state/layersSlice";
 import { emitImageDropEvent } from "../Canvas/hooks/useCustomEventsListener";
 
@@ -38,10 +38,12 @@ const useDragAndDrop = ({ handleAddImage, emit = false }: Props) => {
                 const dataUrl = e.target.result;
                 if (typeof dataUrl === "string") {
                   let pngInfo: PngInfo | undefined;
-                  if (activeLayer === "base") {
+                  if (isSketchLayer(activeLayer)) {
                     pngInfo = await processPngInfo(dataUrl);
 
-                    pngInfo && updateControlnetArgs(pngInfo, dispatch);
+                    if (pngInfo) {
+                      updateControlnetArgs(pngInfo, dispatch);
+                    }
                   }
                   emitImageDropEvent({
                     imageDataUrl: dataUrl,

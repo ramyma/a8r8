@@ -116,7 +116,8 @@ defmodule ExSd.Sd.SdService do
         ImageService.mask_from_alpha(
           List.first(generation_params.init_images),
           generation_params.mask,
-          invert_mask
+          invert_mask,
+          mask_blur: Map.get(attrs, "mask_blur")
         )
       end
 
@@ -261,7 +262,7 @@ defmodule ExSd.Sd.SdService do
           end)
 
         {seed, processed_images, position, %{width: width, height: height},
-         generation_params.batch_size}
+         generation_params.batch_size, attrs}
 
       {:error, err} = error ->
         Logger.error("Client task error! Second Pass:#{inspect(second_pass)}")
@@ -274,7 +275,8 @@ defmodule ExSd.Sd.SdService do
     %{images: images_base64, attrs: attrs, dimensions: dimensions, flow: flow} = result
 
     if images_base64 do
-      mask_image = ImageService.image_from_dataurl(flow.generation_params.mask)
+      # mask_image = ImageService.image_from_dataurl(flow.generation_params.mask)
+      mask_image = flow.mask_image
 
       mask_image_average =
         mask_image
@@ -285,7 +287,8 @@ defmodule ExSd.Sd.SdService do
       result_images =
         images_base64
         |> Enum.slice(0..flow.generation_params.batch_size)
-        |> Enum.map(fn image_base64 ->
+        |> Enum.with_index()
+        |> Enum.map(fn {image_base64, index} ->
           if mask_image_average === 255 and
                attrs["use_scaled_dimensions"] == true do
             Logger.info("Returning raw image for overriding scale")
@@ -304,13 +307,25 @@ defmodule ExSd.Sd.SdService do
                 height: dimensions.height
               )
 
+            ImageService.save(
+              result_image
+              |> Image.write!(:memory, suffix: ".png")
+              |> Base.encode64(),
+              "raw_output_image#{index}"
+            )
+
             {:ok, result_image} =
               result_image
               |> Image.compose(mask_image, blend_mode: :dest_in)
 
+            result_image =
+              result_image
+              |> Image.write!(:memory, suffix: ".png")
+              |> Base.encode64()
+
+            ImageService.save(result_image, "output_image#{index}")
+
             result_image
-            |> Image.write!(:memory, suffix: ".png")
-            |> Base.encode64()
           end
         end)
 
@@ -512,13 +527,18 @@ defmodule ExSd.Sd.SdService do
     generation_params
   end
 
+  @spec create_seed() :: pos_integer()
+  def create_seed() do
+    :rand.uniform(1_000_000_000_000_000)
+  end
+
   defp generate_seed(%GenerationParams{seed: seed} = generation_params) do
     generation_params
     |> Map.put(
       :seed,
       if(
         seed == -1,
-        do: :rand.uniform(1_000_000_000_000_000),
+        do: create_seed(),
         else: seed
       )
     )

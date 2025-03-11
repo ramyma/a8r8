@@ -23,6 +23,7 @@ import useBrushColor from "./hooks/useBrushColor";
 import { updateControlnetLayer } from "./state/controlnetSlice";
 import { updatePromptRegionLayer } from "./state/promptRegionsSlice";
 import Button from "./components/Button";
+import { isSketchLayer } from "./utils";
 
 const rgbaToHex = (rgba) => {
   const [r, g, b] = rgba.slice(5, -1).split(",").map(Number);
@@ -80,7 +81,7 @@ const ColorPicker = ({
     else {
       if (activeLayer === "mask") dispatch(setMaskColor(color));
       else if (
-        activeLayer === "sketch" ||
+        isSketchLayer(activeLayer) ||
         (activeLayer.startsWith("controlnet") && !activeLayer.includes("mask"))
       )
         dispatch(setBrushColor(color));

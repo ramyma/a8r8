@@ -2,7 +2,6 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Vector2d } from "konva/lib/types";
 import { RootState } from "../store";
 import { BrushStroke } from "../MaskLayer-types";
-import { theme } from "../context/ThemeContext";
 
 export type Mode = "paint" | "selection";
 export type Tool = "brush" | "eraser";
@@ -10,6 +9,7 @@ export type Tool = "brush" | "eraser";
 interface CanvasState {
   brushColor: string;
   brushSize: number;
+  brushHardness: number;
   maskColor: string;
   invertMask: boolean;
   brushPreviewPosition: Vector2d;
@@ -25,11 +25,14 @@ interface CanvasState {
   batchImageResults: string[];
   activeBatchImageResultIndex?: number;
   batchPreviewIsVisible?: boolean;
+  batchImageResultsLayer?: string;
 }
+const styles = getComputedStyle(document.documentElement);
 
 const initialState: CanvasState = {
-  brushColor: theme.colors.black,
-  maskColor: theme.colors.primary,
+  brushColor: "#000", //theme.colors.black,
+  brushHardness: 1,
+  maskColor: styles.getPropertyValue("--color-primary"), //theme.colors.primary,
   brushSize: 100,
   brushPreviewPosition: { x: -100, y: -100 },
   isBrushPreviewVisible: true,
@@ -72,6 +75,10 @@ export const canvasSlice = createSlice({
     setBrushColor: (state, action: PayloadAction<string>) => {
       state.brushColor = action.payload;
     },
+    setBrushHardness: (state, action: PayloadAction<number>) => {
+      state.brushHardness = action.payload;
+    },
+
     setIsbrushPreviewVisible: (state, action: PayloadAction<boolean>) => {
       state.isBrushPreviewVisible = action.payload;
     },
@@ -102,11 +109,19 @@ export const canvasSlice = createSlice({
     },
     setBatchImageResults: (
       state,
-      action: PayloadAction<CanvasState["batchImageResults"]>
+      action: PayloadAction<
+        | {
+            images: CanvasState["batchImageResults"];
+            layer?: string;
+          }
+        | undefined
+      >
     ) => {
-      state.batchImageResults = action.payload;
+      const { images = [], layer } = action.payload ?? {};
+      state.batchImageResults = images;
       state.activeBatchImageResultIndex = 0;
       state.batchPreviewIsVisible = true;
+      state.batchImageResultsLayer = layer;
     },
     setActiveBatchImageResultIndex: (state, action: PayloadAction<number>) => {
       state.activeBatchImageResultIndex = action.payload;
@@ -125,6 +140,7 @@ export const {
   updateStageScale,
   updateStagePosition,
   setBrushColor,
+  setBrushHardness,
   setIsbrushPreviewVisible,
   toggleColorPickerVisibility,
   setMode,
@@ -140,6 +156,8 @@ export const {
 
 export const selectBrushColor = (state: RootState) => state.canvas.brushColor;
 export const selectBrushSize = (state: RootState) => state.canvas.brushSize;
+export const selectBrushHardness = (state: RootState) =>
+  state.canvas.brushHardness;
 export const selectIsBrushPreviewVisible = (state: RootState) =>
   state.canvas.isBrushPreviewVisible;
 export const selectIsColorPickerVisible = (state: RootState) =>
@@ -163,4 +181,6 @@ export const selectActiveBatchImageResultIndex = (state: RootState) =>
   state.canvas.activeBatchImageResultIndex;
 export const selectBatchPreviewIsVisible = (state: RootState) =>
   state.canvas.batchPreviewIsVisible;
+export const selectBatchImageResultsLayer = (state: RootState) =>
+  state.canvas.batchImageResultsLayer;
 export default canvasSlice.reducer;

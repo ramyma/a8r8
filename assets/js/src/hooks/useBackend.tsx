@@ -15,6 +15,7 @@ const useBackend = ({ fetchPolicy }: Props = {}) => {
     name: "backend",
     fetchPolicy,
     forceRequest: fetchPolicy == "eager",
+    async: false,
   });
 
   const previousBackendRef = useRef<string>();
@@ -26,7 +27,9 @@ const useBackend = ({ fetchPolicy }: Props = {}) => {
   }, [backend, dispatch, fetchPolicy]);
 
   const changeBackend = (newBackend) => {
-    backend !== newBackend && sendMessage("set_backend", newBackend);
+    if (backend !== newBackend) {
+      sendMessage("set_backend", newBackend);
+    }
   };
 
   return { backend, fetchData, changeBackend };

@@ -7,7 +7,7 @@ function Label({
 }: LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={"text-sm font-bold" + (className ? " " + className : "")}
+      className={"text-xs font-bold" + (className ? " " + className : "")}
       {...rest}
     >
       {children}

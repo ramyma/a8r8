@@ -1,16 +1,31 @@
 import { emitCustomEvent, useCustomEventListener } from "react-custom-events";
 import { ActiveLayer } from "../../state/layersSlice";
 import { PngInfo } from "../../utils";
-import { Vector2d } from "konva/lib/types";
 
 type Props = {
   clearLines?: (layer: ActiveLayer) => void;
+  fillActiveLayer?: () => void;
   clearImages?: () => void;
+  updateZoom: (zoom: number) => void;
 };
 
-const useCustomEventsListener = ({ clearLines }: Props) => {
+const useCustomEventsListener = ({
+  clearLines,
+  fillActiveLayer,
+  updateZoom,
+}: Props) => {
   useCustomEventListener("customClearLayerLines", (layer: ActiveLayer) => {
-    clearLines && clearLines(layer);
+    if (clearLines) {
+      clearLines(layer);
+    }
+  });
+  useCustomEventListener("customFillActiveLayer", () => {
+    if (fillActiveLayer) {
+      fillActiveLayer();
+    }
+  });
+  useCustomEventListener("updateZoom", (value: number) => {
+    updateZoom?.(value);
   });
 };
 
@@ -41,9 +56,6 @@ export const emitImageDropEvent = ({
     pngInfo,
   });
 };
-export const emitClearBaseImages = () => {
-  emitCustomEvent("customClearBaseImages");
-};
 
 export const emitUpdateSeed = (seed: number) => {
   emitCustomEvent("updateSeed", seed);
@@ -57,6 +69,10 @@ export const emitBatchGenerationProps = (batchGenerationProps: {
   height?: number;
 }) => {
   emitCustomEvent("batchGenerationProps", batchGenerationProps);
+};
+
+export const emitUpdateZoomLevel = (zoomPercentage: number) => {
+  emitCustomEvent("updateZoom", zoomPercentage);
 };
 
 export default useCustomEventsListener;

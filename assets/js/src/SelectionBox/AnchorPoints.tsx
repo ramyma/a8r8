@@ -1,8 +1,7 @@
-import React, { useContext, useRef } from "react";
+import React, { useRef } from "react";
 import { KonvaEventObject } from "konva/lib/Node";
 import { Group, Rect } from "react-konva";
 import { Rect as RectType } from "konva/lib/shapes/Rect";
-import ThemeContext from "../context/ThemeContext";
 
 interface Props {
   isGenerating: boolean;
@@ -23,40 +22,49 @@ export const AnchorPoints = ({
   stageScale,
   isTransforming,
 }: Props) => {
-  const theme = useContext(ThemeContext);
-
   const handleMouseEnterSideAnchor = (e: KonvaEventObject<MouseEvent>) => {
     const stageContainer = e.target.getStage()?.container();
-    stageContainer && (stageContainer.style.cursor = "ew-resize");
+    if (stageContainer) {
+      stageContainer.style.cursor = "ew-resize";
+    }
   };
   const handleMouseEnterVerticalAnchor = (e: KonvaEventObject<MouseEvent>) => {
     const stageContainer = e.target.getStage()?.container();
-    stageContainer && (stageContainer.style.cursor = "ns-resize");
+    if (stageContainer) {
+      stageContainer.style.cursor = "ns-resize";
+    }
   };
   const handleMouseEnterRightDiagonalAnchor = (
     e: KonvaEventObject<MouseEvent>
   ) => {
     const stageContainer = e.target.getStage()?.container();
-    stageContainer && (stageContainer.style.cursor = "nesw-resize");
+    if (stageContainer) {
+      stageContainer.style.cursor = "nesw-resize";
+    }
   };
   const handleMouseEnterLeftDiagonalAnchor = (
     e: KonvaEventObject<MouseEvent>
   ) => {
     const stageContainer = e.target.getStage()?.container();
-    stageContainer && (stageContainer.style.cursor = "nwse-resize");
+    if (stageContainer) {
+      stageContainer.style.cursor = "nwse-resize";
+    }
   };
 
   const handleMouseLeaveAnchor = (e: KonvaEventObject<MouseEvent>) => {
     if (!isTransforming) {
       const stageContainer = e.target.getStage()?.container();
-      stageContainer && (stageContainer.style.cursor = "auto");
+      if (stageContainer) {
+        stageContainer.style.cursor = "auto";
+      }
     }
   };
   const anchor = useRef<RectType>(null);
   const anchorSize = Math.max(4, 16 / stageScale);
   const anchorHalfSize = anchorSize / 2;
 
-  const fill = theme.colors.primary;
+  const styles = getComputedStyle(document.documentElement);
+  const fill = styles.getPropertyValue("--color-primary");
 
   return (
     <Group visible={!isGenerating}>

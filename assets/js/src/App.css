@@ -1,6 +1,39 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@theme {
+  --color-*: initial;
+  --color-white: #fff;
+  --color-purple: #3f3cbb;
+  --color-midnight: #121063;
+  --color-tahiti: #3ab7bf;
+  --color-bermuda: #78dcca;
+  --color-primary: #ff9a4b;
+  --color-danger: #d41818;
+  --color-success: #49a847;
+  --color-warning: #ffc53d;
+}
 
 .remirror-editor {
   overflow: visible !important;
@@ -12,6 +45,7 @@
 
 .remirror-editor-wrapper > [role="textbox"] {
   line-height: 1.85em !important;
+  padding: calc(var(--spacing) * 2) !important;
 }
 
 .remirror-floating-popover {

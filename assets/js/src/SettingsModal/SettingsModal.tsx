@@ -6,7 +6,7 @@ import Link from "../components/Link";
 import Modal, { ModalProps } from "../components/Modal";
 import ScrollArea from "../components/ScrollArea";
 import useSocket from "../hooks/useSocket";
-import { useLayoutEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useState } from "react";
 import useModels from "../hooks/useModels";
 import { ModelSelect, VaeSelect } from "../App";
 import Slider from "../components/Slider";
@@ -17,6 +17,9 @@ import useSchedulers from "../hooks/useSchedulers";
 import { getModelWithParams } from "../utils";
 import ClipModelMultiSelect from "../MainForm/ClipModelMultiSelect";
 import useOptions from "../hooks/useOptions";
+import { ModelType } from "../App.d";
+import useGlobalKeydown from "../hooks/useGlobalKeydown";
+
 type Props = ModalProps;
 
 type ConfigFormValues = {
@@ -32,8 +35,17 @@ type ConfigFormValues = {
     flux_guidance: number;
     sampler_name: string;
     scheduler: string;
+    modelType: ModelType;
   };
 };
+
+const MODEL_TYPES: { label: string; value: ModelType }[] = [
+  { label: "SD 1.5", value: "sd1.5" },
+  { label: "SDXL", value: "sdxl" },
+  { label: "SD3.5", value: "sd3.5" },
+  { label: "Pony", value: "pony" },
+  { label: "Flux", value: "flux" },
+];
 
 const SettingsModal = ({ open, ...props }: Props) => {
   const { sendCivitMessage, sendMessage, sendMessageAndReceive } = useSocket();
@@ -63,44 +75,83 @@ const SettingsModal = ({ open, ...props }: Props) => {
   const [prevSelectedModel, setPrevSelectedModel] =
     useState<typeof selectedModelState>();
 
-  const loadModelData = async (modelName: string) => {
-    const modelConfig = await loadModelConfig(modelName);
+  const getDefaultValues = useCallback(
+    (modelState) => {
+      const allowsAutomaticVae =
+        modelState?.modelType !== "flux" && modelState?.modelType !== "sd3.5";
+      return {
+        model: {
+          ...modelState,
+          vae:
+            modelState.vae ??
+            selectedVae ??
+            (allowsAutomaticVae ? undefined : "Automatic"),
+          clip_models: modelState.clip_models ?? [],
+        },
+        civit: { api_token: "" },
+      };
+    },
+    [selectedVae]
+  );
 
-    setDefaultModelState(modelConfig ?? undefined);
-    modelConfig && setValue("model", modelConfig);
-  };
+  const { control, handleSubmit, setValue, reset } = useForm<ConfigFormValues>({
+    shouldUnregister: true,
+    // defaultValues: getDefaultValues(defaultModelState),
+  });
+
+  const loadModelData = useCallback(
+    async (modelName: string) => {
+      const modelConfig = await loadModelConfig(modelName);
+      const updatedModelConfig = {
+        ...(modelConfig ?? {}),
+        modelType:
+          modelConfig?.modelType ?? getModelWithParams(modelName).modelType,
+      };
+
+      setDefaultModelState(updatedModelConfig);
+
+      if (modelConfig) {
+        setValue("model", updatedModelConfig);
+      }
+
+      const newDefaultValues = getDefaultValues(updatedModelConfig);
+      reset(newDefaultValues);
+    },
+    [getDefaultValues, loadModelConfig, reset, setValue]
+  );
 
   if (selectedModelState?.name !== prevSelectedModel?.name) {
     setPrevSelectedModel(selectedModelState);
-    selectedModelState?.name && loadModelData(selectedModelState.name);
+    if (selectedModelState?.name) {
+      loadModelData(selectedModelState.name);
+    }
   }
+
+  const { refetch: refetchOptions } = useOptions();
+
+  useGlobalKeydown({
+    handleKeydown: (event) => {
+      if (open) {
+        event.stopPropagation();
+        if (event.key === "Escape") props.onClose(event);
+      }
+    },
+    override: true,
+  });
+
+  const [defaultModelState, setDefaultModelState] =
+    useState<ConfigFormValues["model"]>();
 
   useLayoutEffect(() => {
     if (prevOpen !== open) {
       setPrevOpen(open);
       if (open && selectedModelState?.name !== selectedModel?.name)
         setSelectedModelState(selectedModel);
+      else {
+        loadModelData(selectedModel.name);
+      }
     }
-  }, [prevOpen, open, selectedModel, selectedModelState]);
-
-  const { refetch: refetchOptions } = useOptions();
-
-  const [defaultModelState, setDefaultModelState] =
-    useState<ConfigFormValues["model"]>();
-
-  const allowsAutomaticVae =
-    !selectedModelState?.isFlux && !selectedModelState?.isSd35;
-
-  const { control, handleSubmit, setValue } = useForm<ConfigFormValues>({
-    shouldUnregister: true,
-    defaultValues: {
-      model: defaultModelState || {
-        vae: (selectedVae ?? allowsAutomaticVae) ? undefined : "Automatic",
-        clip_models: [],
-      },
-      civit: { api_token: "" },
-    },
-  });
+  }, [prevOpen, open, selectedModel, selectedModelState, reset, loadModelData]);
 
   const onSubmit: SubmitHandler<ConfigFormValues> = async (params) => {
     if (activeSection === "civit") {
@@ -130,7 +181,7 @@ const SettingsModal = ({ open, ...props }: Props) => {
       scroll={false}
     >
       <div className="flex flex-1 w-full relative overflow-hidden">
-        <div className="bg-neutral-950 border-neutral-900/60 border-r flex-1 flex-shrink-0 p-5 overflow-hidden">
+        <div className="bg-neutral-950 border-neutral-900/60 border-r flex-1 shrink-0 p-5 overflow-hidden">
           <ScrollArea className="text-start">
             <div className="flex flex-col gap-3">
               {/* <Link onClick={() => setActiveSection("cviit")}>Civit</Link> */}
@@ -144,13 +195,13 @@ const SettingsModal = ({ open, ...props }: Props) => {
             </div>
           </ScrollArea>
         </div>
-        <div className="flex flex-col flex-[7]  bg-neutral-950/80 flex-shrink-0 text-start">
+        <div className="flex flex-col flex-7  bg-neutral-950/80 shrink-0 text-start">
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="relative flex-1 h-full"
           >
             <ScrollArea className="flex flex-col content-start" type="scroll">
-              <div className="h-full flex-1 flex-shrink flex-grow-0 p-7">
+              <div className="h-full flex-1 shrink grow-0 p-7">
                 {activeSection == "civit" && (
                   <Label className="flex flex-col gap-2">
                     API Token
@@ -209,6 +260,16 @@ const SettingsModal = ({ open, ...props }: Props) => {
                         )}
                       />
                     </Label>
+                    <div className="flex flex-col gap-2">
+                      <Label>Model Type</Label>
+                      <Controller
+                        name="model.modelType"
+                        control={control}
+                        render={({ field }) => (
+                          <Select items={MODEL_TYPES} {...field} />
+                        )}
+                      />
+                    </div>
                     {(selectedModelState?.isFlux ||
                       selectedModelState?.isSd35) && (
                       <Controller

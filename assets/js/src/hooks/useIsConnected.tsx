@@ -24,7 +24,7 @@ const useIsConnected = () => {
   useEffect(() => {
     const ref = socket?.onClose(handleSocketClose);
     return () => {
-      ref && socket?.off(ref);
+      if (ref) socket?.off(ref);
     };
   }, [handleSocketClose, socket]);
 
@@ -37,14 +37,16 @@ const useIsConnected = () => {
   useEffect(() => {
     const ref = socket?.onOpen(handleSocketOpen);
     return () => {
-      ref && socket?.off(ref);
+      if (ref) socket?.off(ref);
     };
   }, [handleSocketOpen, socket]);
 
   useEffect(() => {
     async function get() {
-      const isConnected =
-        await sendMessageAndReceive<Promise<boolean>>("get_is_connected");
+      const isConnected = await sendMessageAndReceive<Promise<boolean>>({
+        message: "get_is_connected",
+        async: false,
+      });
       dispatch(setIsBackendConnected(isConnected));
     }
     if (!ref.current) {

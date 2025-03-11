@@ -1,5 +1,6 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Vector2d } from "konva/lib/types";
+import { oklch } from "chroma-js";
 import { Group, Image, Rect, Text } from "react-konva";
 import RefsContext from "../context/RefsContext";
 import { useAppSelector } from "../hooks";
@@ -68,12 +69,24 @@ const SelectionBox = ({
     y: y + 24,
   };
 
-  const progressStrokeColor = theme?.colors?.success ?? "#15803d";
+  const progressStrokeColor = theme.getPropertyValue("--color-success");
+
   const strokeColor = theme
     ? remoteSession
-      ? theme?.colors?.neutral["700"]
-      : theme?.colors?.yellow["800"]
+      ? oklch(
+          theme
+            .getPropertyValue("--color-neutral-700")
+            .replaceAll(/oklch|\(|\)/g, "")
+            .split(" ")
+        ).hex()
+      : oklch(
+          theme
+            .getPropertyValue("--color-yellow-800")
+            .replaceAll(/oklch|\(|\)/g, "")
+            .split(" ")
+        ).hex()
     : "#8787877d";
+
   const stop = Math.min(1, progress / 100);
 
   const strokeGradient = [
@@ -235,7 +248,7 @@ const ProgressRect = ({
       height={16}
       x={x}
       y={y}
-      fill={(theme?.colors?.success as string) ?? "#15803d"}
+      fill={theme.getPropertyValue("--color-success") ?? "#15803d"}
       strokeEnabled={false}
       listening={false}
     />

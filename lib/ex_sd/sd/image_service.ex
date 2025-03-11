@@ -56,6 +56,7 @@ defmodule ExSd.Sd.ImageService do
 
       case Enum.sum(average) do
         0 ->
+          # mask_blur = Keyword.get(options, :mask_blur, 6)
           # Fill whole mask with white if the average of all pixels is 0; meaning an empty mask
           mask =
             if Enum.sum(image_average) == 0 do
@@ -65,7 +66,7 @@ defmodule ExSd.Sd.ImageService do
               # TODO: control using attrs
               # |> maybe_feather!(20.0, Keyword.get(options, :should_feather_mask, true))
 
-              # |> Image.feather!(sigma: 15)
+              # |> Image.feather!(sigma: mask_blur)
 
               # Image.compose!(
               #   image,
@@ -94,7 +95,7 @@ defmodule ExSd.Sd.ImageService do
           mask_blur = Keyword.get(options, :mask_blur, 6)
 
           if mask_blur && mask_blur != 0 do
-            image |> Image.blur!(sigma: mask_blur)
+            image |> Image.blur!(sigma: mask_blur, min_amplitude: 0.001)
           else
             image
           end
@@ -142,12 +143,19 @@ defmodule ExSd.Sd.ImageService do
     with %{scheme: "data"} = uri <- URI.parse(image_data_url),
          {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri),
          {:ok, image} <- Image.from_binary(data) do
+      blur = Keyword.get(options, :mask_blur, 10)
+
       mask_from_image =
         image
         |> Image.convert_alpha_to_mask!()
         # TODO: check it doesn't crash the application with values > 10
-        |> Image.dilate!(30)
-        |> Image.blur!(sigma: 10.0)
+
+        |> then(
+          &if(blur > 0,
+            do: &1 |> grow!() |> Image.blur!(sigma: blur, min_amplitude: 0.001),
+            else: &1
+          )
+        )
 
       # |> Image.Draw.flood!(0, 0, color: :white)
 
@@ -170,5 +178,22 @@ defmodule ExSd.Sd.ImageService do
     else
       error -> {:error, error}
     end
+  end
+
+  @spec grow!(Vix.Vips.Image.t()) :: Vix.Vips.Image.t()
+  def grow!(image) do
+    {:ok, grow_kernel} =
+      Vix.Vips.Image.new_from_list([
+        [1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1],
+        [1, 1, 1, 1, 1]
+      ])
+
+    Enum.reduce(1..30, image, fn _, acc ->
+      Vix.Vips.Operation.convi!(acc, grow_kernel)
+    end)
   end
 end

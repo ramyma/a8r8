@@ -1,4 +1,4 @@
-import React, {
+import {
   forwardRef,
   LegacyRef,
   useContext,
@@ -10,6 +10,7 @@ import { Circle } from "react-konva";
 import { useAppSelector } from "../hooks";
 import {
   selectBrushSize,
+  selectBrushHardness,
   selectIsBrushPreviewVisible,
   selectMode,
   selectStageScale,
@@ -17,10 +18,11 @@ import {
 } from "../state/canvasSlice";
 import pattern from "../pattern";
 import RefsContext from "../context/RefsContext";
-import { hexToRgb } from "../utils";
+import { hexToRgb, isSketchLayer } from "../utils";
 import { selectActiveLayer } from "../state/layersSlice";
 import useBrushColor from "../hooks/useBrushColor";
 import { BrushPreviewNode } from "./OverlayLayer";
+import { hexToRgba } from "../utils";
 
 export const BrushPreview = forwardRef(
   (_props, ref: LegacyRef<BrushPreviewNode>) => {
@@ -34,6 +36,8 @@ export const BrushPreview = forwardRef(
     const [svgImage, setSvgImage] = useState<HTMLImageElement>();
     const { stageRef } = useContext(RefsContext);
     const brushColor = useBrushColor();
+    const brushHardness = useAppSelector(selectBrushHardness);
+
     const prevMaskColor = useRef(brushColor);
 
     useEffect(() => {
@@ -52,6 +56,7 @@ export const BrushPreview = forwardRef(
       tool &&
       mode === "paint" &&
       activeLayer !== "base";
+
     return (
       <Circle
         radius={brushSize / 2}
@@ -71,7 +76,20 @@ export const BrushPreview = forwardRef(
                   y: 1 / (stageRef?.current?.scale()?.x ?? 1),
                 },
               }
-            : { fill: brushColor ?? "black" })}
+            : isSketchLayer(activeLayer)
+              ? {
+                  fillRadialGradientStartRadius: 0,
+                  fillRadialGradientEndRadius: brushSize / 2,
+                  fillRadialGradientColorStops: [
+                    0,
+                    hexToRgba(brushColor),
+                    brushHardness,
+                    hexToRgba(brushColor),
+                    1,
+                    hexToRgba(brushColor, 0),
+                  ],
+                }
+              : { fill: brushColor ?? "black" })}
       />
     );
   }

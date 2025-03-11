@@ -1,26 +1,28 @@
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  CameraIcon,
   EraserIcon,
   EyeNoneIcon,
   EyeOpenIcon,
-  MaskOffIcon,
-  MaskOnIcon,
-  PlusIcon,
+  Half2Icon,
   TrashIcon,
   ViewNoneIcon,
 } from "@radix-ui/react-icons";
+
 import {
   ActionCreatorWithoutPayload,
   ActionCreatorWithPayload,
 } from "@reduxjs/toolkit";
 import debounce from "lodash.debounce";
-import React, {
+import {
   ChangeEvent,
+  ChangeEventHandler,
   DragEventHandler,
   MouseEvent,
   MouseEventHandler,
   ReactNode,
+  useContext,
   useMemo,
   useRef,
   useState,
@@ -44,10 +46,20 @@ import {
   selectActiveLayer,
   setActiveLayer,
   selectIsSketchLayerVisible,
-  toggleSketchLayerVisibility,
   selectIsMaskLayerVisible,
   toggleMaskLayerVisibility,
   ActiveLayer,
+  selectLayers,
+  decrementLayerOrder,
+  incrementLayerOrder,
+  toggleLayerVisibility,
+  addSketchLayer,
+  removeSketchLayer,
+  selectGenerationLayer,
+  setGenerationLayer,
+  setLayerName,
+  selectLayersCount,
+  SketchLayerId,
 } from "./state/layersSlice";
 import Slider from "./components/Slider";
 import ScrollArea from "./components/ScrollArea";
@@ -55,7 +67,6 @@ import Select from "./components/Select";
 import Label from "./components/Label";
 import { selectInvertMask, toggleInvertMask } from "./state/canvasSlice";
 import {
-  emitClearBaseImages,
   emitClearLayerLines,
   emitImageDropEvent,
 } from "./Canvas/hooks/useCustomEventsListener";
@@ -76,8 +87,11 @@ import {
 } from "./state/promptRegionsSlice";
 import Button from "./components/Button";
 import { weightTypesByName } from "./MainForm/constants";
-import { checkIsIpAdapterControlnetModel } from "./utils";
-import Switch from "./Switch";
+import { checkIsIpAdapterControlnetModel, extractSketchLayerId } from "./utils";
+import RefsContext from "./context/RefsContext";
+import Popover from "./components/Popover";
+import Input from "./components/Input";
+import { selectIsGenerating } from "./state/statsSlice";
 
 const WEIGHT_TYPES = Object.keys(weightTypesByName);
 
@@ -100,6 +114,7 @@ type LayerProps = {
     | ActionCreatorWithPayload<LayerProps["isEnabledActionCreatorPayload"]>;
   actions?: ReactNode[];
   type: "base" | "mask" | "sketch" | "controlnet" | "regionMask";
+  preview?: "string";
 };
 
 const LayerItem = ({
@@ -118,8 +133,11 @@ const LayerItem = ({
   isEnabled,
   isActive,
   actions,
+  preview,
 }: LayerProps & { activeLayerId: ActiveLayer }) => {
   const itemRef = useRef<HTMLLIElement>(null);
+
+  const { stageRef } = useContext(RefsContext);
 
   const dispatch = useAppDispatch();
   const backend = useAppSelector(selectBackend);
@@ -130,7 +148,7 @@ const LayerItem = ({
     selectPromptRegionLayerById(state, subId)
   );
   const regionMaskLayersCount = useAppSelector(selectPromptRegionLayersCount);
-
+  const sketchLayersCount = useAppSelector(selectLayersCount);
   //TODO: remove hardcoding for -mask and controlnet to extract and construct layer id
   const isMaskLayerActive =
     type === "controlnet" &&
@@ -140,18 +158,50 @@ const LayerItem = ({
 
   const [dragOver, setDragOver] = useState(false);
   const [isImagePreviewVisible, setIsImagePreviewVisible] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [tempName, setTempName] = useState(name);
+
+  const updateLayerName = () => {
+    if (tempName && tempName !== name)
+      dispatch(setLayerName({ id: extractSketchLayerId(id), name: tempName }));
+  };
+
+  const handleNameEditKeydown = (event) => {
+    if (event.key === "Enter") {
+      setIsEditMode(false);
+      updateLayerName();
+    } else if (event.key === "Escape") setIsEditMode(false);
+  };
+
+  const handleEditModeBlur = () => {
+    setIsEditMode(false);
+    updateLayerName();
+  };
+
+  const handleEditNameChange: ChangeEventHandler<HTMLInputElement> = (
+    event
+  ) => {
+    setTempName(event.target.value);
+  };
+
+  const handleNameDoubleClick = () => {
+    if (type == "sketch") {
+      setTempName(name);
+      setIsEditMode(true);
+    }
+  };
 
   const toggleVisibility = () => {
     // e?.stopPropagation();
-    visibilityActionCreator &&
+    if (visibilityActionCreator)
       dispatch(visibilityActionCreator(visibilityActionCreatorPayload));
   };
   const toggleIsEnabled = (_event: MouseEvent) => {
-    isEnabledActionCreator &&
+    if (isEnabledActionCreator)
       dispatch(isEnabledActionCreator(isEnabledActionCreatorPayload));
   };
   const handleClick = () => {
-    (!isActive || isMaskLayerActive) && dispatch(setActiveLayer(id));
+    if (!isActive || isMaskLayerActive) dispatch(setActiveLayer(id));
   };
   const handleMaskLayerClick = () => {
     dispatch(setActiveLayer((id + "-mask") as ActiveLayer));
@@ -186,7 +236,7 @@ const LayerItem = ({
             if (e.target) {
               const dataUrl = e.target.result;
               if (typeof dataUrl === "string") {
-                if (type === "base") {
+                if (type === "sketch") {
                   emitImageDropEvent({ imageDataUrl: dataUrl });
                 }
                 if (type === "controlnet")
@@ -217,14 +267,14 @@ const LayerItem = ({
   };
 
   const handleMaskColorChange = (color) => {
-    type === "controlnet" &&
+    if (type === "controlnet")
       dispatch(
         updateControlnetLayer({
           layerId: id.replace(/((-mask)|controlnet)/g, ""),
           maskColor: color,
         })
       );
-    type === "regionMask" &&
+    if (type === "regionMask")
       dispatch(
         updatePromptRegionLayer({
           layerId: id.replace("regionMask", ""),
@@ -241,6 +291,34 @@ const LayerItem = ({
   const moveDownClick: MouseEventHandler = (event) => {
     event.stopPropagation();
     dispatch(incrementOrder(subId ?? ""));
+  };
+
+  const handleSketchMoveUpClick = (event: MouseEvent, layerId: string) => {
+    event.stopPropagation();
+
+    const extractedLayerId = extractSketchLayerId(layerId);
+
+    dispatch(decrementLayerOrder(extractedLayerId));
+    // stageRef?.current?.children
+    //   .find(
+    //     (child) =>
+    //       child instanceof Konva.Layer && child.attrs.id === extractedLayerId
+    //   )
+    //   ?.moveUp();
+  };
+
+  const handleSketchMoveDownClick = (event: MouseEvent, layerId: string) => {
+    event.stopPropagation();
+
+    const extractedLayerId = extractSketchLayerId(layerId);
+
+    dispatch(incrementLayerOrder(extractedLayerId));
+    // stageRef?.current?.children
+    //   .find(
+    //     (child) =>
+    //       child instanceof Konva.Layer && child.attrs.id === extractedLayerId
+    //   )
+    //   ?.moveDown();
   };
 
   return (
@@ -275,6 +353,11 @@ const LayerItem = ({
       >
         <div className="absolute left-0 top-0 pointer-events-none w-full h-full" />
         <div className="flex gap-2 2xl:items-center sm:flex-col 2xl:flex-row">
+          {preview && (
+            <div className="flex size-7 shrink-0 border border-neutral-500 rounded bg-neutral-600 overflow-hidden">
+              <img src={preview} alt="" className="object-contain" />
+            </div>
+          )}
           <div
             className={
               "w-full flex flex-col sm:shrink-[0.6] 2xl:shrink " +
@@ -286,37 +369,65 @@ const LayerItem = ({
                 : "")
             }
           >
-            <span className="text-sm" title={name}>
-              {name}
-            </span>
+            {isEditMode ? (
+              <Input
+                value={tempName}
+                autoFocus
+                onBlur={handleEditModeBlur}
+                onKeyDown={handleNameEditKeydown}
+                onChange={handleEditNameChange}
+                className="w-32"
+              />
+            ) : (
+              <span
+                className="text-xs text-ellipsis  overflow-hidden max-w-20"
+                title={name}
+                onDoubleClick={handleNameDoubleClick}
+              >
+                {name}
+              </span>
+            )}
             <span className="text-xs truncate" title={subtitle}>
               {subtitle}
             </span>
           </div>
-
-          {type === "regionMask" && (
-            <div className="flex gap-2">
-              <ColorBox
-                color={regionMaskLayer?.maskColor}
-                onColorChange={handleMaskColorChange}
-              />
+          {(type === "regionMask" || /^sketch.+$/g.test(id)) && (
+            <div className="flex gap-1">
+              {type === "regionMask" && (
+                <ColorBox
+                  color={regionMaskLayer?.maskColor}
+                  onColorChange={handleMaskColorChange}
+                />
+              )}
               <Button
                 variant="clear"
                 className="p-1"
-                onClick={moveDownClick}
-                title="Move Down"
-                disabled={index === regionMaskLayersCount - 1}
-              >
-                <ArrowDownIcon />
-              </Button>
-              <Button
-                variant="clear"
-                className="p-1"
-                onClick={handleMoveUpClick}
+                onClick={
+                  type === "regionMask"
+                    ? handleMoveUpClick
+                    : (event) => handleSketchMoveUpClick(event, id)
+                }
                 title="Move Up"
                 disabled={index === 0}
               >
                 <ArrowUpIcon />
+              </Button>
+              <Button
+                variant="clear"
+                className="p-1"
+                onClick={
+                  type === "regionMask"
+                    ? moveDownClick
+                    : (event) => handleSketchMoveDownClick(event, id)
+                }
+                title="Move Down"
+                disabled={
+                  (type === "regionMask" &&
+                    index === regionMaskLayersCount - 1) ||
+                  (type === "sketch" && index === sketchLayersCount - 1)
+                }
+              >
+                <ArrowDownIcon />
               </Button>
             </div>
           )}
@@ -411,7 +522,7 @@ const LayerItem = ({
           }}
         >
           <div
-            className="rounded-md backdrop-blur-sm bg-black/70 border border-neutral-700/20 shadow-md shadow-black/20"
+            className="rounded-md backdrop-blur-xs bg-black/70 border border-neutral-700/20 shadow-md shadow-black/20"
             style={{
               backgroundImage: `url(${controlnetLayer?.image}`,
               width: 150,
@@ -436,6 +547,7 @@ const LayersControl = () => {
   const invertMask = useAppSelector(selectInvertMask);
   const backend = useAppSelector(selectBackend);
   const selectedModel = useAppSelector(selectSelectedModel);
+  const isGenerating = useAppSelector(selectIsGenerating);
 
   const { hasControlnet, hasRegionalPrompting } = useScripts();
   // const isControlnetLayerVisible = useAppSelector(
@@ -444,6 +556,7 @@ const LayersControl = () => {
   const activeLayerId = useAppSelector(selectActiveLayer);
 
   const controlnetArgs = useAppSelector(selectControlnetLayers);
+  const generationLayer = useAppSelector(selectGenerationLayer);
 
   const {
     controlnet_models,
@@ -569,24 +682,9 @@ const LayersControl = () => {
     })
   );
 
+  const sketchLayers = useAppSelector(selectLayers);
+
   const layers: LayerProps[] = [
-    {
-      id: "base",
-      name: "Base",
-      isVisible: true,
-      type: "base",
-      // actionCreator: toggleSketchLayerVisibility,
-      actions: [
-        <LayerActionButton
-          key="clearImages"
-          onClick={() => {
-            emitClearBaseImages();
-          }}
-          title="Clear Images"
-          type="clearImage"
-        />,
-      ],
-    },
     {
       id: "mask",
       name: "Mask",
@@ -596,8 +694,8 @@ const LayersControl = () => {
       actions: [
         <Toggle
           key="invertMask"
-          pressedIconComponent={MaskOnIcon}
-          unpressedIconComponent={MaskOffIcon}
+          pressedIconComponent={Half2Icon}
+          unpressedIconComponent={Half2Icon}
           pressed={invertMask}
           onChange={() => {
             dispatch(toggleInvertMask());
@@ -610,27 +708,44 @@ const LayersControl = () => {
             emitClearLayerLines("mask");
           }}
           title="Clear Mask"
-          type="clearLines"
+          type="clearImage"
         />,
       ],
     },
-    {
-      id: "sketch",
-      name: "Sketch",
-      type: "sketch",
-      isVisible: isSketchLayerVisible,
-      visibilityActionCreator: toggleSketchLayerVisibility,
-      actions: [
-        <LayerActionButton
-          key="clearSketch"
-          onClick={() => {
-            emitClearLayerLines("sketch");
-          }}
-          title="Clear Sketch"
-          type="clearLines"
-        />,
-      ],
-    },
+    ...sketchLayers.map(
+      ({ id, isVisible, name, image }, index) =>
+        ({
+          index,
+          id: `sketch${id}`,
+          name,
+          type: "sketch",
+          isVisible: isVisible,
+          visibilityActionCreator: toggleLayerVisibility,
+          visibilityActionCreatorPayload: id,
+          preview: image?.imageDataUrl,
+          actions: [
+            <Toggle
+              key="setGenLayer"
+              pressed={generationLayer === `sketch${id}`}
+              onChange={() => {
+                if (generationLayer !== `sketch${id}`)
+                  dispatch(setGenerationLayer(`sketch${id}`));
+              }}
+              title="Gen Layer"
+              pressedIconComponent={CameraIcon}
+              unpressedIconComponent={CameraIcon}
+            />,
+            <LayerActionButton
+              key="clearSketch"
+              onClick={() => {
+                emitClearLayerLines(`sketch${id}`);
+              }}
+              title="Clear Sketch"
+              type="clearImage"
+            />,
+          ],
+        }) as LayerProps
+    ),
     ...(hasRegionalPrompting && isRegionalPromptsEnabled
       ? regionMaskLayers
       : []),
@@ -753,8 +868,10 @@ const LayersControl = () => {
   }, 0);
 
   const layerItemsListRef = useRef<HTMLDivElement>(null);
-  const handleAddLayer = () => {
-    dispatch(addControlnetLayer(uuid4()));
+  const handleAddLayer = (type: "sketch" | "controlnet") => {
+    if (type === "controlnet") dispatch(addControlnetLayer(uuid4()));
+    if (type === "sketch") dispatch(addSketchLayer(uuid4()));
+
     //TODO: add addition animation
     // layerItemsListRef?.current?.scrollTo(
     //   0,
@@ -768,6 +885,8 @@ const LayersControl = () => {
   //     layerItemsListRef.current.scrollHeight
   //   );
   // }, [controlnetLayers]);
+
+  const isActiveSketchLayer = /^sketch.+/.test(activeLayerId);
 
   const handleRemoveLayer = () => {
     if (activeControlnetLayer?.id) {
@@ -788,6 +907,8 @@ const LayersControl = () => {
     if (activeRegionMaskLayer?.id) {
       dispatch(removePromptRegionLayer(activeRegionMaskLayer.subId ?? ""));
     }
+    if (isActiveSketchLayer)
+      dispatch(removeSketchLayer(extractSketchLayerId(activeLayerId)));
   };
 
   const activeControlnetLayer = activeLayerId.startsWith("controlnet")
@@ -805,38 +926,56 @@ const LayersControl = () => {
     ({ name }) => name === activeControlnetLayer?.module
   )?.sliders;
 
-  const showControlLayers =
-    !selectedModel.isFlux && !selectedModel.isSd35 && activeControlnetLayer;
+  const showControlLayers = !selectedModel.isFlux && !selectedModel.isSd35;
 
   return (
-    <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[20vw] p-4 pe-0 rounded backdrop-blur-sm select-none overflow-hidden transition-all">
-      <div className="flex justify-between pt-2">
-        <h3 className="sm:flex-1 lg:flex-[3] text-sm font-bold">Layers</h3>
+    <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[17vw] p-4 pe-0 rounded-xs backdrop-blur-xs select-none overflow-hidden transition-all">
+      <div className="flex justify-between pt-2 items-center">
+        <h3 className="sm:flex-1 lg:flex-3 text-sm font-bold">Layers</h3>
         {showControlLayers && (
-          <div className="flex flex-1 gap-4 sticky top-0 mt-[-8px] pe-1">
+          <div className="flex flex-1 gap-3 sticky top-0 mt-[-8px] pe-1">
             <Button
-              className="p-0.5 size-8"
+              className="p-1 size-7"
               title="Remove layer"
               onClick={handleRemoveLayer}
               disabled={
                 !activeControlnetLayer &&
+                (!isActiveSketchLayer ||
+                  sketchLayers.length < 2 ||
+                  isGenerating) &&
                 (!activeRegionMaskLayer || regionMaskLayers.length <= 2)
               }
             >
               <TrashIcon />
             </Button>
-            <Button
-              className="p-0.5 rounded size-8 "
+            {/* <Button
+              className="p-1 size-7 "
               title="Add controlnet layer"
-              onClick={handleAddLayer}
+              // onClick={handleAddLayer}
             >
               <PlusIcon />
-            </Button>
+            </Button> */}
+            <Popover>
+              <ul className="text-sm flex flex-col gap-3 select-none">
+                <li
+                  className="cursor-pointer"
+                  onClick={() => handleAddLayer("controlnet")}
+                >
+                  <Popover.Close>Add Controlnet Layer</Popover.Close>
+                </li>
+                <li
+                  className="cursor-pointer"
+                  onClick={() => handleAddLayer("sketch")}
+                >
+                  <Popover.Close>Add Sketch Layer</Popover.Close>
+                </li>
+              </ul>
+            </Popover>
           </div>
         )}
       </div>
       <ScrollArea className="pe-2 mb-2" ref={layerItemsListRef}>
-        <ul className="max-h-[31vh] pe-2 flex flex-col w-full mt-2 rounded">
+        <ul className="max-h-[31vh] pe-2 flex flex-col w-full mt-2 rounded-xs">
           {/* TODO: animate layer on undo/redo to signal which layer was affected */}
           {layers.map(({ id, ...rest }) => (
             <LayerItem
@@ -862,9 +1001,9 @@ const LayersControl = () => {
               onChange={(e) => handleControlnetChange(e, i)}
             />
           </Label> */}
-        {showControlLayers && (
-          <ScrollArea className="pe-2 mb-2">
-            <div className="flex gap-5 flex-col mt-2 h-[45vh]  pt-1 pr-2.5">
+        {showControlLayers && activeControlnetLayer && (
+          <ScrollArea className="flex pe-2 mb-2">
+            <div className="flex gap-5 shrink flex-col mt-2 h-[45vh] pt-1 pr-2.5">
               <div>
                 <ImageUploader
                   image={
@@ -893,7 +1032,7 @@ const LayersControl = () => {
                   )
                 }
               >
-                Override Base Layer
+                Override Visible
               </Checkbox>
 
               {/* TODO: show only when IP Adapter nodes are available on Comfy */}
@@ -1382,7 +1521,7 @@ const LayerActionButton = ({
     <Button
       variant="clear"
       key="clearMask"
-      className="size-[32px] text-base leading-4 p-0 group-data-active:text-white group-data-active:hover:text-neutral-400"
+      className="size-[32px] text-base leading-4 p-0 group-data-active:text-white hover:group-data-active:text-neutral-400"
       onClick={(e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
