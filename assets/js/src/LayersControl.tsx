@@ -36,10 +36,14 @@ import useControlnet from "./hooks/useControlnet";
 import {
   CONTROL_MODES,
   ControlnetLayer,
+  InstantIdKeypointMode,
   addControlnetLayer,
+  addInstantIdLayer,
+  addIpAdapterLayer,
   removeControlnetLayer,
   selectControlnetLayerById,
   selectControlnetLayers,
+  selectActiveInstantIdLayersCount,
   updateControlnetLayer,
 } from "./state/controlnetSlice";
 import {
@@ -63,7 +67,7 @@ import {
 } from "./state/layersSlice";
 import Slider from "./components/Slider";
 import ScrollArea from "./components/ScrollArea";
-import Select from "./components/Select";
+import Select, { SelectProps } from "./components/Select";
 import Label from "./components/Label";
 import { selectInvertMask, toggleInvertMask } from "./state/canvasSlice";
 import {
@@ -75,6 +79,7 @@ import { selectBackend, selectSelectedModel } from "./state/optionsSlice";
 import ImageUploader from "./components/ImageUploader";
 import ColorPicker, { ColorPickerProps } from "./ColorPicker";
 import {
+  addPromptRegionLayer,
   decrementOrder,
   incrementOrder,
   removePromptRegionLayer,
@@ -92,6 +97,7 @@ import RefsContext from "./context/RefsContext";
 import Popover from "./components/Popover";
 import Input from "./components/Input";
 import { selectIsGenerating } from "./state/statsSlice";
+import { AnimatePresence, motion } from "motion/react";
 
 const WEIGHT_TYPES = Object.keys(weightTypesByName);
 
@@ -134,7 +140,11 @@ const LayerItem = ({
   isActive,
   actions,
   preview,
-}: LayerProps & { activeLayerId: ActiveLayer }) => {
+  instantIdLayersCount,
+}: LayerProps & {
+  activeLayerId: ActiveLayer;
+  instantIdLayersCount: number;
+}) => {
   const itemRef = useRef<HTMLLIElement>(null);
 
   const { stageRef } = useContext(RefsContext);
@@ -363,7 +373,7 @@ const LayerItem = ({
               "w-full flex flex-col sm:shrink-[0.6] 2xl:shrink " +
               (type === "controlnet" &&
               controlnetLayer?.isEnabled &&
-              controlnetLayer?.overrideBaseLayer &&
+              controlnetLayer?.overrideVisible &&
               !dragOver
                 ? "text-primary"
                 : "")
@@ -387,9 +397,11 @@ const LayerItem = ({
                 {name}
               </span>
             )}
-            <span className="text-xs truncate" title={subtitle}>
-              {subtitle}
-            </span>
+            {subtitle && (
+              <span className="text-xs truncate" title={subtitle}>
+                {subtitle}
+              </span>
+            )}
           </div>
           {(type === "regionMask" || /^sketch.+$/g.test(id)) && (
             <div className="flex gap-1">
@@ -451,64 +463,79 @@ const LayerItem = ({
                 checked={isEnabled}
                 onClick={toggleIsEnabled}
                 title="Use"
+                disabled={
+                  type === "controlnet" &&
+                  controlnetLayer?.isInstantId &&
+                  !isEnabled &&
+                  instantIdLayersCount > 0
+                }
               />
             </div>
           )}
           {/* <div>add</div> */}
         </div>
       </li>
-      {type === "controlnet" && isEnabled && (
-        <li
-          className={`flex text-sm pe-2 ps-5  justify-between items-center cursor-pointe ${
-            isMaskLayerActive ? "bg-neutral-50/40" : "bg-neutral-950"
-          }`}
-          onClick={handleMaskLayerClick}
-        >
-          <div className="inline-flex gap-2 items-center">
-            <div>Mask</div>
-            <ColorBox
-              color={controlnetLayer?.maskColor}
-              onColorChange={handleMaskColorChange}
-            />
-          </div>
+      <AnimatePresence>
+        {type === "controlnet" && !controlnetLayer?.isInstantId && (
+          <motion.li
+            className={`flex h-0 text-sm pe-2 ps-5  justify-between items-center cursor-pointe ${
+              isMaskLayerActive ? "bg-neutral-50/40" : "bg-neutral-950"
+            }`}
+            animate={{
+              ...(isEnabled
+                ? { height: "auto", opacity: 1, visibility: "visible" }
+                : { height: 0, opacity: 0, visibility: "hidden" }),
+            }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.19 }}
+            onClick={handleMaskLayerClick}
+          >
+            <div className="inline-flex gap-2 items-center">
+              <div>Mask</div>
+              <ColorBox
+                color={controlnetLayer?.maskColor}
+                onColorChange={handleMaskColorChange}
+              />
+            </div>
 
-          <div className="flex">
-            <LayerActionButton
-              type="clearLines"
-              onClick={() => {
-                emitClearLayerLines((id + "-mask") as ActiveLayer);
-              }}
-            />
-            <Toggle
-              pressed={controlnetLayer?.isMaskVisible ?? false}
-              onChange={(value) =>
-                dispatch(
-                  updateControlnetLayer({
-                    layerId: controlnetLayer?.id,
-                    isMaskVisible: value,
-                  })
-                )
-              }
-              title="Show/Hide"
-              pressedIconComponent={EyeOpenIcon}
-              unpressedIconComponent={EyeNoneIcon}
-            />
-            <div className="flex size-[35px] justify-center">
-              <Checkbox
-                checked={controlnetLayer?.isMaskEnabled ?? false}
+            <div className="flex">
+              <LayerActionButton
+                type="clearLines"
+                onClick={() => {
+                  emitClearLayerLines((id + "-mask") as ActiveLayer);
+                }}
+              />
+              <Toggle
+                pressed={controlnetLayer?.isMaskVisible ?? false}
                 onChange={(value) =>
                   dispatch(
                     updateControlnetLayer({
                       layerId: controlnetLayer?.id,
-                      isMaskEnabled: value,
+                      isMaskVisible: value,
                     })
                   )
                 }
+                title="Show/Hide"
+                pressedIconComponent={EyeOpenIcon}
+                unpressedIconComponent={EyeNoneIcon}
               />
+              <div className="flex size-[35px] justify-center">
+                <Checkbox
+                  checked={controlnetLayer?.isMaskEnabled ?? false}
+                  onChange={(value) =>
+                    dispatch(
+                      updateControlnetLayer({
+                        layerId: controlnetLayer?.id,
+                        isMaskEnabled: value,
+                      })
+                    )
+                  }
+                />
+              </div>
             </div>
-          </div>
-        </li>
-      )}
+          </motion.li>
+        )}
+      </AnimatePresence>
       {/* FIXME: preview image not showing when image is dragged to canvas */}
       {controlnetLayer?.image && isImagePreviewVisible && (
         <Portal.Root
@@ -522,7 +549,7 @@ const LayerItem = ({
           }}
         >
           <div
-            className="rounded-md backdrop-blur-xs bg-black/70 border border-neutral-700/20 shadow-md shadow-black/20"
+            className="rounded-md backdrop-blur-md bg-black/70 border border-neutral-950/80 shadow-md shadow-black/20 overflow-hidden"
             style={{
               backgroundImage: `url(${controlnetLayer?.image}`,
               width: 150,
@@ -557,6 +584,7 @@ const LayersControl = () => {
 
   const controlnetArgs = useAppSelector(selectControlnetLayers);
   const generationLayer = useAppSelector(selectGenerationLayer);
+  const instantIdLayersCount = useAppSelector(selectActiveInstantIdLayersCount);
 
   const {
     controlnet_models,
@@ -580,6 +608,7 @@ const LayersControl = () => {
             model,
             id,
             isIpAdapter,
+            isInstantId,
             iPAdapterModel,
             iPAdapterWeightType,
           },
@@ -590,18 +619,21 @@ const LayersControl = () => {
           name:
             backend === "comfy" && isIpAdapter
               ? `IP Adpater ${index + 1}`
-              : `Controlnet ${index + 1}`,
+              : backend === "comfy" && isInstantId
+                ? `InstantId ${index + 1}`
+                : `Controlnet ${index + 1}`,
           type: "controlnet",
           subId: id,
-          subtitle: `${
-            backend === "comfy" && isIpAdapter
-              ? (iPAdapterWeightType ?? iPAdapterModel)
-              : module?.toLowerCase() != "none"
-                ? module
-                : model?.toLowerCase() != "none"
-                  ? model
-                  : ""
-          }`,
+          subtitle:
+            (!isInstantId &&
+              (backend === "comfy" && isIpAdapter
+                ? (iPAdapterWeightType ?? iPAdapterModel)
+                : module && module.toLowerCase() != "none"
+                  ? module
+                  : model && model.toLowerCase() != "none"
+                    ? model
+                    : "")) ||
+            "",
           isEnabledActionCreator: updateControlnetLayer,
           isEnabledActionCreatorPayload: {
             layerId: id,
@@ -851,7 +883,7 @@ const LayersControl = () => {
         threshold_b,
         pixel_perfect,
         id,
-        overrideBaseLayer,
+        overrideVisible,
         image,
       } = activeControlnetLayer;
       controlnetDetect({
@@ -861,16 +893,32 @@ const LayersControl = () => {
         threshold_b,
         layerId: id,
         pixel_perfect,
-        imageDataUrl:
-          overrideBaseLayer && image ? (image as string) : undefined,
+        imageDataUrl: overrideVisible && image ? (image as string) : undefined,
       });
     }
   }, 0);
 
   const layerItemsListRef = useRef<HTMLDivElement>(null);
-  const handleAddLayer = (type: "sketch" | "controlnet") => {
-    if (type === "controlnet") dispatch(addControlnetLayer(uuid4()));
-    if (type === "sketch") dispatch(addSketchLayer(uuid4()));
+  const handleAddLayer = (
+    type: "sketch" | "controlnet" | "instantId" | "ipAdapter" | "regionalPrompt"
+  ) => {
+    switch (type) {
+      case "sketch":
+        dispatch(addSketchLayer(uuid4()));
+        break;
+      case "controlnet":
+        dispatch(addControlnetLayer(uuid4()));
+        break;
+      case "instantId":
+        dispatch(addInstantIdLayer(uuid4()));
+        break;
+      case "ipAdapter":
+        dispatch(addIpAdapterLayer(uuid4()));
+        break;
+      case "regionalPrompt":
+        dispatch(addPromptRegionLayer(uuid4()));
+        break;
+    }
 
     //TODO: add addition animation
     // layerItemsListRef?.current?.scrollTo(
@@ -911,6 +959,16 @@ const LayersControl = () => {
       dispatch(removeSketchLayer(extractSketchLayerId(activeLayerId)));
   };
 
+  const handleInstantIdKeypointsChange: SelectProps["onChange"] = (value) => {
+    if (value)
+      dispatch(
+        updateControlnetLayer({
+          layerId: activeControlnetLayer?.id,
+          keypointsMode: value as InstantIdKeypointMode,
+        })
+      );
+  };
+
   const activeControlnetLayer = activeLayerId.startsWith("controlnet")
     ? controlnetArgs.find(
         (arg) =>
@@ -929,50 +987,73 @@ const LayersControl = () => {
   const showControlLayers = !selectedModel.isFlux && !selectedModel.isSd35;
 
   return (
-    <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[17vw] p-4 pe-0 rounded-xs backdrop-blur-xs select-none overflow-hidden transition-all">
+    <div className="flex flex-col gap-2 absolute right-0 top-0 bg-black/90 w-[15vw] md:w-[17vw] p-4 pe-0 rounded-xs backdrop-blur-md select-none overflow-hidden transition-all">
       <div className="flex justify-between pt-2 items-center">
         <h3 className="sm:flex-1 lg:flex-3 text-sm font-bold">Layers</h3>
-        {showControlLayers && (
-          <div className="flex flex-1 gap-3 sticky top-0 mt-[-8px] pe-1">
-            <Button
-              className="p-1 size-7"
-              title="Remove layer"
-              onClick={handleRemoveLayer}
-              disabled={
-                !activeControlnetLayer &&
-                (!isActiveSketchLayer ||
-                  sketchLayers.length < 2 ||
-                  isGenerating) &&
-                (!activeRegionMaskLayer || regionMaskLayers.length <= 2)
-              }
-            >
-              <TrashIcon />
-            </Button>
-            {/* <Button
+
+        <div className="flex flex-1 gap-3 sticky top-0 mt-[-8px] pe-1">
+          <Button
+            className="p-1 size-7"
+            title="Remove layer"
+            onClick={handleRemoveLayer}
+            disabled={
+              !activeControlnetLayer &&
+              (!isActiveSketchLayer ||
+                sketchLayers.length < 2 ||
+                isGenerating) &&
+              (!activeRegionMaskLayer || regionMaskLayers.length <= 2)
+            }
+          >
+            <TrashIcon />
+          </Button>
+          {/* <Button
               className="p-1 size-7 "
               title="Add controlnet layer"
               // onClick={handleAddLayer}
             >
               <PlusIcon />
             </Button> */}
-            <Popover>
-              <ul className="text-sm flex flex-col gap-3 select-none">
-                <li
-                  className="cursor-pointer"
-                  onClick={() => handleAddLayer("controlnet")}
-                >
-                  <Popover.Close>Add Controlnet Layer</Popover.Close>
-                </li>
-                <li
-                  className="cursor-pointer"
-                  onClick={() => handleAddLayer("sketch")}
-                >
-                  <Popover.Close>Add Sketch Layer</Popover.Close>
-                </li>
-              </ul>
-            </Popover>
-          </div>
-        )}
+          <Popover>
+            <ul className="text-sm flex flex-col gap-3 select-none">
+              <li
+                className="cursor-pointer"
+                onClick={() => handleAddLayer("sketch")}
+              >
+                <Popover.Close>Sketch Layer</Popover.Close>
+              </li>{" "}
+              {showControlLayers && (
+                <>
+                  <li
+                    className="cursor-pointer"
+                    onClick={() => handleAddLayer("controlnet")}
+                  >
+                    <Popover.Close>Controlnet Layer</Popover.Close>
+                  </li>
+                  <li
+                    className="cursor-pointer"
+                    onClick={() => handleAddLayer("instantId")}
+                  >
+                    <Popover.Close>Instant ID Layer</Popover.Close>
+                  </li>
+                  <li
+                    className="cursor-pointer"
+                    onClick={() => handleAddLayer("ipAdapter")}
+                  >
+                    <Popover.Close>IP Adapter Layer</Popover.Close>
+                  </li>{" "}
+                  {isRegionalPromptsEnabled && (
+                    <li
+                      className="cursor-pointer"
+                      onClick={() => handleAddLayer("regionalPrompt")}
+                    >
+                      <Popover.Close>Regional Prompt Layer</Popover.Close>
+                    </li>
+                  )}
+                </>
+              )}
+            </ul>
+          </Popover>
+        </div>
       </div>
       <ScrollArea className="pe-2 mb-2" ref={layerItemsListRef}>
         <ul className="max-h-[31vh] pe-2 flex flex-col w-full mt-2 rounded-xs">
@@ -983,6 +1064,7 @@ const LayersControl = () => {
               id={id}
               activeLayerId={activeLayerId}
               isActive={activeLayerId === id}
+              instantIdLayersCount={instantIdLayersCount}
               {...rest}
             />
           ))}
@@ -1003,7 +1085,7 @@ const LayersControl = () => {
           </Label> */}
         {showControlLayers && activeControlnetLayer && (
           <ScrollArea className="flex pe-2 mb-2">
-            <div className="flex gap-5 shrink flex-col mt-2 h-[45vh] pt-1 pr-2.5">
+            <div className="flex gap-5 shrink flex-col mt-2 h-[45vh] pt-1 pe-3">
               <div>
                 <ImageUploader
                   image={
@@ -1022,11 +1104,12 @@ const LayersControl = () => {
                   title="Image"
                 />
               </div>
+
               <Checkbox
-                checked={activeControlnetLayer?.overrideBaseLayer}
+                checked={activeControlnetLayer?.overrideVisible}
                 onChange={(value) =>
                   handleControlnetAttrsChange(
-                    "overrideBaseLayer",
+                    "overrideVisible",
                     value,
                     activeControlnetLayer.id
                   )
@@ -1034,9 +1117,62 @@ const LayersControl = () => {
               >
                 Override Visible
               </Checkbox>
-
+              {activeControlnetLayer.isInstantId &&
+                activeControlnetLayer.keypointsMode === "override" && (
+                  <div>
+                    <ImageUploader
+                      image={
+                        typeof activeControlnetLayer?.image_kps === "string"
+                          ? activeControlnetLayer?.image_kps
+                          : activeControlnetLayer?.image_kps?.src
+                      }
+                      onChange={(value) => {
+                        handleControlnetSelectChange({
+                          name: "image_kps",
+                          type: "text",
+                          value,
+                          layerId: activeControlnetLayer.id,
+                        });
+                      }}
+                      title="Keypoints Image"
+                    />
+                  </div>
+                )}
+              {/* {backend === "comfy" && activeControlnetLayer?.isInstantId && (
+                <Checkbox
+                  checked={
+                    activeControlnetLayer?.overrideVisibleForInstantIdKeypoints
+                  }
+                  onChange={(value) =>
+                    handleControlnetAttrsChange(
+                      "overrideVisibleForInstantIdKeypoints",
+                      value,
+                      activeControlnetLayer.id
+                    )
+                  }
+                >
+                  Keypoints Override Visible
+                </Checkbox>
+              )} */}
+              {activeControlnetLayer.isInstantId && (
+                <div className="flex gap-2 h-full flex-col">
+                  <Label htmlFor={`model${activeControlnetLayer?.id}`}>
+                    Keypoints
+                  </Label>
+                  <Select
+                    items={[
+                      { label: "Same as image", value: "sameAsImage" },
+                      { label: "Use visible", value: "useVisible" },
+                      { label: "Override", value: "override" },
+                    ]}
+                    title="Keypoints"
+                    value={activeControlnetLayer.keypointsMode}
+                    onChange={handleInstantIdKeypointsChange}
+                  />
+                </div>
+              )}
               {/* TODO: show only when IP Adapter nodes are available on Comfy */}
-              {backend === "comfy" && (
+              {/* {backend === "comfy" && (
                 <Checkbox
                   checked={activeControlnetLayer?.isIpAdapter}
                   value={activeControlnetLayer?.isIpAdapter}
@@ -1050,23 +1186,41 @@ const LayersControl = () => {
                 >
                   IP Adapter
                 </Checkbox>
-              )}
+              )} */}
 
-              {backend === "comfy" && !activeControlnetLayer?.isIpAdapter && (
+              {/* {backend === "comfy" && (
                 <Checkbox
-                  checked={activeControlnetLayer?.is_union}
-                  value={activeControlnetLayer?.is_union}
+                  checked={activeControlnetLayer?.isInstantId}
+                  value={activeControlnetLayer?.isInstantId}
                   onChange={(value) =>
                     handleControlnetAttrsChange(
-                      "is_union",
+                      "isInstantId",
                       value,
                       activeControlnetLayer.id
                     )
                   }
                 >
-                  Union Controlnet
+                  Instant ID
                 </Checkbox>
-              )}
+              )} */}
+
+              {backend === "comfy" &&
+                !activeControlnetLayer?.isIpAdapter &&
+                !activeControlnetLayer?.isInstantId && (
+                  <Checkbox
+                    checked={activeControlnetLayer?.is_union}
+                    value={activeControlnetLayer?.is_union}
+                    onChange={(value) =>
+                      handleControlnetAttrsChange(
+                        "is_union",
+                        value,
+                        activeControlnetLayer.id
+                      )
+                    }
+                  >
+                    Union Controlnet
+                  </Checkbox>
+                )}
 
               {backend === "comfy" && activeControlnetLayer?.isIpAdapter ? (
                 <>
@@ -1112,25 +1266,27 @@ const LayersControl = () => {
                 </>
               ) : (
                 <>
-                  <div className="flex gap-2 h-full flex-col">
-                    <Label htmlFor={`model${activeControlnetLayer?.id}`}>
-                      Controlnet Model
-                    </Label>
-                    <Select
-                      name="model"
-                      id={`model${activeControlnetLayer?.id}`}
-                      items={controlnet_models ?? []}
-                      value={activeControlnetLayer?.model}
-                      onChange={(value) =>
-                        handleControlnetSelectChange({
-                          name: "model",
-                          type: "text",
-                          value,
-                          layerId: activeControlnetLayer.id,
-                        })
-                      }
-                    />
-                  </div>
+                  {!activeControlnetLayer.isInstantId && (
+                    <div className="flex gap-2 h-full flex-col">
+                      <Label htmlFor={`model${activeControlnetLayer?.id}`}>
+                        Controlnet Model
+                      </Label>
+                      <Select
+                        name="model"
+                        id={`model${activeControlnetLayer?.id}`}
+                        items={controlnet_models ?? []}
+                        value={activeControlnetLayer?.model}
+                        onChange={(value) =>
+                          handleControlnetSelectChange({
+                            name: "model",
+                            type: "text",
+                            value,
+                            layerId: activeControlnetLayer.id,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
                   {backend === "comfy" && activeControlnetLayer?.is_union && (
                     <div className="flex gap-2 flex-col">
                       <Label
@@ -1153,27 +1309,29 @@ const LayersControl = () => {
                       />
                     </div>
                   )}
-                  <div className="flex gap-2 flex-col">
-                    <Label htmlFor={`module${activeControlnetLayer?.id}`}>
-                      Controlnet Preprocessor
-                    </Label>
-                    <Select
-                      name="module"
-                      //FIXME: fix type
-                      items={controlnet_preprocessors}
-                      textAttr="name"
-                      valueAttr="name"
-                      value={activeControlnetLayer?.module}
-                      onChange={(value) =>
-                        handleControlnetSelectChange({
-                          name: "module",
-                          type: "text",
-                          value,
-                          layerId: activeControlnetLayer.id,
-                        })
-                      }
-                    />
-                  </div>
+                  {!activeControlnetLayer?.isInstantId && (
+                    <div className="flex gap-2 flex-col">
+                      <Label htmlFor={`module${activeControlnetLayer?.id}`}>
+                        Controlnet Preprocessor
+                      </Label>
+                      <Select
+                        name="module"
+                        //FIXME: fix type
+                        items={controlnet_preprocessors}
+                        textAttr="name"
+                        valueAttr="name"
+                        value={activeControlnetLayer?.module}
+                        onChange={(value) =>
+                          handleControlnetSelectChange({
+                            name: "module",
+                            type: "text",
+                            value,
+                            layerId: activeControlnetLayer.id,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
                 </>
               )}
 
@@ -1228,13 +1386,30 @@ const LayersControl = () => {
                       />
                     </div>
                   ))}
-
+              {backend === "comfy" && activeControlnetLayer.isInstantId && (
+                <Slider
+                  label={"IP Adapter Weight"}
+                  min={0}
+                  max={2}
+                  defaultValue={activeControlnetLayer.isInstantId ? 0.8 : 1}
+                  step={0.01}
+                  onChange={(value) =>
+                    handleControlnetAttrsChange(
+                      "instant_id_ip_weight",
+                      value,
+                      activeControlnetLayer.id
+                    )
+                  }
+                  value={activeControlnetLayer?.instant_id_ip_weight ?? 0.8}
+                />
+              )}
               <Slider
                 label={
                   backend === "comfy" && activeControlnetLayer.isIpAdapter
                     ? "IP Adapter Weight"
                     : "Controlnet Weight"
                 }
+                defaultValue={activeControlnetLayer.isInstantId ? 0.8 : 1}
                 min={0}
                 max={2}
                 step={0.01}
@@ -1247,7 +1422,23 @@ const LayersControl = () => {
                 }
                 value={activeControlnetLayer?.weight}
               />
-
+              {backend === "comfy" && activeControlnetLayer.isInstantId && (
+                <Slider
+                  label="Noise"
+                  defaultValue={0}
+                  min={0}
+                  max={1}
+                  step={0.1}
+                  onChange={(value) =>
+                    handleControlnetAttrsChange(
+                      "instant_id_noise",
+                      value,
+                      activeControlnetLayer.id
+                    )
+                  }
+                  value={activeControlnetLayer?.instant_id_noise ?? 0}
+                />
+              )}
               {backend === "auto" ||
                 (backend == "forge" &&
                   (activeControlnetLayer?.weight_type ===
@@ -1290,6 +1481,7 @@ const LayersControl = () => {
               {/* </div> */}
               <Slider
                 label="Guidance Start"
+                defaultValue={0}
                 min={0}
                 max={1}
                 step={0.01}
@@ -1322,6 +1514,7 @@ const LayersControl = () => {
               {/* </div> */}
               <Slider
                 label="Guidance End"
+                defaultValue={1}
                 min={0}
                 max={1}
                 step={0.01}
@@ -1443,8 +1636,8 @@ const LayersControl = () => {
                 )}
               {/* <div className="flex gap-2">
               <input
-                name="overrideBaseLayer"
-                id={`overrideBaseLayer${activeControlnetLayer?.id}`}
+                name="overrideVisible"
+                id={`overrideVisible${activeControlnetLayer?.id}`}
                 type="checkbox"
                 onChange={(e) =>
                   handleControlnetChange(
@@ -1452,7 +1645,7 @@ const LayersControl = () => {
                     +activeLayerId.replace("controlnet", "") - 1
                   )
                 }
-                checked={activeControlnetLayer?.overrideBaseLayer}
+                checked={activeControlnetLayer?.overrideVisible}
               />
             </div> */}
 

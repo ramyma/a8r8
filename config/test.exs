@@ -32,4 +32,6 @@ config :logger, level: :warning
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime
 
+config :ex_sd, ExSd.Repo, database: "app_config/database_test.db"
+
 config :ex_sd, :auto_client_base_url, "http://localhost:7860"

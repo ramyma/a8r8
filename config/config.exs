@@ -30,7 +30,7 @@ config :ex_sd, ExSdWeb.Endpoint,
 # at the `config/runtime.exs`.
 config :ex_sd, ExSd.Mailer, adapter: Swoosh.Adapters.Local
 
-config :ex_sd, :default_backend, String.to_atom(System.get_env("DEFAULT_BACKEND") || "auto")
+config :ex_sd, :default_backend, String.to_atom(System.get_env("DEFAULT_BACKEND") || "comfy")
 config :ex_sd, :config_path, System.get_env("CONFIG_PATH") || "app_config"
 
 # Configure esbuild (the version is required)

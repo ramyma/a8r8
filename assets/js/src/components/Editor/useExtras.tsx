@@ -78,13 +78,13 @@ export function useExtras(props: UseCompletionProps = {}): UseExtrasReturn {
 
     // Ignore the current mention so that it doesn't show again for this
     // matching area
-    helpers
-      .getSuggestMethods()
-      .addIgnored({ from: state.range.from, name: "extra", specific: true });
+    // helpers
+    //   .getSuggestMethods()
+    //   .addIgnored({ from: state.range.from, name: "extra", specific: true });
 
     setState({ ...state, exit: true });
     return true;
-  }, [helpers, state]);
+  }, [state]);
 
   const onSubmit = useCallback(
     (extra: string) => {

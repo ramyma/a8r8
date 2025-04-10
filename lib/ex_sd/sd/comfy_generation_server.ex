@@ -201,11 +201,11 @@ defmodule ExSd.ComfyGenerationServer do
   end
 
   @impl true
-  def handle_info(:loading_model, state) do
+  def handle_info({:loading_model, model}, state) do
     PubSub.broadcast!(
       ExSd.PubSub,
       "generation",
-      :loading_model
+      {:loading_model, model}
     )
 
     {:noreply, state}

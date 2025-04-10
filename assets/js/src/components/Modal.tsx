@@ -11,6 +11,7 @@ import * as Portal from "@radix-ui/react-portal";
 import ScrollArea from "./ScrollArea";
 import { twMerge } from "tailwind-merge";
 import { AnimatePresence, motion } from "motion/react";
+import useGlobalKeydown from "../hooks/useGlobalKeydown";
 
 export type ModalProps = PropsWithChildren<
   {
@@ -19,8 +20,10 @@ export type ModalProps = PropsWithChildren<
     anchorElm?: RefObject<HTMLElement>;
     className?: string;
     containerClassName?: string;
+    titleClassName?: string;
     scrollAreaRef?: RefObject<HTMLDivElement>;
     disableScroll?: boolean;
+    title?: string;
     scroll?: boolean;
   } & HTMLProps<HTMLDivElement>
 >;
@@ -32,13 +35,24 @@ const Modal = ({
   anchorElm,
   className = "",
   containerClassName = "",
+  titleClassName = "",
   scrollAreaRef,
   disableScroll,
+  title,
   scroll = true,
 }: ModalProps) => {
   const outsideRef = useRef<HTMLDivElement>(null);
   const modalContRef = useRef<HTMLDivElement>(null);
 
+  useGlobalKeydown({
+    handleKeydown: (event) => {
+      if (isOpen && onClose) {
+        event.stopPropagation();
+        if (event.key === "Escape") onClose(event);
+      }
+    },
+    override: true,
+  });
   // const anchorElmBox = anchorElm?.current?.getBoundingClientRect();
 
   const handleOutsideClick: MouseEventHandler = (event) => {
@@ -136,10 +150,17 @@ const Modal = ({
                 <div className="h-full">
                   <div
                     className={twMerge(
-                      "h-[90vh] bg-opacity-90 backdrop-blur-xs  align-middle justify-center items-center text-center p-8",
+                      "h-[90vh] bg-opacity-90 backdrop-blur-xs  align-middle justify-center text-center p-8 flex flex-col gap-3 items-start",
                       className
                     )}
                   >
+                    {title && (
+                      <div className="flex sticky top-0 bg-neutral-950/90 -m-8 mb-4 p-8 border-b border-neutral-800/90 w-[calc(100%+64px)] backdrop-blur-sm text-warning items-start">
+                        <h2 className={twMerge("text-md", titleClassName)}>
+                          {title}
+                        </h2>
+                      </div>
+                    )}
                     {children}
                   </div>
                 </div>

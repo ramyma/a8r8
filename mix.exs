@@ -24,7 +24,7 @@ defmodule ExSd.MixProject do
   def application do
     [
       mod: {ExSd.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :wx, :runtime_tools, :observer]
     ]
   end
 

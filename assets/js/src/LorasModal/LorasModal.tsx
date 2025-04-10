@@ -49,7 +49,7 @@ const LorasModal = (props: ModalProps) => {
   const showNsfwLoras = useAppSelector(selectShowNsfwLoras);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const lorasContainerRef = useRef<HTMLDivElement>(null);
-  const [containerDimensions, setContainerDimensions] = useState<{
+  const [_containerDimensions, setContainerDimensions] = useState<{
     width: number;
     height: number;
   }>();
@@ -137,7 +137,6 @@ const LorasModal = (props: ModalProps) => {
     handleKeydown: (event) => {
       if (props.open) {
         event.stopPropagation();
-        if (event.key === "Escape") props.onClose(event);
         if (event.key === "/") {
           event.preventDefault();
           searchInputRef.current?.focus();
@@ -210,7 +209,7 @@ const LorasModal = (props: ModalProps) => {
             Math.ceil((filteredLoras?.length ?? 0) / 5) * loraItemHeight + 32,
         }}
       >
-        <div className="flex sticky top-0 place-items-center justify-between w-[calc(100%_+_64px)] z-20 grow-0 shrink bg-neutral-950/80 border-b border-neutral-800/90 backdrop-blur-xs px-8 py-4 ms-[-32px] mt-[-32px]">
+        <div className="flex sticky top-0 place-items-center justify-between w-[calc(100%_+_64px)] z-20 grow-0 shrink bg-neutral-950/90 border-b border-neutral-800/90 backdrop-blur-sm px-8 py-4 ms-[-32px] mt-[-32px]">
           <AnimatePresence>
             <div className="flex justify-between w-full transition-opacity">
               {activeLora ? (

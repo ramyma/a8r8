@@ -47,12 +47,13 @@ import {
   checkIsSdFluxModel,
   checkIsPonyModel,
   checkIsSd35Model,
+  debugImage,
 } from "../utils";
 import Editor from "../components/Editor";
 
 import useUpscalers from "../hooks/useUpsclaers";
 import { EditorState } from "prosemirror-state";
-import Select from "../components/Select";
+import Select, { SelectProps } from "../components/Select";
 import Input from "../components/Input";
 import Label from "../components/Label";
 import Txt2ImageButtonGroup from "./Txt2ImgButtonGroup";
@@ -94,8 +95,44 @@ import { selectLoras } from "../state/lorasSlice";
 import LorasSection from "./LorasSection";
 import useModels from "../hooks/useModels";
 import useLoras from "../hooks/useLoras";
+import TiledDiffusionFields from "./TiledDiffusionFields";
+import { TiledDiffusionArgs } from "./TiledDiffusionFields/TieldDiffusionFields";
+import SelfAttentionGuidanceFields from "./SelfAttentionsGuidanceFields";
+import { SelfAttentionGuidanceArgs } from "./SelfAttentionsGuidanceFields/SelfAttentionGuidanceFields";
+import PerturbedAttentionGuidanceFields from "./PerturbedAttentionGuidanceFields";
+import { PerturbedAttentionGuidanceArgs } from "./PerturbedAttentionGuidanceFields/PerturbedAttentionGuidanceFields";
+import SmoothedEnergyGuidanceFields from "./SmoothedEnergyGuidanceFields";
+import { SmoothedEnergyGuidanceArgs } from "./SmoothedEnergyGuidanceFields/SmoothedEnergyGuidanceFields";
+import SlidingWindowGuidanceFields, {
+  SlidingWindowGuidanceArgs,
+} from "./SlidingWindowGuidanceFields/SmoothedEnergyGuidanceFields";
+import UltimateSdUpscaleFields from "./UltimateUpscaleFields";
+import { UltimateUpscaleArgs } from "./UltimateUpscaleFields/UltimateUpscaleFields";
 
-export type MainFormValues = Record<string, any> & {
+export type FieldsType<T> = ({
+  label: string;
+  name: keyof T;
+  disabled?: boolean;
+} & (
+  | {
+      value: number;
+      min: number;
+      max: number;
+      step: number;
+      type: "range";
+    }
+  | {
+      value: boolean;
+      type: "boolean";
+    }
+  | {
+      value: string;
+      items: SelectProps["items"];
+      type: "select";
+    }
+))[];
+
+export type MainFormValues = {
   clip_skip: number;
   prompt: string | EditorState;
   negative_prompt: string | EditorState;
@@ -116,10 +153,19 @@ export type MainFormValues = Record<string, any> & {
   softInpainting: SoftInpaintingArgs;
   comfySoftInpainting: ComfySoftInpaintingArgs;
   sp_denoising_strength?: number;
-  regionalPrompts?: Record<string, { prompt: EditorState; weight }>;
+  regionalPrompts?: Record<
+    string,
+    { prompt: EditorState; weight: number; region_blend?: number }
+  >;
   globalPromptWeight?: number;
   skimmedCfg: SkimmedCfgArgs;
+  selfAttentionGuidance: SelfAttentionGuidanceArgs;
+  perturbedAttentionGuidance: PerturbedAttentionGuidanceArgs;
+  smoothedEnergyGuidance: SmoothedEnergyGuidanceArgs;
+  slidingWindowGuidance: SlidingWindowGuidanceArgs;
   splitRender: SplitRenderArgs;
+  tiledDiffusion: TiledDiffusionArgs;
+  ultimateUpscale: UltimateUpscaleArgs;
   cfg_scale: number;
   rescale_cfg_multiplier: number;
   flux_guidance: number;
@@ -130,7 +176,8 @@ export type MainFormValues = Record<string, any> & {
   isMultidiffusionEnabled: boolean;
   full_scale_pass: boolean;
   use_scaled_dimensions: boolean;
-};
+  is_tea_cache_enabled: boolean;
+} & Record<string, any>;
 
 const MainForm = () => {
   const { channel, sendMessage, broadcastSelectionBoxUpdate } = useSocket();
@@ -162,6 +209,18 @@ const MainForm = () => {
 
   const isTiledDiffusionEnabled = useWatch({
     name: "isTiledDiffusionEnabled",
+    control,
+    defaultValue: false,
+  });
+
+  const isComfyTiledDiffusionEnabled = useWatch({
+    name: "tiledDiffusion.is_enabled",
+    control,
+    defaultValue: false,
+  });
+
+  const isComfyUltimateSdUpscaleEnabled = useWatch({
+    name: "ultimateUpscale.is_enabled",
     control,
     defaultValue: false,
   });
@@ -204,7 +263,10 @@ const MainForm = () => {
     () => [
       "None",
       ...((!hasTiledDiffusion || !isTiledDiffusionEnabled) &&
-      (txt2img || (backend == "comfy" && !isUltimateUpscaleEnabled))
+      (txt2img ||
+        (backend == "comfy" &&
+          // !isComfyTiledDiffusionEnabled &&
+          !isComfyUltimateSdUpscaleEnabled))
         ? ["Latent"]
         : []),
       ...[...(upscalers ?? [])].sort(),
@@ -214,7 +276,7 @@ const MainForm = () => {
       isTiledDiffusionEnabled,
       txt2img,
       backend,
-      isUltimateUpscaleEnabled,
+      isComfyUltimateSdUpscaleEnabled,
       upscalers,
     ]
   );
@@ -230,8 +292,14 @@ const MainForm = () => {
 
   const isBatchDisabled =
     (hasTiledDiffusion && isTiledDiffusionEnabled) ||
-    (!txt2img && hasUltimateUpscale && isUltimateUpscaleEnabled) ||
+    (!txt2img &&
+      ((backend === "comfy" && isComfyUltimateSdUpscaleEnabled) ||
+        isUltimateUpscaleEnabled)) ||
     (hasMultidiffusionIntegrated && isMultidiffusionEnabled);
+
+  const hasComfyTiledDiffusion = backend === "comfy" && !txt2img;
+
+  const hasRescaleCfg = !model.isFlux;
 
   const handleAddImage = ({ pngInfo }) => {
     if (pngInfo) {
@@ -420,13 +488,21 @@ const MainForm = () => {
       fooocus_inpaint,
       splitRender,
       skimmedCfg,
+      selfAttentionGuidance,
+      perturbedAttentionGuidance,
+      smoothedEnergyGuidance,
+      slidingWindowGuidance,
       rescale_cfg_multiplier,
+      tiledDiffusion,
+      ultimateUpscale,
+      is_tea_cache_enabled,
       ...rest
     } = data;
 
     const {
       controlnetArgs,
       iPAdapters,
+      instantIds,
     }: Partial<ReturnType<typeof getControlnetArgs>> = hasControlnet
       ? getControlnetArgs()
       : {};
@@ -434,6 +510,7 @@ const MainForm = () => {
       basePrompt,
       processedPrompt,
       regionalPromptsWeights,
+      regionalPromptsBlendWeights,
       regionalPromptsValues,
       regionalPromptsIds,
     } = processPrompt({
@@ -494,7 +571,7 @@ const MainForm = () => {
       init_images: txt2img
         ? hasControlnet &&
           controlnetArgs?.controlnet?.args.some(
-            ({ overrideBaseLayer }) => !overrideBaseLayer
+            ({ overrideVisible }) => !overrideVisible
           )
           ? [initImageDataUrl]
           : []
@@ -531,9 +608,9 @@ const MainForm = () => {
             //_
             null,
             //tile_width,
-            model?.isSdXl || model?.isFlux || model?.isSd35 ? 1024 : 512,
+            model?.isSdXl || model?.isFlux || model?.isSd35 ? 1024 : 960,
             //tile_height
-            model?.isSdXl || model?.isFlux || model?.isSd35 ? 1024 : 512,
+            model?.isSdXl || model?.isFlux || model?.isSd35 ? 1024 : 960,
             //mask_blur
             8,
             // padding,
@@ -729,6 +806,7 @@ const MainForm = () => {
           }),
       },
     };
+
     const attrs = {
       position: selectionBoxRef?.current?.getPosition(),
       scale,
@@ -749,6 +827,7 @@ const MainForm = () => {
               prompt: regionalPromptsValues?.[index],
               mask: imageString?.replace("data:image/png;base64,", ""),
               weight: regionalPromptsWeights?.[index],
+              region_blend: regionalPromptsBlendWeights?.[index],
               id: regionalPromptsIds?.[index],
             }))
             .filter(({ mask }) => !!mask),
@@ -757,12 +836,19 @@ const MainForm = () => {
       ...(backend === "comfy" && iPAdapters?.length
         ? { ip_adapters: iPAdapters }
         : {}),
+      ...(backend === "comfy" && instantIds?.length
+        ? { instant_ids: instantIds }
+        : {}),
       ...(backend === "comfy" && !txt2img && model?.isSdXl
         ? { fooocus_inpaint }
         : {}),
       ...(backend === "comfy" && !txt2img
-        ? { mask_blur: comfySoftInpainting.maskBlur }
-        : { mask_blur: 20 }),
+        ? {
+            mask_blur: comfySoftInpainting.maskBlur,
+          }
+        : backend === "comfy"
+          ? {}
+          : { mask_blur: 20 }),
       ...(backend === "comfy" && skimmedCfg?.is_enabled
         ? { skimmed_cfg: skimmedCfg }
         : {}),
@@ -774,12 +860,43 @@ const MainForm = () => {
             },
           }
         : {}),
-      ...(backend === "comfy" && rescale_cfg_multiplier
+      ...(backend === "comfy" && selfAttentionGuidance?.is_enabled
+        ? {
+            self_attention_guidance: selfAttentionGuidance,
+          }
+        : {}),
+      ...(backend === "comfy" && perturbedAttentionGuidance?.is_enabled
+        ? {
+            perturbed_attention_guidance: perturbedAttentionGuidance,
+          }
+        : {}),
+      ...(backend === "comfy" && smoothedEnergyGuidance?.is_enabled
+        ? {
+            smoothed_energy_guidance: smoothedEnergyGuidance,
+          }
+        : {}),
+      ...(backend === "comfy" && slidingWindowGuidance?.is_enabled
+        ? {
+            sliding_window_guidance: slidingWindowGuidance,
+          }
+        : {}),
+      ...(backend === "comfy" && isComfyTiledDiffusionEnabled
+        ? {
+            tiled_diffusion: tiledDiffusion,
+          }
+        : {}),
+      ...(backend === "comfy" && isComfyUltimateSdUpscaleEnabled
+        ? {
+            ultimate_upscale: ultimateUpscale,
+          }
+        : {}),
+      ...(backend === "comfy" && hasRescaleCfg
         ? {
             rescale_cfg_multiplier,
           }
         : {}),
-      ultimate_upscale: isUltimateUpscaleEnabled,
+      ...(backend === "comfy" && model?.isFlux ? { is_tea_cache_enabled } : {}),
+      // ultimate_upscale: isUltimateUpscaleEnabled,
       clip_skip: clipSkip,
       layer: generationLayer,
     };
@@ -803,28 +920,35 @@ const MainForm = () => {
         };
       };
       iPAdapters?: object[];
+      instantIds?: object[];
     } {
       const enabledControlnetArgs = controlnetLayersArgs.filter(
         ({ isEnabled }) => isEnabled
       );
       let iPAdapters: object[] = [];
+      let instantIds: object[] = [];
       const aggregated =
         enabledControlnetArgs.length > 0
           ? {
               controlnet: {
                 args: controlnetLayersArgs.reduce(
                   (acc, item, index): ControlnetLayer[] => {
-                    if (item.isEnabled && !item.isIpAdapter) {
+                    if (
+                      item.isEnabled &&
+                      !item.isIpAdapter &&
+                      !item.isInstantId
+                    ) {
                       const { weight_type, ...itemRest } = item;
                       const effectiveRegionMask = item.isMaskEnabled
                         ? controlnetDataUrls[index]?.maskImage
                         : null;
+                      // debugImage(controlnetDataUrls[index]?.image, "cn");
                       return [
                         ...acc,
                         {
                           ...itemRest,
                           // TODO: handle img2txt to send mask and init image or set on BE
-                          image: item.overrideBaseLayer
+                          image: item.overrideVisible
                             ? controlnetDataUrls[index]?.image || null
                             : null,
                           ...(isA1111
@@ -865,7 +989,7 @@ const MainForm = () => {
                         ...iPAdapters,
                         {
                           //TODO: handle when not overriding base layer, ALSO check for CN with Comfy
-                          image: item.overrideBaseLayer
+                          image: item.overrideVisible
                             ? controlnetDataUrls[index]?.image?.replace(
                                 /data:\S+;base64,/,
                                 ""
@@ -882,6 +1006,45 @@ const MainForm = () => {
                           preset: item.iPAdapterModel,
                         },
                       ];
+                    } else if (item.isEnabled && item.isInstantId) {
+                      // debugImage(initImageDataUrl, "keypoint");
+                      instantIds = [
+                        ...instantIds,
+                        {
+                          //TODO: handle when not overriding base layer, ALSO check for CN with Comfy
+                          image: item.overrideVisible
+                            ? controlnetDataUrls[index]?.image?.replace(
+                                /data:\S+;base64,/,
+                                ""
+                              ) || null
+                            : initImageDataUrl?.replace(/data:\S+;base64,/, ""),
+                          image_kps:
+                            item.keypointsMode === "sameAsImage" ||
+                            (item.keypointsMode === "useVisible" &&
+                              !item.overrideVisible)
+                              ? null
+                              : item.keypointsMode === "useVisible"
+                                ? initImageDataUrl?.replace(
+                                    /data:\S+;base64,/,
+                                    ""
+                                  )
+                                : item.keypointsMode === "override"
+                                  ? item?.image_kps?.replace(
+                                      /data:\S+;base64,/,
+                                      ""
+                                    ) || null
+                                  : null,
+                          mask: controlnetDataUrls[index]?.maskImage?.replace(
+                            /data:\S+;base64,/,
+                            ""
+                          ),
+                          weight: item.weight,
+                          ip_weight: item.instant_id_ip_weight,
+                          noise: item.instant_id_noise,
+                          start_at: item.guidance_start,
+                          end_at: item.guidance_end,
+                        },
+                      ];
                     }
                     return acc;
                   },
@@ -891,7 +1054,7 @@ const MainForm = () => {
             }
           : {};
 
-      return { controlnetArgs: aggregated, iPAdapters };
+      return { controlnetArgs: aggregated, iPAdapters, instantIds };
     }
   };
 
@@ -912,7 +1075,7 @@ const MainForm = () => {
           formRef.current?.requestSubmit();
         }
       } else if (e.key.toLowerCase() === "l" && e.ctrlKey && e.shiftKey) {
-        seed && seed != -1 && setValue("isSeedPinned", !isSeedPinned);
+        if (seed && seed != -1) setValue("isSeedPinned", !isSeedPinned);
       }
     },
     [handleInterrupt, isConnected, isGenerating, isSeedPinned, seed, setValue]
@@ -966,7 +1129,7 @@ const MainForm = () => {
 
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="flex flex-col p-4 px-6 pt-1 pb-10 gap-8  w-full"
+        className="flex flex-col p-4 px-6 pt-1 pb-10 gap-6 w-full"
         ref={formRef}
       >
         {(backend === "auto" || backend === "comfy") &&
@@ -1031,7 +1194,9 @@ const MainForm = () => {
 
         <LorasSection />
 
-        {hasRegionalPrompting && <RegionalPromptsFields />}
+        {hasRegionalPrompting && (
+          <RegionalPromptsFields selectedModel={model} />
+        )}
         {(backend !== "comfy" || !model.isFlux) && (
           <div className="flex flex-col gap-2">
             <Label>Negative Prompt</Label>
@@ -1160,45 +1325,66 @@ const MainForm = () => {
           )}
         />
 
-        {/* <Controller
-          name="rescale_cfg_multiplier"
-          control={control}
-          defaultValue={1}
-          // rules={{ required: true }}
-          render={({ field }) => (
-            <Slider
-              step={0.1}
-              min={0.1}
-              max={1}
-              label="Rescale CFG"
-              {...field}
-            />
-          )}
-        /> */}
+        {hasRescaleCfg && (
+          <Controller
+            name="rescale_cfg_multiplier"
+            control={control}
+            defaultValue={1}
+            // rules={{ required: true }}
+            render={({ field }) => (
+              <Slider
+                step={0.1}
+                min={0.1}
+                max={1}
+                defaultValue={1}
+                label="Rescale CFG Multiplier"
+                {...field}
+              />
+            )}
+          />
+        )}
 
         {backend === "comfy" && (
           <>
             {model?.isFlux && (
-              <Controller
-                name="flux_guidance"
-                control={control}
-                defaultValue={3.5}
-                // rules={{ required: true }}
-                render={({ field }) => (
-                  <Slider
-                    step={0.1}
-                    min={0}
-                    max={30}
-                    defaultValue={3.5}
-                    label="Flux Guidnace"
-                    {...field}
-                  />
-                )}
-              />
+              <>
+                <Controller
+                  name="flux_guidance"
+                  control={control}
+                  defaultValue={3.5}
+                  // rules={{ required: true }}
+                  render={({ field }) => (
+                    <Slider
+                      step={0.1}
+                      min={0}
+                      max={30}
+                      defaultValue={3.5}
+                      label="Flux Guidnace"
+                      {...field}
+                    />
+                  )}
+                />
+                <Controller
+                  name="is_tea_cache_enabled"
+                  control={control}
+                  defaultValue={false}
+                  render={({ field }) => (
+                    <Checkbox {...field}>Tea Cache</Checkbox>
+                  )}
+                />
+              </>
             )}
             <SkimmedCfgFields control={control} />
             {model?.isFlux && txt2img && (
               <SplitRenderFields control={control} />
+            )}
+            {(model?.modelType === "sd1.5" || model.isSdXl || model.isPony) && (
+              <>
+                <SelfAttentionGuidanceFields control={control} />
+                <PerturbedAttentionGuidanceFields control={control} />
+                <SmoothedEnergyGuidanceFields control={control} />
+                <SlidingWindowGuidanceFields control={control} />
+              </>
             )}
           </>
         )}
@@ -1356,6 +1542,13 @@ const MainForm = () => {
             )}
           />
         )}
+        {hasComfyTiledDiffusion && (
+          <TiledDiffusionFields
+            control={control}
+            setValue={setValue}
+            model={model}
+          />
+        )}
         {hasMultidiffusionIntegrated && (
           <Controller
             name="isMultidiffusionEnabled"
@@ -1380,7 +1573,14 @@ const MainForm = () => {
             disabled={hasRegionalPrompting && isRegionalPromptingEnabled}
           />
         )}
-        {!txt2img && hasUltimateUpscale && (
+        {backend === "comfy" && !txt2img && (
+          <UltimateSdUpscaleFields
+            control={control}
+            setValue={setValue}
+            model={model}
+          />
+        )}
+        {backend !== "comfy" && !txt2img && hasUltimateUpscale && (
           <Controller
             name="isUltimateUpscaleEnabled"
             control={control}
@@ -1391,6 +1591,7 @@ const MainForm = () => {
                 if (value) {
                   setValue("isTiledDiffusionEnabled", false);
                   setValue("isMultidiffusionEnabled", false);
+                  setValue("tiledDiffusion.is_enabled", false);
                   if (upscaler === "Latent") setValue("upscaler", "None");
                 }
               },

@@ -35,13 +35,16 @@ const useData = <T,>({
   data: T;
   channel: Channel | null;
   isFetching: boolean;
+  fetched: boolean;
 } => {
   const { channel, getData } = useSocket();
   const [isFetching, setIsFetching] = useState(false);
   const ref = useRef(false);
-  const dataState = useAppSelector(selectData);
+  const dataState = useAppSelector((state) => selectData(state)[name]);
+
+  const data: T = dataState?.data;
+  const fetched = dataState?.fetched;
   const isConnected = useAppSelector(selectIsConnected);
-  const data: T = dataState[name];
   const dispatch = useAppDispatch();
 
   const fetchData = useCallback(
@@ -50,14 +53,15 @@ const useData = <T,>({
       try {
         const data: T = await getData({ name, async: async });
 
-        // if (!async) {
-        if (callback) {
-          await callback(data);
+        if (!async) {
+          if (callback) {
+            await callback(data);
+          }
+          dispatch(updateData({ key: name, value: { data, fetched: true } }));
         }
-        dispatch(updateData({ [name]: data }));
-        // }
       } catch (error) {
         console.error(error);
+        dispatch(updateData({ key: name, value: { data, fetched: false } }));
       } finally {
         setIsFetching(false);
       }
@@ -93,17 +97,23 @@ const useData = <T,>({
   ]);
 
   useEffect(() => {
+    if (fetchPolicy === "eager" && !isConnected) {
+      dispatch(updateData({ key: name, value: { fetched: false } }));
+    }
     return () => {
-      if (!isConnected) ref.current = false;
+      if (!isConnected) {
+        dispatch(updateData({ key: name, value: { fetched: false } }));
+        ref.current = false;
+      }
     };
-  }, [isConnected]);
+  }, [isConnected, data, name, fetchPolicy, dispatch]);
 
   useEffect(() => {
     if (fetchPolicy === "eager" && channel) {
       const ref = channel.on(
         `update_${name}`,
         async ({ data }: { data: T }) => {
-          dispatch(updateData({ [name]: data }));
+          dispatch(updateData({ key: name, value: { data, fetched: true } }));
           callback?.(data);
         }
       );
@@ -134,7 +144,7 @@ const useData = <T,>({
     }
   }, [callback, channel, dispatch, fetchPolicy, name]);
 
-  return { fetchData, data, channel, isFetching };
+  return { fetchData, data, channel, isFetching, fetched };
 };
 
 export default useData;

@@ -1,3 +1,4 @@
+import { FieldsType } from "../MainForm";
 import { SkimmedCfgArgs } from "./SkimmedCfgFields";
 
 export const defaultSkimmedCfgArgs: SkimmedCfgArgs = {
@@ -7,23 +8,7 @@ export const defaultSkimmedCfgArgs: SkimmedCfgArgs = {
   disable_flipping_filter: false,
 };
 
-export const skimmedCfgFields: (
-  | {
-      label: string;
-      name: keyof SkimmedCfgArgs;
-      value: number;
-      min: number;
-      max: number;
-      step: number;
-      type: "range";
-    }
-  | {
-      label: string;
-      name: keyof SkimmedCfgArgs;
-      value: boolean;
-      type: "boolean";
-    }
-)[] = [
+export const skimmedCfgFields: FieldsType<SkimmedCfgArgs> = [
   {
     label: "Skimming CFG",
     name: "skimming_cfg",

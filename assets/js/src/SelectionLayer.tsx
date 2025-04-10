@@ -1,4 +1,4 @@
-import React, { RefObject, useContext, useRef } from "react";
+import { useContext } from "react";
 import RefsContext from "./context/RefsContext";
 import SelectionBox from "./SelectionBox";
 import { useAppSelector } from "./hooks";
@@ -9,7 +9,11 @@ import {
   DEFAULT_WIDTH_VALUE,
   selectSelectionBox,
 } from "./state/selectionBoxSlice";
-import { selectIsGenerating, selectStats } from "./state/statsSlice";
+import {
+  selectIsConnected,
+  selectIsGenerating,
+  selectStats,
+} from "./state/statsSlice";
 import { Layer } from "react-konva";
 
 const SelectionLayer = () => {
@@ -18,8 +22,8 @@ const SelectionLayer = () => {
 
   const { height, width, x, y } = useAppSelector(selectSelectionBox);
   const isGenerating = useAppSelector(selectIsGenerating);
-  const { isConnected, progress, generatingSessionName } =
-    useAppSelector(selectStats);
+  const { progress, generatingSessionName } = useAppSelector(selectStats);
+  const isConnected = useAppSelector(selectIsConnected);
 
   return (
     <Layer ref={selectionBoxLayerRef}>

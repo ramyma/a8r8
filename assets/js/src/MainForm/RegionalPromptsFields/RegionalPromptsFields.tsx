@@ -21,20 +21,31 @@ import { v4 as uuid4 } from "uuid";
 import Slider from "../../components/Slider";
 import ExpandCollapseCheckbox from "../../components/ExpandCollapseCheckbox";
 import { selectActiveLayer, setActiveLayer } from "../../state/layersSlice";
-import { ArrowDownIcon, ArrowUpIcon, TrashIcon } from "@radix-ui/react-icons";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  EyeNoneIcon,
+  EyeOpenIcon,
+  TrashIcon,
+} from "@radix-ui/react-icons";
 import { useFormContext } from "react-hook-form";
 import Checkbox from "../../components/Checkbox";
 import * as Portal from "@radix-ui/react-portal";
 import Button from "../../components/Button";
+import Toggle from "../../components/Toggle";
+import { OptionsState } from "../../state/optionsSlice";
+
+type Props = { selectedModel?: OptionsState["selectedModel"] };
 
 type PromptRegionProps = PromptRegionLayer & {
   index: number;
   canRemove: boolean;
   regionsCount: number;
   control: Control;
+  selectedModel: Props["selectedModel"];
 };
 
-const RegionalPromptsFields = () => {
+const RegionalPromptsFields = ({ selectedModel }: Props) => {
   const dispatch = useAppDispatch();
 
   const { control, unregister, setValue } = useFormContext();
@@ -51,8 +62,9 @@ const RegionalPromptsFields = () => {
   useEffect(() => {
     if (regions.length !== Object.keys(regionalPrompts).length) {
       Object.keys(regionalPrompts)?.forEach((id) => {
-        regions.findIndex((region) => region.id === id) === -1 &&
+        if (regions.findIndex((region) => region.id === id) === -1) {
           unregister(`regionalPrompts.${id}`);
+        }
       });
       // console.log({ updatedValue });
     }
@@ -106,6 +118,7 @@ const RegionalPromptsFields = () => {
                     {...regionProps}
                     canRemove={regions.length > 2}
                     regionsCount={regionsCount}
+                    selectedModel={selectedModel}
                   />
                 ))}
                 <Button fullWidth onClick={handleAddRegionPrompt}>
@@ -155,10 +168,12 @@ const PromptRegion = ({
   name,
   maskColor,
   isEnabled,
+  isVisible,
   canRemove,
   prompt,
   index,
   regionsCount,
+  selectedModel,
 }: PromptRegionProps) => {
   const dispatch = useAppDispatch();
 
@@ -177,13 +192,14 @@ const PromptRegion = ({
     setIsColorPickerVisible(false);
   };
   const handleColorChange: ColorPickerProps["onColorChange"] = (color) => {
-    color &&
+    if (color) {
       dispatch(
         updatePromptRegionLayer({
           layerId: id,
           maskColor: color,
         })
       );
+    }
   };
 
   const activeLayer = useAppSelector(selectActiveLayer);
@@ -209,6 +225,10 @@ const PromptRegion = ({
     dispatch(updatePromptRegionLayer({ layerId: id, isEnabled }));
   };
 
+  const toggleVisibility = (isVisible) => {
+    dispatch(updatePromptRegionLayer({ layerId: id, isVisible }));
+  };
+
   return (
     <div
       className="p-1 relative gap-2 flex flex-col"
@@ -220,7 +240,7 @@ const PromptRegion = ({
       }}
     >
       <fieldset
-        className="flex justify-between w-full cursor-pointer gap-4 sm:flex-col lg:flex-row"
+        className="flex justify-between w-full cursor-pointer gap-4 sm:flex-col lg:flex-row items-start 2xl:items-center"
         onClick={() => {
           if (isRegionalPromptEnabled) {
             dispatch(setActiveLayer(`regionMask${id ?? ""}`));
@@ -229,7 +249,7 @@ const PromptRegion = ({
       >
         <div className="flex gap-3 place-items-center sm:flex-col 2xl:flex-row sm:items-start">
           <Label
-            className={`pe-3 transition-colors cursor-pointer ${isEnabled ? (isActive ? "text-primary" : "text-inherit") : "text-neutral-600"}`}
+            className={`pe-3 transition-colors cursor-pointer 2xl:self-center ${isEnabled ? (isActive ? "text-primary" : "text-inherit") : "text-neutral-600"}`}
           >
             {name || `Region ${index + 1}`}
           </Label>
@@ -263,13 +283,21 @@ const PromptRegion = ({
             </Button>
           </div>
         </div>
-        <div className="flex gap-3 place-items-start">
+        <div className="flex gap-3 items-center">
           <button
             className="p-0 border border-neutral-500 rounded-full shrink-0 size-6"
             style={{ backgroundColor: maskColor ?? "white" }}
             onClick={handleColorButtonClick}
             ref={colorButtonRef}
             title="Pick Mask Color"
+          />
+          <Toggle
+            pressed={isVisible}
+            onChange={toggleVisibility}
+            title="Show/Hide"
+            pressedIconComponent={EyeOpenIcon}
+            unpressedIconComponent={EyeNoneIcon}
+            className="size-[25px]"
           />
           <Checkbox
             disabled={!isRegionalPromptEnabled}
@@ -302,7 +330,7 @@ const PromptRegion = ({
         control={control}
         render={({ field }) => <Editor placeholder="Prompt" {...field} />}
       />
-      <div className="my-3">
+      <div className="my-3 flex flex-col gap-4">
         <Controller
           name={`regionalPrompts.${id}.weight`}
           control={control}
@@ -311,12 +339,30 @@ const PromptRegion = ({
               label="Prompt Weight"
               min={0.1}
               max={1}
+              defaultValue={1}
               step={0.01}
               {...field}
             />
           )}
           defaultValue={1}
         />
+        {(selectedModel?.isFlux || selectedModel?.isSd35) && (
+          <Controller
+            name={`regionalPrompts.${id}.region_blend`}
+            control={control}
+            defaultValue={0.4}
+            render={({ field }) => (
+              <Slider
+                label="Prompt Blend"
+                min={0.1}
+                max={1}
+                defaultValue={0.4}
+                step={0.01}
+                {...field}
+              />
+            )}
+          />
+        )}
       </div>
     </div>
   );

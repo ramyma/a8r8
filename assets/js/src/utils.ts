@@ -322,7 +322,7 @@ export const getLayers = async ({
   maskDataUrl: string;
   initImageDataUrl: string | undefined;
   controlnetDataUrls: (
-    | { image: string; maskImage: string | null }
+    | { image: string; image_kps: string; maskImage: string | null }
     | undefined
   )[];
   regionMasksDataUrls?: string[];
@@ -502,8 +502,20 @@ export const getLayers = async ({
         layerGroup?.visible(true);
         //FIXME: Pasted image on CN layer on canvas should be fetched from canvas rather than
         // sending the whole image
-        const controlnetDataUrl = layer.overrideBaseLayer
+        const controlnetDataUrl = layer.overrideVisible
           ? (((layer.image as string) ||
+              controlnetLayer?.toDataURL({
+                x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
+                y: selectionBox?.getAbsolutePosition().y,
+                width: selectionBox?.width(),
+                height: selectionBox?.height(),
+                // imageSmoothingEnabled: false,
+              })) ??
+            "")
+          : "";
+
+        const instantIdKpsDataUrl = layer.overrideVisibleForInstantIdKeypoints
+          ? (((layer.image_kps as string) ||
               controlnetLayer?.toDataURL({
                 x: selectionBox?.getAbsolutePosition().x, //stagContainer.clientWidth / 2 - 512 / 2,
                 y: selectionBox?.getAbsolutePosition().y,
@@ -543,7 +555,11 @@ export const getLayers = async ({
 
           layerGroup?.visible(false);
         }
-        return { image: controlnetDataUrl, maskImage: controlnetMaskDataUrl };
+        return {
+          image: controlnetDataUrl,
+          image_kps: instantIdKpsDataUrl,
+          maskImage: controlnetMaskDataUrl,
+        };
       })) ??
     [];
 
@@ -553,7 +569,7 @@ export const getLayers = async ({
 
   bgRect.destroy();
   // controlnetLayer?.visible(false);
-  stage?.scale(oldStageScale);
+  stage?.scale(oldStageScale!);
   batchResultPreviewImage?.visible(
     initialBatchResultPreviewImageVisibility ?? false
   );

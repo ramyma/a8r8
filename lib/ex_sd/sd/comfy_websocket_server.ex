@@ -6,7 +6,17 @@ defmodule ExSd.Sd.ComfyWebsocketServer do
   require Logger
   require Mint.HTTP
 
-  defstruct [:conn, :websocket, :request_ref, :caller, :status, :resp_headers, :closing?]
+  defstruct [
+    :conn,
+    :websocket,
+    :request_ref,
+    :caller,
+    :status,
+    :resp_headers,
+    :closing?,
+    :current_node,
+    :output_images
+  ]
 
   def connect(url) do
     with {:ok, socket} <- GenServer.start_link(__MODULE__, [], name: __MODULE__),
@@ -73,8 +83,11 @@ defmodule ExSd.Sd.ComfyWebsocketServer do
   def handle_info(message, state) do
     case Mint.WebSocket.stream(state.conn, message) do
       {:ok, conn, responses} ->
-        state = put_in(state.conn, conn) |> handle_responses(responses)
-        if state.closing?, do: do_close(state), else: {:noreply, state}
+        state =
+          put_in(state.conn, conn)
+          |> handle_responses(responses)
+
+        if Map.get(state, :closing?), do: do_close(state), else: {:noreply, state}
 
       {:error, conn, reason, _responses} ->
         state = put_in(state.conn, conn) |> reply({:error, reason})
@@ -167,89 +180,160 @@ defmodule ExSd.Sd.ComfyWebsocketServer do
 
         response = Jason.decode!(text)
 
-        case Map.get(response, "type") do
-          "progress" ->
-            progress =
-              round(get_in(response, ["data", "value"]) / get_in(response, ["data", "max"]) * 100)
-
-            PubSub.broadcast!(
-              ExSd.PubSub,
-              "generation",
-              {:progress, progress}
-            )
-
-          "executing" ->
-            node_name = get_in(response, ["data", "node"])
-
-            if not is_nil(node_name) and
-                 (node_name == "model" or Regex.match?(~r/cn\d+_controlnet_loader/i, node_name)) do
-              PubSub.broadcast!(
-                ExSd.PubSub,
-                "comfy",
-                :loading_model
-              )
-            end
-
-          "executed" ->
-            node_name = get_in(response, ["data", "node"])
-
-            if node_name == "output" do
-              output = get_in(response, ["data", "output"])
+        state =
+          case Map.get(response, "type") do
+            "progress" ->
+              progress =
+                round(
+                  get_in(response, ["data", "value"]) / get_in(response, ["data", "max"]) * 100
+                )
 
               PubSub.broadcast!(
                 ExSd.PubSub,
-                "comfy",
-                {:generation_complete, output}
+                "generation",
+                {:progress, progress}
               )
-            end
 
-          "execution_error" ->
-            exception_message = get_in(response, ["data", "exception_message"])
+              state
 
-            PubSub.broadcast!(
-              ExSd.PubSub,
-              "comfy",
-              {:error, exception_message}
-            )
+            "executing" ->
+              node_name = get_in(response, ["data", "node"])
 
-          "execution_start" ->
-            PubSub.broadcast!(
-              ExSd.PubSub,
-              "comfy",
-              :execution_start
-            )
+              if not is_nil(node_name) do
+                if node_name == "model" do
+                  PubSub.broadcast!(
+                    ExSd.PubSub,
+                    "comfy",
+                    {:loading_model, "Main model"}
+                  )
+                end
 
-          "execution_cached" ->
-            cached_nodes = get_in(response, ["data", "nodes"])
+                if Regex.match?(~r/cn\d+_controlnet_loader/i, node_name) do
+                  PubSub.broadcast!(
+                    ExSd.PubSub,
+                    "comfy",
+                    {:loading_model, "Controlnet"}
+                  )
+                end
 
-            if(Enum.member?(cached_nodes, "output"),
-              do:
+                # if String.starts_with?(node_name, "unified_ip_adapter_loader") do
+                #   PubSub.broadcast!(
+                #     ExSd.PubSub,
+                #     "comfy",
+                #     {:loading_model, "IP Adapter"}
+                #   )
+                # end
+
+                # if String.starts_with?(node_name, "load_instant_id_model") do
+                #   PubSub.broadcast!(
+                #     ExSd.PubSub,
+                #     "comfy",
+                #     {:loading_model, "Instant ID"}
+                #   )
+                # end
+              end
+
+              %{state | current_node: node_name}
+
+            "executed" ->
+              node_name = get_in(response, ["data", "node"])
+
+              if node_name == "output" do
+                output = get_in(response, ["data", "output"])
+
                 PubSub.broadcast!(
                   ExSd.PubSub,
                   "comfy",
-                  :generation_cached
+                  {:generation_complete, output}
                 )
-            )
+              end
 
-          _ ->
-            nil
-        end
+              state
+
+            "execution_success" ->
+              PubSub.broadcast!(
+                ExSd.PubSub,
+                "comfy",
+                {:generation_complete, %{"images" => Map.get(state, :output_images, [])}}
+              )
+
+              %{state | output_images: []}
+
+            "execution_error" ->
+              exception_message = get_in(response, ["data", "exception_message"])
+
+              PubSub.broadcast!(
+                ExSd.PubSub,
+                "comfy",
+                {:error, exception_message}
+              )
+
+              %{state | output_images: []}
+
+            "execution_start" ->
+              PubSub.broadcast!(
+                ExSd.PubSub,
+                "comfy",
+                :execution_start
+              )
+
+              state
+
+            "execution_cached" ->
+              cached_nodes = get_in(response, ["data", "nodes"])
+
+              if(Enum.member?(cached_nodes, "output"),
+                do:
+                  PubSub.broadcast!(
+                    ExSd.PubSub,
+                    "comfy",
+                    :generation_cached
+                  )
+              )
+
+              state
+
+            # Comfy Manager status
+            "cm-queue-status" ->
+              data = Map.get(response, "data")
+
+              PubSub.broadcast!(
+                ExSd.PubSub,
+                "comfy_manager",
+                {:queue_status, data}
+              )
+
+              state
+
+            _ ->
+              state
+          end
 
         # {:ok, state} = send_frame(state, {:text, String.reverse(text)})
         state
 
       {:binary, data}, state ->
-        Logger.debug("Received binary")
+        Logger.debug("Received binary #{state.current_node}")
 
         <<_event_type::bytes-4, _image_type::bytes-4, image_binary::bitstring>> = data
 
         image_base64_string = Base.encode64(image_binary)
 
-        PubSub.broadcast!(
-          ExSd.PubSub,
-          "generation",
-          {:progress_preview, image_base64_string}
-        )
+        state =
+          if state.current_node == "output" do
+            output_images =
+              Enum.concat(Map.get(state, :output_images) || [], [image_base64_string])
+
+            state |> Map.put(:output_images, output_images)
+          else
+            PubSub.broadcast!(
+              ExSd.PubSub,
+              "generation",
+              {:progress_preview, image_base64_string}
+            )
+
+            state
+          end
 
         state
 

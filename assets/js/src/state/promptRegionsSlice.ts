@@ -6,6 +6,7 @@ export type PromptRegionLayer = {
   mode: PromptRegionState["mode"];
   maskColor?: string;
   weight: number;
+  region_blend?: number;
   prompt: string;
   name: string;
   isVisible: boolean;
@@ -20,6 +21,7 @@ interface PromptRegionState {
 
 const promptRegionLayerInitialState: Omit<PromptRegionLayer, "id"> = {
   weight: 1,
+  region_blend: 0.4,
   isVisible: true,
   isEnabled: false,
   maskColor: "#FFFFFF",
@@ -136,4 +138,5 @@ export const selectPromptRegionLayersCount = (state: RootState) => {
 };
 export const selectIsRegionalPromptsEnabled = (state: RootState) =>
   state.promptRegions.isRegionalPromptsEnabled;
+
 export default promptRegionsSlice.reducer;

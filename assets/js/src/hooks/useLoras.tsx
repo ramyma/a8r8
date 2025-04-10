@@ -9,6 +9,7 @@ type Props = {
 
 const useLoras = ({ fetchPolicy, callback }: Props = {}) => {
   const { backend } = useBackend();
+
   const { fetchData, data: loras } = useData<Lora[] | undefined>({
     name:
       backend === "comfy" || backend === "forge"
@@ -16,6 +17,7 @@ const useLoras = ({ fetchPolicy, callback }: Props = {}) => {
         : "loras",
     fetchPolicy,
     callback,
+    condition: !!backend,
   });
 
   return { loras: loras ?? [], fetchData };

@@ -1,3 +1,7 @@
+declare global {
+  const VERSION: string;
+}
+
 export type ModelType = "sd1.5" | "sdxl" | "sd3.5" | "pony" | "flux";
 
 export type Model = {

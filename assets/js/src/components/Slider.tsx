@@ -5,11 +5,12 @@ import Label from "./Label";
 import Button from "./Button";
 import { ResetIcon } from "@radix-ui/react-icons";
 import { twMerge } from "tailwind-merge";
+import { FocusEventHandler } from "react";
 
 export type SliderProps = {
   label?: string;
-  value: number;
-  onChange: (value: number) => void;
+  value: number | string;
+  onChange: (value: number | string) => void;
   min: number;
   max: number;
   step: number;
@@ -38,18 +39,35 @@ const Slider = forwardRef(
     _ref
   ) => {
     const handleValueChange = (value: number[]) => onChange(value[0]);
-    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) =>
-      onChange(+e.target.value);
-
-    const handleResetClick = () =>
-      defaultValue !== undefined && onChange(defaultValue);
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+      onChange(
+        isNaN(Number.parseFloat(e.target.value))
+          ? e.target.value
+          : +e.target.value
+      );
+    };
+    const handleInputBlur: FocusEventHandler<HTMLInputElement> = (e) => {
+      if (typeof value === "string") {
+        if (
+          isNaN(Number.parseFloat(value)) &&
+          (defaultValue !== undefined || min !== undefined)
+        ) {
+          onChange(defaultValue ?? min);
+        } else {
+          onChange(+value);
+        }
+      }
+    };
+    const handleResetClick = () => {
+      if (defaultValue !== undefined) onChange(defaultValue);
+    };
 
     const inputId = useId();
     return (
       <div className={twMerge("flex flex-col", className)}>
         {showInput && (
           <div className="flex flex-col lg:flex-row gap-2 mb-2 items-start lg:items-center justify-between">
-            <Label htmlFor={inputId} className="w-7/12">
+            <Label htmlFor={inputId} className="w-7/12" disabled={disabled}>
               {label}
             </Label>
             <div className="flex gap-1 place-items-center">
@@ -75,6 +93,7 @@ const Slider = forwardRef(
                 name={name}
                 value={value}
                 onChange={handleInputChange}
+                onBlur={handleInputBlur}
                 disabled={disabled}
               />
             </div>

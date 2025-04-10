@@ -30,7 +30,7 @@ const Checkbox = forwardRef<
       >
         {children && (
           <Label
-            className="Label select-none cursor-pointer group-hover:text-neutral-200 transition-colors"
+            className="Label select-none cursor-pointer group-hover:text-neutral-200 transition-colors w-full"
             htmlFor={id}
           >
             {children}

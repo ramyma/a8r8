@@ -31,12 +31,11 @@ export const LoraButton = ({
     name,
     path,
     alias,
-    metadata: { ss_base_model_version: baseModel, ss_sd_model_name } = {},
     metadata = {},
     stored_metadata: storedMetadata,
     model_type: modelType,
   } = lora;
-
+  const { ss_base_model_version: baseModel, ss_sd_model_name } = metadata ?? {};
   const isPony = modelType === "pony";
   //   (storedMetadata?.baseModel || name)?.toLowerCase().includes("pony") ||
   //   ss_sd_model_name?.toLowerCase().includes("pony");

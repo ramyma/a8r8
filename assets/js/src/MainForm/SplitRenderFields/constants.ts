@@ -1,3 +1,4 @@
+import { FieldsType } from "../MainForm";
 import { SplitRenderArgs } from "./SplitRenderFields";
 
 export const defaultSplitRenderArgs: SplitRenderArgs = {
@@ -6,23 +7,7 @@ export const defaultSplitRenderArgs: SplitRenderArgs = {
   noise_injection_strength: 3,
 };
 
-export const splitRenderFields: (
-  | {
-      label: string;
-      name: keyof SplitRenderArgs;
-      value: number;
-      min: number;
-      max: number;
-      step: number;
-      type: "range";
-    }
-  | {
-      label: string;
-      name: keyof SplitRenderArgs;
-      value: boolean;
-      type: "boolean";
-    }
-)[] = [
+export const splitRenderFields: FieldsType<SplitRenderArgs> = [
   {
     label: "Split Ratio",
     name: "split_ratio",

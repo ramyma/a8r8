@@ -34,6 +34,17 @@
   --color-danger: #d41818;
   --color-success: #49a847;
   --color-warning: #ffc53d;
+  --animate-text-loading: text-loading 1.9s linear infinite reverse;
+
+  @keyframes text-loading {
+    0% {
+      background-position: 0 0%;
+    }
+
+    100% {
+      background-position: 100% 0%;
+    }
+  }
 }
 
 /* @theme {
@@ -105,7 +116,7 @@ button:focus-visible,
   outline: 4px auto -webkit-focus-ring-color !important;
 } */
 
-@media (prefers-color-scheme: light) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     color: #213547;
     background-color: #ffffff;
@@ -116,7 +127,7 @@ button:focus-visible,
   button {
     background-color: #f9f9f9;
   }
-}
+} */
 
 .remirror-editor {
   overflow: visible !important;

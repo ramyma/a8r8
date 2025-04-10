@@ -61,7 +61,7 @@ const Popover = ({
             >
               <motion.div
                 className={twMerge(
-                  "rounded backdrop-blur-xs p-3 w-fit max-w-[260px] bg-neutral-950/90 border border-neutral-900  will-change-[transform,opacity] z-20 shadow-lg shadow-black/30",
+                  "rounded backdrop-blur-md p-3 w-fit max-w-[260px] bg-neutral-950/80 border border-neutral-700/70  will-change-[transform,opacity] z-20 shadow-lg shadow-black/30",
                   contentClassName
                 )}
                 initial={{ opacity: 0 }}

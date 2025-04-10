@@ -1,5 +1,6 @@
 defmodule ExSdWeb.SdChannel do
   use ExSdWeb, :channel
+  alias ExSd.ComfyManagerServer
   alias ExSd.ConfigManager
   alias ExSd.Sd
   # @impl true
@@ -177,6 +178,11 @@ defmodule ExSdWeb.SdChannel do
   end
 
   @impl true
+  def handle_in("get_extensions", _, socket) do
+    {:reply, ComfyManagerServer.get_extensions(), socket}
+  end
+
+  @impl true
   def handle_in("controlnet_detect", params, socket) do
     Sd.controlnet_detect(params)
     {:noreply, socket}
@@ -185,6 +191,24 @@ defmodule ExSdWeb.SdChannel do
   @impl true
   def handle_in("get_config", _payload, socket) do
     ConfigManager.get_config()
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("install_missing_extensions", payload, socket) do
+    ComfyManagerServer.install_extensions(payload["extensions"])
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("restart_comfy", _payload, socket) do
+    ComfyManagerServer.restart_comfy()
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_in("get_comfy_manager_status", _payload, socket) do
+    ComfyManagerServer.get_comfy_manager_status()
     {:noreply, socket}
   end
 

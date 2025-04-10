@@ -41,6 +41,10 @@ import BatchImageResults from "./BatchImageResults";
 import ClipModelMultiSelect from "./MainForm/ClipModelMultiSelect";
 import SettingsModal from "./SettingsModal/SettingsModal";
 import { twMerge } from "tailwind-merge";
+import useExtensions from "./hooks/useExtensions";
+import useMissingExtensionsChecker from "./hooks/useMissingExtensionsChecker/useMissingExtensionsChecker";
+import MissingExtensionsModal from "./MissingExtensionsModal";
+import BackendSelect from "./BackendSelect";
 
 function App() {
   const [isSettingsModalVisible, setIsSettingsModalVisible] = useState(false);
@@ -80,6 +84,11 @@ function App() {
     fetchPolicy: "eager",
   });
 
+  const { extensions } = useExtensions({ fetchPolicy: "eager" });
+
+  const { missingExtensions, installMissingExtensions, restartComfy } =
+    useMissingExtensionsChecker({ extensions });
+
   const {
     isModelLoading,
     isVaeLoading,
@@ -100,7 +109,7 @@ function App() {
 
   useIsConnected();
 
-  const { isFetching: isFetchingConfig } = useConfig({
+  const { isFetching: isFetchingConfig, fetched: configFetched } = useConfig({
     fetchPolicy: "eager",
   });
 
@@ -144,7 +153,7 @@ function App() {
       <div className="relative flex h-full w-full ">
         <div
           // ref={panelRef}
-          className="absolute left-0 top-0  flex flex-1 h-full bg-black/90 backdrop-blur-xs flex-col z-10 transition-all"
+          className="absolute left-0 top-0  flex flex-1 h-full bg-black/90 backdrop-blur-md flex-col z-10 transition-all"
         >
           <ScrollArea>
             <div className="h-screen max-w-[20vw] md:w-[17vw] lg:w-[33vw]">
@@ -165,7 +174,7 @@ function App() {
                   refetchModels={refetchModels}
                   setModel={setModel}
                   selectedModel={selectedModel && { name: selectedModel.name }}
-                  shouldSetDefaultValue={!isFetchingConfig}
+                  shouldSetDefaultValue={configFetched}
                 />
                 <VaeSelect
                   refetchOptions={refetchOptions}
@@ -189,7 +198,10 @@ function App() {
           </ScrollArea>
         </div>
         <div className="relative flex-9 w-full">
-          <Stats />
+          <div className="flex absolute bottom-2 right-2 z-10 items-end gap-2 select-none">
+            <BackendSelect />
+            <Stats />
+          </div>
           <Canvas />
           <Toolbar />
           <BatchImageResults />
@@ -200,6 +212,13 @@ function App() {
           open={isSettingsModalVisible}
           onClose={handleSettingsModalClose}
         />
+        {backend === "comfy" && (
+          <MissingExtensionsModal
+            missingExtensions={missingExtensions}
+            onInstall={installMissingExtensions}
+            onRestart={restartComfy}
+          />
+        )}
         {/* <ModelsModal /> */}
       </div>
     </div>

@@ -21,7 +21,7 @@ export type OptionsState = {
 };
 
 const initialState: OptionsState = {
-  backend: "auto",
+  backend: "comfy",
   selectedModel: {
     hash: "",
     name: "",

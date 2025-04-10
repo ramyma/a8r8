@@ -1,18 +1,10 @@
 import useModels from "./hooks/useModels";
 import Modal, { ModalProps } from "./components/Modal";
-import useGlobalKeydown from "./hooks/useGlobalKeydown";
 import Button from "./components/Button";
 import Input from "./components/Input";
 
 const ModelsModal = (props: ModalProps) => {
   const { isModelLoading, models, setModel, selectedModel } = useModels();
-
-  useGlobalKeydown({
-    handleKeydown: (event) => {
-      if (event.key === "Escape") props.onClose(event);
-    },
-    override: true,
-  });
 
   return (
     <Modal

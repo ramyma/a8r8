@@ -279,10 +279,10 @@ defmodule ExSd.SdServer do
 
   @impl true
   def handle_info(
-        :loading_model,
+        {:loading_model, model},
         %{backend: :comfy} = state
       ) do
-    ExSd.Sd.broadcast_message("Loading model", "", :warning)
+    ExSd.Sd.broadcast_message("Loading model", model || "", :warning)
 
     {:noreply, state}
   end
@@ -824,7 +824,8 @@ defmodule ExSd.SdServer do
         :models,
         Enum.concat(
           models,
-          unets |> Enum.sort() |> Enum.filter(&String.match?(&1, ~r/(flux|3\.?5)/i))
+          unets |> Enum.sort()
+          # |> Enum.filter(&String.match?(&1, ~r/(flux|3\.?5)/i))
         )
         |> Enum.sort()
       )
@@ -1371,9 +1372,6 @@ defmodule ExSd.SdServer do
   end
 
   defp get_default_backend() do
-    if(Application.fetch_env!(:ex_sd, :default_backend) in [:a1111, :forge],
-      do: :auto,
-      else: :comfy
-    )
+    Application.fetch_env!(:ex_sd, :default_backend)
   end
 end

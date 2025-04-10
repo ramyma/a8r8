@@ -1,42 +1,39 @@
-import {
-  MouseEventHandler,
-  ReactElement,
-  forwardRef,
-  useRef,
-  useState,
-} from "react";
-import { animated, config, useSpring } from "@react-spring/web";
+import { MouseEventHandler, ReactElement, forwardRef, useState } from "react";
+import { motion } from "motion/react";
 import Checkbox, { CheckboxProps } from "./Checkbox";
 import { TriangleRightIcon } from "@radix-ui/react-icons";
 import Label from "./Label";
 
-type Props = CheckboxProps & {
+export type ExpandCollapseCheckboxProps = CheckboxProps & {
   defaultExpanded?: boolean;
   label: string;
   showCheckbox?: boolean;
   children: ReactElement;
+  expandOnChecked?: boolean;
 };
 
-const ExpandCollapseCheckbox = forwardRef<HTMLButtonElement, Props>(
+const ExpandCollapseCheckbox = forwardRef<
+  HTMLButtonElement,
+  ExpandCollapseCheckboxProps
+>(
   (
-    { defaultExpanded = false, label, showCheckbox = true, children, ...props },
+    {
+      defaultExpanded = false,
+      label,
+      showCheckbox = true,
+      expandOnChecked = true,
+      children,
+      ...props
+    },
     ref
   ) => {
     const [expanded, setExpanded] = useState(defaultExpanded);
     const [prevValue, setPrevValue] = useState<boolean>();
-    const contentRef = useRef<HTMLDivElement>(null);
 
     if (props.value !== prevValue) {
       setPrevValue(props.value ?? false);
-      setExpanded(props.value ?? false);
+      if (expandOnChecked || !props.value) setExpanded(props.value ?? false);
     }
-
-    const style = useSpring({
-      height: expanded
-        ? contentRef.current?.getBoundingClientRect().height + "px"
-        : "0px",
-      config: config.default,
-    });
 
     const toggleExpansion: MouseEventHandler = (event) => {
       event.preventDefault();
@@ -44,14 +41,18 @@ const ExpandCollapseCheckbox = forwardRef<HTMLButtonElement, Props>(
     };
 
     return (
-      <>
-        <div className="flex select-none cursor-pointer items-center gap-1.5 transition-colors">
+      <div>
+        <motion.div
+          animate={{ marginBottom: expanded ? 8 : 0 }}
+          className={`group flex select-none items-center gap-1.5 transition-colors ${showCheckbox ? "" : "cursor-pointer"}`}
+          onClick={!showCheckbox ? toggleExpansion : undefined}
+        >
           <div
-            className="ml-[-9px] hover:text-neutral-200"
-            onClick={toggleExpansion}
+            className="relative ml-[-9px] group-hover:text-neutral-300 hover:text-neutral-300 cursor-pointer transition-colors"
+            onClick={showCheckbox ? toggleExpansion : undefined}
           >
             <TriangleRightIcon
-              className={`p-0 size-8 transition-transform ${expanded ? "rotate-90" : ""}`}
+              className={`p-0 size-7 transition-transform ${expanded ? "rotate-90" : ""}`}
             />
           </div>
           {showCheckbox ? (
@@ -63,14 +64,27 @@ const ExpandCollapseCheckbox = forwardRef<HTMLButtonElement, Props>(
               {label}
             </Label>
           )}
-        </div>
+        </motion.div>
 
-        <animated.div style={style} className="overflow-hidden">
-          <div className="h-fit" ref={contentRef}>
-            {children}
-          </div>
-        </animated.div>
-      </>
+        <motion.div
+          className="overflow-hidden origin-top"
+          initial={{ height: 0, opacity: 0.6 }}
+          animate={{
+            // display: expanded ? "block" : "none",
+            height: expanded ? "auto" : 0,
+            opacity: expanded ? 1 : 0,
+            rotateX: expanded ? 0 : -30,
+          }}
+          transition={{
+            type: "spring",
+            bounce: 0.3,
+            damping: 13,
+            mass: 0.45,
+          }}
+        >
+          <div className="h-fit">{children}</div>
+        </motion.div>
+      </div>
     );
   }
 );

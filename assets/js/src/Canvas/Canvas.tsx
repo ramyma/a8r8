@@ -509,7 +509,7 @@ export default function Canvas() {
       if (e.key === "1") {
         const stage = stageRef?.current as Konva.Stage;
 
-        zoomCanvas({ stage, zoomPercentage: 100, scaleOrigin: "canvasCenter" });
+        zoomCanvas({ stage, zoomPercentage: 100, scaleOrigin: "pointer" });
       }
       if (e.key === "+") {
         const stage = stageRef?.current;
@@ -771,7 +771,7 @@ export default function Canvas() {
               (item) => item instanceof Konva.Group && item.attrs.id == "lines"
             )[0] as Konva.Group;
 
-            const spacing = 10;
+            const spacing = Math.min(Math.max(Math.ceil(brushSize / 5), 1), 10);
 
             const dx = point.x - lastX;
             const dy = point.y - lastY;
@@ -960,20 +960,20 @@ export default function Canvas() {
           //     "Decimal position, will cause location shifts on update!"
           //   );
           clonedLayer?.visible(true);
-          clonedLayer?.cache({ imageSmoothingEnabled: false });
+          // clonedLayer?.cache({ imageSmoothingEnabled: false });
           // console.log(brushSize);
           const layerDataUrl =
-            (await clonedLayer?.toDataURL({
+            clonedLayer?.toDataURL({
               x: minX + stagePos.x, //stagContainer.clientWidth / 2 - 512 / 2,
               y: minY + stagePos.y,
-              width: Math.ceil(maxX - minX),
-              height: Math.ceil(maxY - minY),
+              width: maxX - minX,
+              height: maxY - minY,
               imageSmoothingEnabled: false,
               // pixelRatio: 1 / stageRef?.current.scaleX(),
-            })) ?? "";
+            }) ?? "";
 
           // stageRef?.current?.scale(oldStageScale);
-          debugImage(layerDataUrl, "test");
+          // debugImage(layerDataUrl, "test");
 
           // const imageObj = new Image();
           // imageObj.onload = function () {
@@ -1135,20 +1135,20 @@ const fill = async ({
   if (minX % 1 || maxX % 1 || minY % 1 || maxY % 1)
     console.warn("Decimal position, will cause location shifts on update!");
   clonedLayer.visible(true);
-  clonedLayer.cache({ imageSmoothingEnabled: false });
+  // clonedLayer.cache({ imageSmoothingEnabled: false });
 
   const maskDataUrl =
-    (await clonedLayer.toDataURL({
+    clonedLayer.toDataURL({
       x: minX + stagePos.x, //stagContainer.clientWidth / 2 - 512 / 2,
       y: minY + stagePos.y,
       width: maxX - minX,
       height: maxY - minY,
       imageSmoothingEnabled: false,
       // pixelRatio: 1 / stageRef?.current.scaleX(),
-    })) ?? "";
+    }) ?? "";
   // stageRef?.current?.scale(oldStageScale);
 
-  debugImage(maskDataUrl, "test");
+  // debugImage(maskDataUrl, "test");
 
   const imageObj = new Image();
   imageObj.onload = function () {};

@@ -1,3 +1,4 @@
+import { FieldsType } from "../MainForm";
 import { ComfySoftInpaintingArgs } from "./ComfySoftInpaintingFields";
 
 export const defaultComfySoftPaintingArgs: ComfySoftInpaintingArgs = {
@@ -5,14 +6,7 @@ export const defaultComfySoftPaintingArgs: ComfySoftInpaintingArgs = {
   maskBlur: 6,
 };
 
-export const comfySoftPaintingFields: {
-  label: string;
-  name: keyof ComfySoftInpaintingArgs;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-}[] = [
+export const comfySoftPaintingFields: FieldsType<ComfySoftInpaintingArgs> = [
   {
     label: "Mask Blur",
     name: "maskBlur",
@@ -20,5 +14,6 @@ export const comfySoftPaintingFields: {
     min: 0,
     max: 30,
     step: 1,
+    type: "range",
   },
 ];

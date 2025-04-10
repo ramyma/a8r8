@@ -37,31 +37,37 @@ export const processPrompt = ({
   if (!isRegionalPromptingEnabled || !regionalPrompts)
     return { basePrompt, processedPrompt: basePrompt };
 
-  const [regionalPromptsValues, regionalPromptsWeights, regionalPromptsIds] =
-    promptRegions.reduce(
-      (acc, { id = "", isEnabled }) => {
-        if (isEnabled) {
-          return [
-            [
-              ...acc[0],
-              editorJsonToText(
-                (regionalPrompts[id].prompt as EditorState).doc.toJSON()
-              ),
-            ],
-            [...acc[1], regionalPrompts[id].weight],
-            [...acc[2], id],
-          ];
-        }
-        return acc;
-      },
-      [[], [], []] as [string[], number[], string[]]
-    );
+  const [
+    regionalPromptsValues,
+    regionalPromptsWeights,
+    regionalPromptsBlendWeights,
+    regionalPromptsIds,
+  ] = promptRegions.reduce(
+    (acc, { id = "", isEnabled }) => {
+      if (isEnabled) {
+        return [
+          [
+            ...acc[0],
+            editorJsonToText(
+              (regionalPrompts[id].prompt as EditorState).doc.toJSON()
+            ),
+          ],
+          [...acc[1], regionalPrompts[id].weight],
+          [...acc[2], regionalPrompts[id].region_blend],
+          [...acc[3], id],
+        ];
+      }
+      return acc;
+    },
+    [[], [], [], []] as [string[], number[], (number | undefined)[], string[]]
+  );
 
   return {
     basePrompt,
     processedPrompt: `${basePrompt} ${REGIONAL_PROMPTS_SEPARATOR} ${regionalPromptsValues.join(REGIONAL_PROMPTS_SEPARATOR)}`,
     regionalPromptsWeights,
     regionalPromptsValues,
+    regionalPromptsBlendWeights,
     regionalPromptsIds,
   };
 };

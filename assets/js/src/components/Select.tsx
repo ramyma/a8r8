@@ -547,7 +547,7 @@ const Select = forwardRef(
                   hidden: { opacity: 0 },
                   visible: { opacity: 1 },
                 }}
-                transition={{ duration: 0.1 }}
+                transition={{ duration: 0.12 }}
                 initial={"hidden"}
                 animate={"visible"}
                 exit={"hidden"}
@@ -558,7 +558,7 @@ const Select = forwardRef(
                   ref={modalBodyRef}
                 />
                 <div
-                  className="absolute shadow-md shadow-black/50 mx-auto max-w-md z-50 border-neutral-700 bg-neutral-900/0 border-[1px] rounded-sm border-solid text-sm select-none backdrop-blur-xs overflow-hidden"
+                  className="absolute shadow-md shadow-black/50 mx-auto max-w-md z-50 border-neutral-700 bg-neutral-900/0 border-[1px] rounded-sm border-solid text-sm select-none backdrop-blur-md overflow-hidden"
                   style={{ top: pos.y, left: pos.x }}
                   ref={selectContentRef}
                 >
@@ -600,7 +600,7 @@ const Select = forwardRef(
                             groupName === UNGROUPED_NAME) &&
                             (initializedGroups?.length ?? 0) > 1 &&
                             groupedFilteredItems?.[groupName]?.length > 0 && (
-                              <div className="font-bold text-lg px-2 text-neutral-200 bg-neutral-900/90 w-[calc(100%_-_8px)] h-full sticky top-0 z-10 pt-1">
+                              <div className="font-bold text-lg px-2 text-neutral-200 bg-neutral-900/95 backdrop-blur-md w-[calc(100%_-_8px)] h-full sticky top-0 z-10 pt-1">
                                 {groupName}
                               </div>
                             )}

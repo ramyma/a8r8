@@ -14,12 +14,13 @@ defmodule ExSd.Sd.ImageService do
   defp data_url_to_upload(data_url, name) do
     with %{scheme: "data"} = uri <- URI.parse(data_url),
          {:ok, %URL.Data{data: data}} <- URL.Data.parse(uri) do
-      binary_to_upload(data, name)
+      # binary_to_upload(data, name)
     end
   end
 
   defp binary_to_upload(binary, name) do
-    with {:ok, path} <- Plug.Upload.random_file(name),
+    # Plug.Upload.random_file(name),
+    with {:ok, path} <- {:ok, Path.join("gen", name)},
          {:ok, file} <- File.open(path, [:write, :binary]),
          :ok <- IO.binwrite(file, binary),
          :ok <- File.close(file) do
@@ -28,7 +29,7 @@ defmodule ExSd.Sd.ImageService do
   end
 
   defp maybe_feather!(image, sigma, true = _condition) do
-    Image.feather!(image, sigma: sigma)
+    Image.feather!(image, sigma: sigma, min_amplitude: 0.001)
   end
 
   defp maybe_feather!(image, _sigma, _condition) do
@@ -64,7 +65,7 @@ defmodule ExSd.Sd.ImageService do
               |> Image.Draw.flood!(0, 0, color: :white)
 
               # TODO: control using attrs
-              # |> maybe_feather!(20.0, Keyword.get(options, :should_feather_mask, true))
+              # |> maybe_feather!(mask_blur, Keyword.get(options, :should_feather_mask, true))
 
               # |> Image.feather!(sigma: mask_blur)
 
@@ -152,7 +153,11 @@ defmodule ExSd.Sd.ImageService do
 
         |> then(
           &if(blur > 0,
-            do: &1 |> grow!() |> Image.blur!(sigma: blur, min_amplitude: 0.001),
+            # TODO: determine grow based on dimensions
+            do:
+              &1
+              |> grow!(pixels: 16)
+              |> Image.blur!(sigma: blur, min_amplitude: 0.001),
             else: &1
           )
         )
@@ -180,8 +185,10 @@ defmodule ExSd.Sd.ImageService do
     end
   end
 
-  @spec grow!(Vix.Vips.Image.t()) :: Vix.Vips.Image.t()
-  def grow!(image) do
+  @spec grow!(Vix.Vips.Image.t(), [{:pixels, non_neg_integer()}]) :: Vix.Vips.Image.t()
+  def grow!(image, options \\ []) do
+    pixels = Keyword.get(options, :pixels, 15)
+
     {:ok, grow_kernel} =
       Vix.Vips.Image.new_from_list([
         [1, 1, 1, 1, 1],
@@ -192,7 +199,9 @@ defmodule ExSd.Sd.ImageService do
         [1, 1, 1, 1, 1]
       ])
 
-    Enum.reduce(1..30, image, fn _, acc ->
+    iterations = pixels * 2
+
+    Enum.reduce(1..iterations, image, fn _, acc ->
       Vix.Vips.Operation.convi!(acc, grow_kernel)
     end)
   end

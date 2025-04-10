@@ -80,6 +80,9 @@ const LorasSectionItem = ({ lora, index }: Props) => {
     handleUpdateLora(index, { triggerWords: updatedTriggerWords });
   };
 
+  const handleStrengthUpdate = (value) =>
+    handleUpdateLora(index, { strength: value });
+
   const firstImage = lora?.stored_metadata?.images?.[0];
 
   return (
@@ -152,12 +155,12 @@ const LorasSectionItem = ({ lora, index }: Props) => {
             label="Strength"
             name="strength"
             defaultValue={1}
-            min={0}
-            max={2}
+            min={-3}
+            max={3}
             step={0.001}
             value={lora.strength}
             disabled={isDisabled}
-            onChange={(value) => handleUpdateLora(index, { strength: value })}
+            onChange={handleStrengthUpdate}
           />
           <Button
             type="button"

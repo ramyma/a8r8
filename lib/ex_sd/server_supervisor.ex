@@ -10,6 +10,7 @@ defmodule ExSd.ServerSupervisor do
     children = [
       ExSd.ConfigManager.ConfigManagerServer,
       ExSd.SdServer,
+      ExSd.ComfyManagerServer,
       ExSd.ComfyGenerationServer
     ]
 

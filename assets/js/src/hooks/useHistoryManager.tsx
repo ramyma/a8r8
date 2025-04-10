@@ -2,19 +2,31 @@ import { emitCustomEvent } from "react-custom-events";
 import { useAppDispatch, useAppSelector } from "../hooks";
 import { redo, selectHistory, undo } from "../state/historySlice";
 import useGlobalKeydown from "./useGlobalKeydown";
-import { KeyboardEventHandler } from "react";
+import { KeyboardEventHandler, useRef } from "react";
 
 function useHistoryManager() {
   const { past, future } = useAppSelector(selectHistory);
   const dispatch = useAppDispatch();
+  const pastLengthRef = useRef(past.length);
+
+  if (pastLengthRef.current !== past.length) {
+    pastLengthRef.current = past.length;
+  }
 
   const undoHistory = () => {
-    past.length && emitCustomEvent("custom-undo", past[past.length - 1]);
-    dispatch(undo());
+    if (past.length && pastLengthRef.current === past.length) {
+      pastLengthRef.current = past.length - 1;
+      const historyItem = past[past.length - 1];
+      dispatch(undo());
+      emitCustomEvent("custom-undo", historyItem);
+    }
   };
   const redoHistory = () => {
-    future.length && emitCustomEvent("custom-redo", future[future.length - 1]);
-    dispatch(redo());
+    if (future.length) {
+      const historyItem = future[future.length - 1];
+      dispatch(redo());
+      emitCustomEvent("custom-redo", historyItem);
+    }
   };
 
   const handleKeydown: KeyboardEventHandler = (e) => {

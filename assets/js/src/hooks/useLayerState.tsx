@@ -1,4 +1,4 @@
-import { RefObject, useReducer, useState } from "react";
+import { RefObject, useRef } from "react";
 import {
   addHistoryItem,
   HistoryItem,
@@ -26,46 +26,21 @@ type LayerState = {
   [layerId: string]: ImageItem | undefined;
 };
 
-const initialState: LayerState = {};
-
-const removeLayerFromState = (state, layerId) => {
-  const { [layerId]: _, ...rest } = state;
-  return rest;
-};
-
-function reducer(
-  state: LayerState,
-  action: { type: string; payload: { layerId: string; data?: ImageItem } }
-): LayerState {
-  const { layerId, data } = action.payload;
-
-  switch (action.type) {
-    case "SET_LAYER_STATE":
-      return {
-        ...state,
-        [layerId]: data,
-      };
-    case "REMOVE_LAYER_STATE":
-      return removeLayerFromState(state, layerId);
-    default:
-      return state;
-  }
-}
-
 function useLayerState({ stageRef }: Props) {
   const setImage = (historyItem?: ImageItem, layerId?: string) => {
     const layer = historyItem?.layerId ?? layerId;
     if (layer) {
-      dispatchState({
-        type: "SET_LAYER_STATE",
-        payload: { layerId: layer, data: historyItem },
-      });
+      state.current = {
+        ...state.current,
+        [layer]: historyItem,
+      };
     }
   };
 
-  const [state, dispatchState] = useReducer(reducer, initialState);
-  const [undoHistory, setUndoHistory] = useState<(ImageItem | undefined)[]>([]);
-  const [redoHistory, setRedoHistory] = useState<(ImageItem | undefined)[]>([]);
+  // const [state, dispatchState] = useReducer(reducer, initialState);
+  const state = useRef<LayerState>({});
+  const undoHistory = useRef<(ImageItem | undefined)[]>([]);
+  const redoHistory = useRef<(ImageItem | undefined)[]>([]);
 
   const dispatch = useAppDispatch();
 
@@ -85,107 +60,189 @@ function useLayerState({ stageRef }: Props) {
   };
 
   const setLayerState = async (historyItem: ImageItem) => {
-    // if (layerRef) {
-    setUndoHistory((undoHistory) => [
-      ...undoHistory,
-      state[historyItem.layerId],
-    ]);
-    setImage(historyItem);
+    if (isDrawingRef.current) {
+      drawingBuffer.current = [
+        ...drawingBuffer.current,
+        { operation: "draw", args: [historyItem] },
+      ];
+    } else {
+      isDrawingRef.current = true;
+      undoHistory.current = [
+        ...undoHistory.current,
+        state.current[historyItem.layerId],
+      ];
 
-    const layer = stageRef?.current?.getChildren(
-      (child) =>
-        child instanceof Konva.Layer && child.attrs.id === historyItem.layerId
-    )?.[0] as Konva.Layer;
+      setImage(historyItem);
+      redoHistory.current = [];
 
-    await setLayerImage({
-      historyItem,
-      parent: layer,
-      dispatch,
-    });
+      dispatchHistoryEvent({
+        label: "Draw Sketch",
+        layerId: historyItem.layerId,
+      });
 
-    setRedoHistory([]);
-    dispatchHistoryEvent({
-      label: "Draw Sketch",
-      layerId: historyItem.layerId,
-    });
-    // }
-  };
+      const layer = stageRef?.current?.getChildren(
+        (child) =>
+          child instanceof Konva.Layer && child.attrs.id === historyItem.layerId
+      )?.[0] as Konva.Layer;
 
-  const clearLayer = (layerId: string) => {
-    const layer = stageRef?.current?.getChildren(
-      (child) => child instanceof Konva.Layer && child.attrs.id === layerId
-    )?.[0] as Konva.Layer;
-    if (
-      (
-        layer?.children?.find(
-          (child) =>
-            child instanceof Konva.Group && child.attrs.id == "sketch-image"
-        ) as Konva.Group
-      )?.children?.length > 0
-    ) {
-      setUndoHistory((undoHistory) => [...undoHistory, state[layerId]]);
-      setRedoHistory([]);
-      setImage(undefined, layerId);
-      setLayerImage({
+      await setLayerImage({
+        historyItem,
         parent: layer,
         dispatch,
       });
-      dispatchHistoryEvent({ label: "Clear Sketch", layerId });
+      isDrawingRef.current = false;
+      consumeBuffer();
+    }
+  };
+
+  const clearLayer = (layerId: string) => {
+    if (isDrawingRef.current) {
+      drawingBuffer.current = [
+        ...drawingBuffer.current,
+        { operation: "clear", args: [layerId] },
+      ];
+    } else {
+      isDrawingRef.current = true;
+      const layer = stageRef?.current?.getChildren(
+        (child) => child instanceof Konva.Layer && child.attrs.id === layerId
+      )?.[0] as Konva.Layer;
+      if (
+        (
+          layer?.children?.find(
+            (child) =>
+              child instanceof Konva.Group && child.attrs.id == "sketch-image"
+          ) as Konva.Group
+        )?.children?.length > 0
+      ) {
+        undoHistory.current = [...undoHistory.current, state.current[layerId]];
+        redoHistory.current = [];
+        setImage(undefined, layerId);
+        setLayerImage({
+          parent: layer,
+          dispatch,
+        });
+        dispatchHistoryEvent({ label: "Clear Sketch", layerId });
+      }
+      isDrawingRef.current = false;
+
+      consumeBuffer();
     }
   };
 
   const topic = "canvas/sketch";
 
+  const drawingBuffer = useRef<
+    { operation: "draw" | "clear" | "undo" | "redo"; args: any[] }[]
+  >([]);
+
+  const isDrawingRef = useRef(false);
+
+  const consumeBuffer = () => {
+    if (drawingBuffer.current.length) {
+      const [firstBufferItem, ...rest] = drawingBuffer.current;
+      drawingBuffer.current = rest;
+
+      const { operation, args = [] } = firstBufferItem;
+      switch (operation) {
+        case "undo":
+          undo(...args);
+          break;
+        case "redo":
+          redo(...args);
+          break;
+        case "draw":
+          setLayerState(...args);
+          break;
+        case "clear":
+          clearLayer(...args);
+          break;
+        default:
+          break;
+      }
+    }
+  };
+
   const undo = async (layerId: string) => {
-    if (undoHistory.length) {
-      setRedoHistory((redoHistory) => [...redoHistory, state[layerId]]);
+    if (undoHistory.current.length) {
+      if (isDrawingRef.current) {
+        drawingBuffer.current = [
+          ...drawingBuffer.current,
+          { operation: "undo", args: [layerId] },
+        ];
+      } else {
+        isDrawingRef.current = true;
 
-      const historyItem = undoHistory[undoHistory.length - 1];
-      setImage(historyItem, layerId);
-      const layer = stageRef?.current?.getChildren(
-        (child) => child instanceof Konva.Layer && child.attrs.id === layerId
-      )?.[0] as Konva.Layer;
+        redoHistory.current = [...redoHistory.current, state.current[layerId]];
 
-      setLayerImage({
-        historyItem,
-        parent: layer,
-        dispatch,
-      });
+        const historyItem = undoHistory.current[undoHistory.current.length - 1];
 
-      setUndoHistory((undoHistory) => undoHistory.slice(0, -1));
+        setImage(historyItem, layerId);
+
+        undoHistory.current = undoHistory.current.slice(0, -1);
+
+        const layer = stageRef?.current?.getChildren(
+          (child) => child instanceof Konva.Layer && child.attrs.id === layerId
+        )?.[0] as Konva.Layer;
+
+        await setLayerImage({
+          historyItem,
+          parent: layer,
+          dispatch,
+        });
+        isDrawingRef.current = false;
+
+        consumeBuffer();
+      }
     }
   };
 
   const redo = async (layerId: string) => {
-    if (redoHistory.length) {
-      setUndoHistory((undoHistory) => [...undoHistory, state[layerId]]);
+    if (redoHistory.current.length) {
+      if (isDrawingRef.current) {
+        drawingBuffer.current = [
+          ...drawingBuffer.current,
+          { operation: "redo", args: [layerId] },
+        ];
+      } else {
+        isDrawingRef.current = true;
 
-      const historyItem = redoHistory[redoHistory.length - 1];
-      setImage(historyItem, layerId);
-      const layer = stageRef?.current?.getChildren(
-        (child) => child instanceof Konva.Layer && child.attrs.id === layerId
-      )?.[0] as Konva.Layer;
+        undoHistory.current = [...undoHistory.current, state.current[layerId]];
 
-      setLayerImage({
-        historyItem,
-        parent: layer,
-        dispatch,
-      });
+        const historyItem = redoHistory.current[redoHistory.current.length - 1];
+        setImage(historyItem, layerId);
 
-      setRedoHistory((redoHistory) => redoHistory.slice(0, -1));
+        redoHistory.current = redoHistory.current.slice(0, -1);
+
+        const layer = stageRef?.current?.getChildren(
+          (child) => child instanceof Konva.Layer && child.attrs.id === layerId
+        )?.[0] as Konva.Layer;
+
+        await setLayerImage({
+          historyItem,
+          parent: layer,
+          dispatch,
+        });
+        isDrawingRef.current = false;
+
+        consumeBuffer();
+      }
     }
   };
 
-  useCustomEventListener("custom-undo", (historyItem: HistoryItem) => {
+  const handleUndoEvent = async (historyItem: HistoryItem) => {
     if (historyItem.topic.startsWith(topic)) {
-      undo(historyItem.topic.replace(topic, ""));
+      await undo(historyItem.topic.replace(topic, ""));
     }
-  });
-  useCustomEventListener("custom-redo", (historyItem: HistoryItem) => {
+  };
+  useCustomEventListener("custom-undo", handleUndoEvent);
+
+  const handleRedoEvent = async (historyItem: HistoryItem) => {
     if (historyItem.topic.startsWith(topic)) {
-      redo(historyItem.topic.replace(topic, ""));
+      await redo(historyItem.topic.replace(topic, ""));
     }
-  });
+  };
+
+  useCustomEventListener("custom-redo", handleRedoEvent);
 
   const addLayerImage = async ({
     imageItem,
@@ -264,7 +321,7 @@ function useLayerState({ stageRef }: Props) {
       })) ?? "";
     // parent?.clearCache();
     // stageRef?.current?.scale(oldStageScale);
-    debugImage(layerDataUrl, "test");
+    // debugImage(layerDataUrl, "test");
     clonedLayer.destroy();
     setLayerState({
       dataUrl: layerDataUrl,

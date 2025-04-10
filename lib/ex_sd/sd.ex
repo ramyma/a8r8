@@ -166,6 +166,10 @@ defmodule ExSd.Sd do
     broadcast_data_item("loras_with_metadata", lora_with_metadata)
   end
 
+  def broadcast_comfy_manager_status(status) do
+    broadcast_data("comfy_manager_status", status)
+  end
+
   defp ls_r!(path) do
     cond do
       File.regular?(path) ->

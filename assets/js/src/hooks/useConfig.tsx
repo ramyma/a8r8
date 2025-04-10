@@ -34,6 +34,7 @@ const useConfig = ({ fetchPolicy }: Props = {}) => {
     fetchData,
     data: config,
     isFetching,
+    fetched,
   } = useData<AppConfig>({
     name: "config",
     fetchPolicy,
@@ -42,7 +43,7 @@ const useConfig = ({ fetchPolicy }: Props = {}) => {
     },
   });
 
-  return { config, fetchData, isFetching };
+  return { config, fetchData, isFetching, fetched };
 };
 
 export default useConfig;

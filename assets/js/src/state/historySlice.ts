@@ -11,6 +11,7 @@ export type HistoryTopic =
 export type HistoryItem = {
   label: string;
   topic: HistoryTopic;
+  metadata?: { id: string };
 };
 
 interface StatsState {

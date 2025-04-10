@@ -275,8 +275,20 @@ defmodule ExSd.Sd.SdService do
     %{images: images_base64, attrs: attrs, dimensions: dimensions, flow: flow} = result
 
     if images_base64 do
-      # mask_image = ImageService.image_from_dataurl(flow.generation_params.mask)
-      mask_image = flow.mask_image
+      blur = Map.get(attrs, "mask_blur", 0)
+
+      # use original mask and add a blur to blend in results without the grow portion
+      # to have better inpainting result composite
+      mask_image =
+        ImageService.image_from_dataurl(flow.generation_params.mask)
+        |> then(
+          &if(blur > 0,
+            do: Image.blur!(&1, sigma: blur),
+            else: &1
+          )
+        )
+
+      # mask_image = flow.mask_image
 
       mask_image_average =
         mask_image
@@ -607,6 +619,10 @@ defmodule ExSd.Sd.SdService do
 
   @spec get_ip_adapter_weight_types(backend()) :: {:error, any} | {:ok, list(binary())}
   def get_ip_adapter_weight_types(:comfy), do: ComfyClient.get_ip_adapter_weight_types()
+
+  @spec get_extensions(backend()) :: {:error, any} | {:ok, map()}
+  def get_extensions(:comfy), do: ComfyClient.get_extensions()
+  def get_extensions(_backend), do: {:ok, []}
 
   @spec get_models(backend()) :: {:error, any} | {:ok, any}
   def get_models(:auto), do: AutoClient.get_models()

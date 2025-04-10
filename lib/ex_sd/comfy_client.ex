@@ -16,6 +16,7 @@ defmodule ExSd.ComfyClient do
 
     generation_params =
       if Regex.match?(~r/flux/i, attrs["model"]) do
+        Logger.info("Flux model detected")
         ComfyPrompt.flux_txt2img(generation_params, attrs)
       else
         ComfyPrompt.txt2img(generation_params, attrs)
@@ -212,6 +213,7 @@ defmodule ExSd.ComfyClient do
 
       controlnet_preprocessors =
         preprocessors_node
+        |> then(&(&1 || [[]]))
         |> List.first()
         |> Enum.filter(&(&1 != "none"))
         |> List.insert_at(0, "InpaintPreprocessor")
@@ -248,6 +250,7 @@ defmodule ExSd.ComfyClient do
       models =
         body
         |> get_in(["IPAdapterUnifiedLoader", "input", "required", "preset"])
+        |> then(&(&1 || [[]]))
         |> List.first()
 
       {:ok, models}
@@ -264,6 +267,7 @@ defmodule ExSd.ComfyClient do
       models =
         body
         |> get_in(["IPAdapterAdvanced", "input", "required", "weight_type"])
+        |> then(&(&1 || [[]]))
         |> List.first()
 
       {:ok, models}
@@ -467,6 +471,73 @@ defmodule ExSd.ComfyClient do
     end
   end
 
+  @spec get_extensions() :: {:error, any()} | {:ok, map()}
+  def get_extensions() do
+    with response <- get("/customnode/installed", timeout: 2_000),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  @spec queue_install_extension(binary()) :: {:error, any()} | {:ok, map()}
+  def queue_install_extension(ext_id) do
+    Logger.info("Queuing #{ext_id} for install")
+
+    with response <-
+           post("/manager/queue/install", %{
+             id: ext_id,
+             version: "latest",
+             channel: "default",
+             # cache, remote
+             mode: "cache",
+             skip_post_install: false
+           }),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  @spec start_install_queue() :: {:error, any()} | {:ok, map()}
+  def start_install_queue() do
+    Logger.info("Starting manager queue")
+
+    with response <-
+           get("/manager/queue/start"),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  @spec get_manager_queue_status() :: {:error, any()} | {:ok, map()}
+  def get_manager_queue_status() do
+    Logger.info("Starting manager queue")
+
+    with response <-
+           get("/manager/queue/status"),
+         {:ok, body} <- handle_response(response) do
+      {:ok, body}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  @spec restart() :: :ok
+  def restart() do
+    get("/manager/reboot", timeout: 1_000)
+
+    :ok
+  end
+
   def get_png_info(png_data_url) do
     with response <- post("/png-info", %{image: png_data_url}),
          {:ok, body} <- handle_response(response) do
@@ -491,7 +562,11 @@ defmodule ExSd.ComfyClient do
   defp handle_response(resp) do
     case resp do
       {:ok, %{body: body, status: status}} when status >= 200 and status < 400 ->
-        {:ok, body}
+        if body == "" do
+          {:ok, %{}}
+        else
+          {:ok, body |> JSON.decode!()}
+        end
 
       _ ->
         handle_error(resp)
@@ -533,8 +608,21 @@ defmodule ExSd.ComfyClient do
 
     case Finch.build(:get, "#{base_url}#{url}")
          |> Finch.request(ExSd.Finch, receive_timeout: timeout) do
-      {:ok, response} -> {:ok, %{response | body: Jason.decode!(response.body)}}
-      response -> response
+      # {:ok, response} when response == "" ->
+      #   {:error, "not found"}
+
+      # {:ok,
+      #  response = %Finch.Response{
+      #    status: 404
+      #  }} ->
+      #   {:error, "not found"}
+
+      # {:ok, response} ->
+      #   IO.inspect(response, label: "response")
+      #   {:ok, %{response | body: Jason.decode!(response.body)}}
+
+      response ->
+        response
     end
   end
 

@@ -26,11 +26,11 @@ const ScrollArea = forwardRef(
   ) =>
     scroll ? (
       <RadixScrollArea.Root
-        className={twMerge("w-full h-full flex-1 rounded-xs", className)}
+        className={twMerge("w-full h-full flex-1 rounded-xs ", className)}
         {...rest}
       >
         <RadixScrollArea.Viewport
-          className="size-full rounded-xs min-w-[auto]! *:block!"
+          className="size-full rounded-xs min-w-[auto]! *:block!  *:flex-1!  flex flex-col"
           ref={ref}
           {...viewportProps}
         >

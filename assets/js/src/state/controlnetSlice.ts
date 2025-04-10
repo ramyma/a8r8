@@ -34,22 +34,27 @@ export type ImageItem = {
   height?: number;
   scale?: number;
 };
+export type InstantIdKeypointMode = "sameAsImage" | "useVisible" | "override";
 type ControlnetUi = {
   detectionImage?: string;
   imagePosition: Vector2d;
   imageDimensions: { width: number; height: number };
-  overrideBaseLayer: boolean;
+  overrideVisible: boolean;
+  overrideVisibleForInstantIdKeypoints?: boolean;
+  keypointsMode: InstantIdKeypointMode;
   lines: BrushStroke[];
   maskLines: BrushStroke[];
   isVisible: boolean;
   isMaskVisible: boolean;
   isMaskEnabled: boolean;
   image?: ImageItem | string | null;
+  image_kps?: ImageItem | string | null;
   mask_image?: string | null;
   maskColor?: string;
   weight_type?: keyof typeof weightTypesByName;
   composition_weight?: number;
   isIpAdapter: boolean;
+  isInstantId: boolean;
   is_union: boolean;
   iPAdapterModel?: string;
   iPAdapterWeightType?: string;
@@ -59,6 +64,8 @@ export type ControlnetLayer = {
   id?: string;
   model: string;
   weight: number;
+  instant_id_ip_weight?: number;
+  instant_id_noise?: number;
   resize_mode: ControlnetResizeMode;
   low_vram?: boolean;
   guidance_start: number;
@@ -86,7 +93,7 @@ const controlnetLayerInitialState: ControlnetLayer = {
   guidance_start: 0,
   guidance_end: 1,
   isEnabled: false,
-  overrideBaseLayer: false,
+  overrideVisible: false,
   lines: [],
   maskLines: [],
   isVisible: true,
@@ -96,6 +103,7 @@ const controlnetLayerInitialState: ControlnetLayer = {
   control_mode: "Balanced",
   maskColor: "#FFFFFF",
   isIpAdapter: false,
+  isInstantId: false,
   is_union: false,
   union_type: "auto",
 };
@@ -103,14 +111,6 @@ const initialState: ControlnetState = {
   layers: [
     {
       id: "0",
-      ...controlnetLayerInitialState,
-    },
-    {
-      id: "1",
-      ...controlnetLayerInitialState,
-    },
-    {
-      id: "2",
       ...controlnetLayerInitialState,
     },
   ],
@@ -153,6 +153,25 @@ export const controlnetSlice = createSlice({
       state.layers[state.layers.length] = {
         id,
         ...controlnetLayerInitialState,
+      };
+    },
+    addInstantIdLayer: (state, action: PayloadAction<string>) => {
+      const id = action.payload;
+      state.layers[state.layers.length] = {
+        id,
+        ...controlnetLayerInitialState,
+        isInstantId: true,
+        keypointsMode: "sameAsImage",
+        instant_id_ip_weight: 0.8,
+        weight: 0.8,
+      };
+    },
+    addIpAdapterLayer: (state, action: PayloadAction<string>) => {
+      const id = action.payload;
+      state.layers[state.layers.length] = {
+        id,
+        ...controlnetLayerInitialState,
+        isIpAdapter: true,
       };
     },
     removeControlnetLayer: (state, action: PayloadAction<string>) => {
@@ -199,6 +218,8 @@ export const {
   updateControlnetLayer,
   setDetectionImage,
   addControlnetLayer,
+  addInstantIdLayer,
+  addIpAdapterLayer,
   removeControlnetLayer,
 } = controlnetSlice.actions;
 
@@ -224,5 +245,11 @@ export const selectControlnetLayerById = (
 ) => {
   return state.controlnet.layers.find((layer) => layer.id === id);
 };
+
+export const selectActiveInstantIdLayersCount = (state: RootState) =>
+  state.controlnet.layers.reduce(
+    (acc, layer) => (layer.isInstantId && layer.isEnabled ? acc + 1 : acc),
+    0
+  );
 
 export default controlnetSlice.reducer;
