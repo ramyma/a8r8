@@ -569,19 +569,34 @@ defmodule ExSd.Sd.ComfyPrompt do
             ""
           )
       )
+      |> add_mask_image_loader(
+        name: "image_to_mask",
+        base64_image:
+          String.replace(
+            generation_params.mask,
+            ~r/data:image\S+;base64,/i,
+            ""
+          ),
+        scale?: generation_params.hr_scale != 1,
+        scaled_width: generation_params.width,
+        scaled_height: generation_params.height
+      )
       |> add_upscale_model_loader(generation_params.hr_upscaler, "upscaler")
-      |> add_image_upscale_with_model("upscale_with_model",
-        upscale_model:
-          node_ref(
-            "upscaler",
-            0
-          ),
-        image:
-          node_ref(
-            "image_input",
-            0
-          ),
-        add: generation_params.hr_upscaler != "Latent"
+      |> then(
+        &add_image_upscale_with_model(&1, "upscale_with_model",
+          upscale_model:
+            node_ref(
+              "upscaler",
+              0
+            ),
+          image:
+            get_lookup_value(
+              &1,
+              "image_input",
+              "IMAGE"
+            ),
+          add: generation_params.hr_upscaler != "Latent"
+        )
       )
       |> then(
         &maybe_add_image_scale(
@@ -592,11 +607,19 @@ defmodule ExSd.Sd.ComfyPrompt do
             (generation_params.hr_upscaler != "None" && generation_params.hr_upscaler != "Latent"),
           image:
             if(generation_params.hr_upscaler == "None" or generation_params.hr_scale < 1,
-              do: node_ref("image_input", 0),
+              do: get_lookup_value(&1, "image_input", "IMAGE"),
               else: get_lookup_value(&1, "upscale_with_model", "IMAGE")
             ),
           width: generation_params.width,
           height: generation_params.height
+        )
+      )
+      |> then(
+        &maybe_add_fill_masked_area(&1,
+          image: get_lookup_value(&1, "scaler", "IMAGE"),
+          fill_method: Map.get(attrs, "fill_method"),
+          mask: get_lookup_value(&1, "image_to_mask", "scaled_mask"),
+          seed: seed
         )
       )
       |> then(
@@ -636,7 +659,7 @@ defmodule ExSd.Sd.ComfyPrompt do
       # )
       |> then(
         &add_img2img_vae_encode(&1,
-          pixels: get_lookup_value(&1, "scaler", "IMAGE"),
+          pixels: get_lookup_value(&1, "fill_masked_area", "IMAGE"),
           vae: get_vae(attrs),
           name: "img2img_vae_encode",
           batch_size: generation_params.batch_size,
@@ -650,25 +673,26 @@ defmodule ExSd.Sd.ComfyPrompt do
         )
       )
       |> add_upscale_model_loader(generation_params.hr_upscaler, "upscaler")
-      |> add_image_loader(
-        name: "mask_base64",
-        base64_image:
-          String.replace(
-            generation_params.mask,
-            ~r/data:image\S+;base64,/i,
-            ""
-          )
-      )
-      |> add_node(
-        node("image_to_mask", "ImageToMask", %{
-          channel: "red",
-          image:
-            node_ref(
-              "mask_base64",
-              0
-            )
-        })
-      )
+
+      # |> add_image_loader(
+      #   name: "mask_base64",
+      #   base64_image:
+      #     String.replace(
+      #       generation_params.mask,
+      #       ~r/data:image\S+;base64,/i,
+      #       ""
+      #     )
+      # )
+      # |> add_node(
+      #   node("image_to_mask", "ImageToMask", %{
+      #     channel: "red",
+      #     image:
+      #       node_ref(
+      #         "mask_base64",
+      #         0
+      #       )
+      #   })
+      # )
       # |> add_node(
       #   node("inpaint_model_conditioning", "InpaintModelConditioning", %{
       #     positive:
@@ -1020,7 +1044,7 @@ defmodule ExSd.Sd.ComfyPrompt do
           attrs,
           controlnet_args,
           add_condition: has_ultimate_upscale,
-          upscaled_image: get_lookup_value(&1, "scaler", "IMAGE")
+          upscaled_image: get_lookup_value(&1, "fill_masked_area", "IMAGE")
         )
       )
 
@@ -1195,19 +1219,34 @@ defmodule ExSd.Sd.ComfyPrompt do
             ""
           )
       )
+      |> add_mask_image_loader(
+        name: "mask",
+        base64_image:
+          String.replace(
+            generation_params.mask,
+            ~r/data:image\S+;base64,/i,
+            ""
+          ),
+        scale?: generation_params.hr_scale != 1,
+        scaled_width: generation_params.width,
+        scaled_height: generation_params.height
+      )
       |> add_upscale_model_loader(generation_params.hr_upscaler, "upscaler")
-      |> add_image_upscale_with_model("upscale_with_model",
-        upscale_model:
-          node_ref(
-            "upscaler",
-            0
-          ),
-        image:
-          node_ref(
-            "image_input",
-            0
-          ),
-        add: generation_params.hr_upscaler != "Latent"
+      |> then(
+        &add_image_upscale_with_model(&1, "upscale_with_model",
+          upscale_model:
+            node_ref(
+              "upscaler",
+              0
+            ),
+          image:
+            get_lookup_value(
+              &1,
+              "image_input",
+              "IMAGE"
+            ),
+          add: generation_params.hr_upscaler != "Latent"
+        )
       )
       |> then(
         &maybe_add_image_scale(
@@ -1218,11 +1257,19 @@ defmodule ExSd.Sd.ComfyPrompt do
             (generation_params.hr_upscaler != "None" && generation_params.hr_upscaler != "Latent"),
           image:
             if(generation_params.hr_upscaler == "None" or generation_params.hr_scale < 1,
-              do: node_ref("image_input", 0),
+              do: get_lookup_value(&1, "image_input", "IMAGE"),
               else: get_lookup_value(&1, "upscale_with_model", "IMAGE")
             ),
           width: generation_params.width,
           height: generation_params.height
+        )
+      )
+      |> then(
+        &maybe_add_fill_masked_area(&1,
+          image: get_lookup_value(&1, "scaler", "IMAGE"),
+          fill_method: Map.get(attrs, "fill_method"),
+          mask: get_lookup_value(&1, "mask", "scaled_mask"),
+          seed: generation_params.seed
         )
       )
       |> then(
@@ -1235,15 +1282,6 @@ defmodule ExSd.Sd.ComfyPrompt do
           upscaled_image: get_lookup_value(&1, "scaler", "IMAGE")
         )
       )
-      |> add_mask_image_loader(
-        name: "mask",
-        base64_image:
-          String.replace(
-            generation_params.mask,
-            ~r/data:image\S+;base64,/i,
-            ""
-          )
-      )
       |> add_node(
         node("negative_prompt", "ConditioningZeroOut", %{
           conditioning: node_ref("flux_guidance", 0)
@@ -1251,7 +1289,7 @@ defmodule ExSd.Sd.ComfyPrompt do
       )
       |> then(
         &add_img2img_vae_encode(&1,
-          pixels: get_lookup_value(&1, "scaler", "IMAGE"),
+          pixels: get_lookup_value(&1, "fill_masked_area", "IMAGE"),
           vae: node_ref("vae", 0),
           name: "img2img_vae_encode",
           batch_size: generation_params.batch_size,
@@ -1340,23 +1378,24 @@ defmodule ExSd.Sd.ComfyPrompt do
           0
         )
       )
-      |> then(
-        &add_node(
-          &1,
-          node("save", "SaveImage", %{
-            "filename_prefix" => "A8R8",
-            "images" =>
-              node_ref(
-                if(
-                  has_ultimate_upscale,
-                  do: "ultimate_upscale",
-                  else: "vae_decode"
-                ),
-                0
-              )
-          })
-        )
-      )
+
+    # |> then(
+    #   &add_node(
+    #     &1,
+    #     node("save", "SaveImage", %{
+    #       "filename_prefix" => "A8R8",
+    #       "images" =>
+    #         node_ref(
+    #           if(
+    #             has_ultimate_upscale,
+    #             do: "ultimate_upscale",
+    #             else: "vae_decode"
+    #           ),
+    #           0
+    #         )
+    #     })
+    #   )
+    # )
 
     # File.write!("./prompt.json", Jason.encode!(prompt, pretty: true))
 
@@ -1390,7 +1429,7 @@ defmodule ExSd.Sd.ComfyPrompt do
     first_pass_image_ref = Keyword.get(options, :image)
 
     positive_loras = Keyword.get(options, :positive_loras, [])
-    is_skimmed_cfg_enabled = Keyword.get(options, :positive_loras, false)
+    is_skimmed_cfg_enabled = Keyword.get(options, :is_skimmed_cfg_enabled, false)
 
     prompt
     |> add_image_upscale_with_model("fullscale_upscale_with_model",
@@ -1966,14 +2005,14 @@ defmodule ExSd.Sd.ComfyPrompt do
             | {:base64_image, binary()}
           ]
         ) :: prompt()
-  @spec add_image_loader(%{
-          prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}
-        }) :: %{prompt: %{optional(binary()) => %{class_type: binary(), inputs: map()}}}
   def add_image_loader(prompt, options \\ []) do
+    name = Keyword.get(options, :name)
+
     node =
-      node(Keyword.get(options, :name), "Base64ImageInput", %{
+      node(name, "Base64ImageInput", %{
         base64_image: Keyword.get(options, :base64_image)
       })
+      |> add_node_output("IMAGE", node_ref(name, 0))
 
     add_node(prompt, node)
   end
@@ -1983,20 +2022,52 @@ defmodule ExSd.Sd.ComfyPrompt do
           [
             {:name, binary()}
             | {:base64_image, binary()}
+            | {:scale?, boolean()}
+            | {:scaled_width, pos_integer()}
+            | {:scaled_height, pos_integer()}
           ]
         ) :: prompt()
   def add_mask_image_loader(prompt, options \\ []) do
-    image_to_mask_name = Keyword.get(options, :name)
-    image_loader_name = "#{image_to_mask_name}_image_loader"
+    name = Keyword.get(options, :name)
+    image_loader_name = "#{name}_image_loader"
+
+    scale_mask = Keyword.get(options, :scale?, false)
+    scaled_image_to_mask_name = "scaled_#{name}"
 
     image_to_mask_node =
-      node(image_to_mask_name, "ImageToMask", %{
+      node(name, "ImageToMask", %{
         image: node_ref(image_loader_name, 0),
         channel: "red"
       })
 
-    add_image_loader(prompt, Keyword.put(options, :name, image_loader_name))
-    |> add_node(image_to_mask_node)
+    scaled_image_to_mask_node =
+      node(scaled_image_to_mask_name, "ImageToMask", %{
+        image: node_ref("#{name}_mask_scaler", 0),
+        channel: "red"
+      })
+
+    prompt =
+      prompt
+      |> add_image_loader(
+        name: image_loader_name,
+        base64_image: Keyword.get(options, :base64_image)
+      )
+      |> maybe_add_image_scale(
+        %GenerationParams{},
+        "#{name}_mask_scaler",
+        scale_mask,
+        image: node_ref(image_loader_name, 0),
+        width: Keyword.get(options, :scaled_width),
+        height: Keyword.get(options, :scaled_height)
+      )
+      |> add_node(image_to_mask_node)
+      |> add_node(scaled_image_to_mask_node, scale_mask)
+
+    prompt
+    |> add_lookup(name, %{
+      "mask" => node_ref(name, 0),
+      "scaled_mask" => node_ref(if(scale_mask, do: scaled_image_to_mask_name, else: name), 0)
+    })
   end
 
   @spec maybe_add_image_loader(prompt(), boolean(), keyword()) :: prompt()
@@ -2158,7 +2229,8 @@ defmodule ExSd.Sd.ComfyPrompt do
               if(entry.pixel_perfect,
                 do: min(generation_params.width, generation_params.height),
                 else: entry.processor_res
-              )
+              ),
+            model: entry.model
           )
         end)
 
@@ -2516,14 +2588,24 @@ defmodule ExSd.Sd.ComfyPrompt do
           prompt(),
           non_neg_integer(),
           binary(),
-          [{:add_condition, boolean()} | {:name, binary()} | {:resolution, non_neg_integer()}]
+          [
+            {:add_condition, boolean()}
+            | {:name, binary()}
+            | {:resolution, non_neg_integer()}
+            | {:model, binary()}
+          ]
         ) ::
           prompt()
   def maybe_add_controlnet_preprocessor(prompt, index, class_type, options) do
     if Keyword.get(options, :add_condition) do
       add_node(
         prompt,
-        controlnet_preprocessor(index, class_type, Keyword.delete(options, :add_condition))
+        controlnet_preprocessor(
+          index,
+          class_type,
+          Keyword.delete(options, :add_condition)
+          |> Keyword.put(:model, Keyword.get(options, :model))
+        )
       )
     else
       prompt
@@ -2531,7 +2613,7 @@ defmodule ExSd.Sd.ComfyPrompt do
   end
 
   @spec controlnet_preprocessor(non_neg_integer(), binary(), [
-          {:name, binary()} | {:resolution, non_neg_integer()}
+          {:name, binary()} | {:resolution, non_neg_integer()} | {:model, binary()}
         ]) :: comfy_node()
   def controlnet_preprocessor(index, class_type, options \\ [])
 
@@ -2587,7 +2669,8 @@ defmodule ExSd.Sd.ComfyPrompt do
         node_ref(
           "image_to_mask",
           0
-        )
+        ),
+      black_pixel_for_xinsir_cn: Regex.match?(~r/(unioin|xin.*sir)/, Keyword.get(options, :model))
     })
   end
 
@@ -2858,6 +2941,110 @@ defmodule ExSd.Sd.ComfyPrompt do
         _add_condition,
         _options
       ) do
+    prompt
+  end
+
+  @spec maybe_add_fill_masked_area(prompt(), [
+          {:name, binary()}
+          | {:add, boolean()}
+          | {:image, ref_node_value()}
+          | {:mask, ref_node_value()}
+          | {:fill_method, binary()}
+          | {:seed, binary()}
+        ]) :: prompt()
+  def maybe_add_fill_masked_area(prompt, options \\ []) do
+    name = Keyword.get(options, :name, "fill_masked_area")
+    image = Keyword.get(options, :image)
+    mask = Keyword.get(options, :mask)
+    fill_method = Keyword.get(options, :fill_method, "original")
+    seed = Keyword.get(options, :seed)
+
+    prompt =
+      case fill_method do
+        "original" ->
+          prompt |> add_lookup(name, %{"IMAGE" => image})
+
+        "neutral" ->
+          prompt
+          |> add_node(
+            node(name, "INPAINT_MaskedFill", %{
+              image: image,
+              fill: "neutral",
+              mask: mask,
+              falloff: 0
+            })
+          )
+          |> add_lookup(name, %{"IMAGE" => node_ref(name, 0)})
+
+        "blur" ->
+          prompt
+          |> add_node(
+            node(name, "INPAINT_MaskedBlur", %{
+              image: image,
+              mask: mask,
+              blur: 35,
+              falloff: 0
+            })
+          )
+          |> add_lookup(name, %{"IMAGE" => node_ref(name, 0)})
+
+        "mat" ->
+          prompt
+          |> add_node(
+            node("#{name}_inpaint_model", "INPAINT_LoadInpaintModel", %{
+              model_name: "MAT_Places512_G_fp16.safetensors"
+              # "Places_512_FullData_G.pth",
+              # "big-lama.pt",
+            })
+          )
+          |> add_node(
+            node(name, "INPAINT_InpaintWithModel", %{
+              inpaint_model: node_ref("#{name}_inpaint_model", 0),
+              image: image,
+              mask: mask,
+              seed: seed
+            })
+          )
+          |> add_lookup(name, %{"IMAGE" => node_ref(name, 0)})
+
+        "mat_full" ->
+          prompt
+          |> add_node(
+            node("#{name}_inpaint_model", "INPAINT_LoadInpaintModel", %{
+              model_name: "Places_512_FullData_G.pth"
+            })
+          )
+          |> add_node(
+            node(name, "INPAINT_InpaintWithModel", %{
+              inpaint_model: node_ref("#{name}_inpaint_model", 0),
+              image: image,
+              mask: mask,
+              seed: seed
+            })
+          )
+          |> add_lookup(name, %{"IMAGE" => node_ref(name, 0)})
+
+        "lama" ->
+          prompt
+          |> add_node(
+            node("#{name}_inpaint_model", "INPAINT_LoadInpaintModel", %{
+              model_name: "big-lama.pt"
+            })
+          )
+          |> add_node(
+            node(name, "INPAINT_InpaintWithModel", %{
+              inpaint_model: node_ref("#{name}_inpaint_model", 0),
+              image: image,
+              mask: mask,
+              seed: seed
+            })
+          )
+          |> add_lookup(name, %{"IMAGE" => node_ref(name, 0)})
+
+        _ ->
+          prompt |> add_lookup(name, %{"IMAGE" => image})
+      end
+
     prompt
   end
 

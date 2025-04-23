@@ -47,12 +47,15 @@ export const emitImagePasteEvent = ({
 export const emitImageDropEvent = ({
   imageDataUrl,
   pngInfo,
+  layer,
 }: {
   imageDataUrl: string;
   pngInfo?: PngInfo;
+  layer?: ActiveLayer;
 }) => {
   emitCustomEvent("custom-dnd", {
     imageDataUrl,
+    layer,
     pngInfo,
   });
 };

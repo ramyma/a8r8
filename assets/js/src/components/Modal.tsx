@@ -63,7 +63,7 @@ const Modal = ({
       {isOpen && (
         <Portal.Root className="absolute w-screen h-screen">
           <motion.div
-            className="top-0 left-0 bg-black/50 backdrop-blur-sm absolute flex w-screen h-screen shadow-2xs shadow-black/90 align-middle justify-center items-center text-center z-40"
+            className="top-0 left-0 bg-black/50 backdrop-blur-[10px] absolute flex w-screen h-screen shadow-2xs shadow-black/90 align-middle justify-center items-center text-center z-40"
             onClick={handleOutsideClick}
             initial={{
               opacity: 0.6,

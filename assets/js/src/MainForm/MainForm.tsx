@@ -139,6 +139,7 @@ export type MainFormValues = {
   sampler_name: string;
   scheduler: string;
   denoising_strength?: number;
+  fill_method?: "original" | "neutral" | "blur" | "mat" | "mat_full" | "lama";
   width: number;
   height: number;
   scale: number;
@@ -496,6 +497,7 @@ const MainForm = () => {
       tiledDiffusion,
       ultimateUpscale,
       is_tea_cache_enabled,
+      fill_method,
       ...rest
     } = data;
 
@@ -899,6 +901,7 @@ const MainForm = () => {
       // ultimate_upscale: isUltimateUpscaleEnabled,
       clip_skip: clipSkip,
       layer: generationLayer,
+      ...(backend === "comfy" && !txt2img ? { fill_method } : {}),
     };
 
     // console.log(image, { attrs });
@@ -1299,21 +1302,47 @@ const MainForm = () => {
           rules={{ required: true }}
         />
         {!txt2img && (
-          <Controller
-            name="denoising_strength"
-            control={control}
-            // rules={{ required: true }}
-            render={({ field }) => (
-              <Slider
-                min={0}
-                max={1}
-                step={0.01}
-                label="Denoising Strength"
-                {...field}
-              />
+          <>
+            <Controller
+              name="denoising_strength"
+              control={control}
+              // rules={{ required: true }}
+              render={({ field }) => (
+                <Slider
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  label="Denoising Strength"
+                  {...field}
+                />
+              )}
+              defaultValue={0.7}
+            />
+            {backend === "comfy" && (
+              <div className="flex flex-col gap-2">
+                <Label /*htmlFor="inpainting_fill"*/>Fill Method</Label>
+                <Controller
+                  name="fill_method"
+                  control={control}
+                  defaultValue={"original"}
+                  render={({ field }) => (
+                    <Select
+                      items={[
+                        { value: "blur", label: "Blur" },
+                        { value: "lama", label: "LaMA" },
+                        { value: "mat", label: "MAT" },
+                        { value: "mat_full", label: "MAT Full" },
+                        { value: "neutral", label: "Neutral" },
+                        { value: "original", label: "Original" },
+                      ]}
+                      // placeholder="Select Fill Method"
+                      {...field}
+                    />
+                  )}
+                />
+              </div>
             )}
-            defaultValue={0.7}
-          />
+          </>
         )}
         <Controller
           name="cfg_scale"

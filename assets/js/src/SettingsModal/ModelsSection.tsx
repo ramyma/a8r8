@@ -7,7 +7,7 @@ import Select from "../components/Select";
 import ClipModelMultiSelect from "../MainForm/ClipModelMultiSelect";
 import Label from "../components/Label";
 import { ModelType } from "../App.d";
-import { Controller, SubmitHandler, useForm } from "react-hook-form";
+import { Controller, SubmitHandler, useForm, useWatch } from "react-hook-form";
 import useOptions from "../hooks/useOptions";
 import useSamplers from "../hooks/useSamplers";
 import useSchedulers from "../hooks/useSchedulers";
@@ -68,12 +68,16 @@ const ModelsSection = ({ open }) => {
     shouldUnregister: true,
     // defaultValues: getDefaultValues(defaultModelState),
   });
+  const values = useWatch({ control });
+
   const getDefaultValues = useCallback(
-    (modelState) => {
+    (modelState): ConfigFormValues => {
       const allowsAutomaticVae =
         modelState?.modelType !== "flux" && modelState?.modelType !== "sd3.5";
       return {
         model: {
+          steps: 20,
+          sampler_name: values.model?.sampler_name,
           ...modelState,
           vae:
             modelState.vae ??
@@ -81,10 +85,9 @@ const ModelsSection = ({ open }) => {
             (allowsAutomaticVae ? undefined : "Automatic"),
           clip_models: modelState.clip_models ?? [],
         },
-        civit: { api_token: "" },
       };
     },
-    [selectedVae]
+    [selectedVae, values]
   );
 
   const loadModelData = useCallback(
@@ -257,7 +260,7 @@ const ModelsSection = ({ open }) => {
               {...field}
             />
           )}
-          defaultValue={20}
+          defaultValue={defaultModelState?.steps}
           rules={{ required: true }}
         />
 
@@ -299,6 +302,7 @@ const ModelsSection = ({ open }) => {
           <Label>Sampler</Label>
           <Controller
             name="model.sampler_name"
+            rules={{ required: true }}
             control={control}
             render={({ field }) => (
               <Select items={samplers} shouldSetDefaultValue {...field} />

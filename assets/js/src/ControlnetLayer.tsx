@@ -156,10 +156,11 @@ const ControlnetLayerImages = ({
 
   const selectionBox = useAppSelector(selectSelectionBox);
 
-  const handleAddImage = ({ imageDataUrl }) => {
+  const handleAddImage = ({ imageDataUrl, layer }) => {
+    layer ??= activeLayer;
     if (
-      activeLayer.startsWith("controlnet") &&
-      activeLayer.replace("controlnet", "") === layerId
+      layer.startsWith("controlnet") &&
+      layer.replace("controlnet", "") === layerId
     ) {
       const image: ImageItem = {
         src: imageDataUrl,

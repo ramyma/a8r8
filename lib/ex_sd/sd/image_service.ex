@@ -36,8 +36,10 @@ defmodule ExSd.Sd.ImageService do
     image
   end
 
-  # Creates a mask image that fills the transparent parts with white.
   # , options \\ []) do
+  @doc """
+    Creates a mask image that fills the transparent parts with white.
+  """
   @spec fill_mask!(binary() | URI.t(), any(), any(), [{:mask_blur, non_neg_integer()}]) ::
           {:error, any()}
           | Vix.Vips.Image.t()
@@ -91,7 +93,6 @@ defmodule ExSd.Sd.ImageService do
 
         _ ->
           # blur the image mask if it's not an empty mask
-          # TODO: control mask blur dynamically
           # |> Image.feather!(sigma: 15)
           mask_blur = Keyword.get(options, :mask_blur, 6)
 
@@ -191,7 +192,6 @@ defmodule ExSd.Sd.ImageService do
 
     {:ok, grow_kernel} =
       Vix.Vips.Image.new_from_list([
-        [1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1],
         [1, 1, 1, 1, 1],

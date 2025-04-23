@@ -22,7 +22,6 @@ import {
   MouseEvent,
   MouseEventHandler,
   ReactNode,
-  useContext,
   useMemo,
   useRef,
   useState,
@@ -63,7 +62,6 @@ import {
   setGenerationLayer,
   setLayerName,
   selectLayersCount,
-  SketchLayerId,
 } from "./state/layersSlice";
 import Slider from "./components/Slider";
 import ScrollArea from "./components/ScrollArea";
@@ -93,7 +91,6 @@ import {
 import Button from "./components/Button";
 import { weightTypesByName } from "./MainForm/constants";
 import { checkIsIpAdapterControlnetModel, extractSketchLayerId } from "./utils";
-import RefsContext from "./context/RefsContext";
 import Popover from "./components/Popover";
 import Input from "./components/Input";
 import { selectIsGenerating } from "./state/statsSlice";
@@ -147,10 +144,8 @@ const LayerItem = ({
 }) => {
   const itemRef = useRef<HTMLLIElement>(null);
 
-  const { stageRef } = useContext(RefsContext);
-
   const dispatch = useAppDispatch();
-  const backend = useAppSelector(selectBackend);
+
   const controlnetLayer = useAppSelector((state) =>
     selectControlnetLayerById(state, subId)
   );
@@ -247,7 +242,7 @@ const LayerItem = ({
               const dataUrl = e.target.result;
               if (typeof dataUrl === "string") {
                 if (type === "sketch") {
-                  emitImageDropEvent({ imageDataUrl: dataUrl });
+                  emitImageDropEvent({ imageDataUrl: dataUrl, layer: id });
                 }
                 if (type === "controlnet")
                   dispatch(
