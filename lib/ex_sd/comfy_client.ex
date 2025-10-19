@@ -15,7 +15,7 @@ defmodule ExSd.ComfyClient do
     |> Logger.info()
 
     generation_params =
-      if Regex.match?(~r/flux/i, attrs["model"]) do
+      if Regex.match?(~r/flux/i, attrs["model"]) || attrs["model_type"] == "flux" do
         Logger.info("Flux model detected")
         ComfyPrompt.flux_txt2img(generation_params, attrs)
       else
@@ -41,7 +41,8 @@ defmodule ExSd.ComfyClient do
     Logger.debug(attrs)
 
     generation_params =
-      if Regex.match?(~r/flux/i, attrs["model"]) do
+      if Regex.match?(~r/flux/i, attrs["model"]) ||
+           String.contains?(String.downcase(attrs["model"]), "svdq") do
         Logger.info("Flux img2img")
         ComfyPrompt.flux_img2img(generation_params, attrs)
       else
@@ -233,7 +234,7 @@ defmodule ExSd.ComfyClient do
       types =
         body
         |> get_in(["SetUnionControlNetType", "input", "required", "type"])
-        |> List.first()
+        |> extract_combo_options()
         |> Enum.sort()
 
       {:ok, types}
@@ -306,6 +307,26 @@ defmodule ExSd.ComfyClient do
         )
 
       {:ok, unets}
+    else
+      {:error, _error} = res ->
+        res
+    end
+  end
+
+  def get_nunchaku_models() do
+    with response <- get("/object_info/NunchakuFluxDiTLoader"),
+         {:ok, body} <- handle_response(response),
+         response <-
+           body |> get_in(["NunchakuFluxDiTLoader", "input", "required", "model_path"]) do
+      models =
+        if(is_nil(response),
+          do: [],
+          else:
+            response
+            |> List.first()
+        )
+
+      {:ok, models}
     else
       {:error, _error} = res ->
         res
@@ -406,7 +427,8 @@ defmodule ExSd.ComfyClient do
         body
         |> get_in(["UpscaleModelLoader", "input", "required", "model_name"])
 
-      upscalers = if(is_nil(upscalers), do: [], else: upscalers |> List.first())
+      upscalers =
+        if(is_nil(upscalers), do: [], else: upscalers |> extract_combo_options())
 
       {:ok, upscalers}
     else
@@ -442,7 +464,7 @@ defmodule ExSd.ComfyClient do
   end
 
   def get_health() do
-    with response <- get("/a8r8/health", timeout: 1_500),
+    with response <- get("/a8r8/health", timeout: 20_000),
          {:ok, body} <- handle_response(response) do
       {:ok, body}
     else
@@ -662,5 +684,13 @@ defmodule ExSd.ComfyClient do
 
   def get_base_url() do
     Application.fetch_env!(:ex_sd, :comfy_client_base_url)
+  end
+
+  defp extract_combo_options(["COMBO", value]) do
+    value["options"]
+  end
+
+  defp extract_combo_options(value) do
+    value
   end
 end
